@@ -21,13 +21,15 @@ provider "aws" {
   }
 }
 
-# GitHub OIDC Provider
+# GitHub OIDC Provider - try to get existing one first
 data "aws_iam_openid_connect_provider" "github" {
-  url = "https://token.actions.githubusercontent.com"
+  count = var.create_github_oidc_provider ? 0 : 1
+  url   = "https://token.actions.githubusercontent.com"
 }
 
+# Create GitHub OIDC Provider if it doesn't exist or if explicitly requested
 resource "aws_iam_openid_connect_provider" "github" {
-  count = length(data.aws_iam_openid_connect_provider.github.arn) == 0 ? 1 : 0
+  count = var.create_github_oidc_provider ? 1 : 0
 
   url = "https://token.actions.githubusercontent.com"
 
@@ -46,7 +48,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 }
 
 locals {
-  github_oidc_arn = length(data.aws_iam_openid_connect_provider.github.arn) > 0 ? data.aws_iam_openid_connect_provider.github.arn : aws_iam_openid_connect_provider.github[0].arn
+  github_oidc_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 }
 
 # IAM Role for GitHub Actions ECR Push

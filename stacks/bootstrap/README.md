@@ -4,6 +4,15 @@ This stack creates the foundational GitHub OIDC IAM roles required for CI/CD ope
 
 ## Resources Created
 
+## Configuration
+
+### Variables
+
+- `environment`: Environment name (dev, qa, prod)
+- `aws_region`: AWS region (default: us-east-1)  
+- `project_name`: Project name (default: cluckin-bell)
+- `create_github_oidc_provider`: Whether to create GitHub OIDC provider (default: true, set to false if already exists)
+
 ### GitHub OIDC Provider
 - Creates or uses existing GitHub OIDC provider for AWS authentication
 - Configured with proper thumbprints for security
