@@ -1,4 +1,37 @@
 
+# Terraform files
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+*.tfstate
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Build artifacts
+build/
+dist/
+target/
+=======
+
 
 # Crash log files
 crash.log
@@ -18,4 +51,3 @@ Thumbs.db
 
 # Temporary files
 *.tmp
-

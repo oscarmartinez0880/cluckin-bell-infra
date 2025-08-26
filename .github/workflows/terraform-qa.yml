@@ -20,9 +20,9 @@ jobs:
   deploy:
     uses: ./.github/workflows/terraform-reusable.yml
     with:
-      working_directory: "."
+      working_directory: "stacks/bootstrap"
       aws_region: "us-east-1"
       apply: ${{ inputs.apply == 'true' }}
-      var_file: "env/qa.tfvars"
+      var_file: "../../env/qa.tfvars"
     secrets:
       terraform_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}

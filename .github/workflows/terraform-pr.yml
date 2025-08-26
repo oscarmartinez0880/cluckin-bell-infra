@@ -12,8 +12,9 @@ jobs:
   plan:
     uses: ./.github/workflows/terraform-reusable.yml
     with:
-      working_directory: "."
+      working_directory: "stacks/bootstrap"
       aws_region: "us-east-1"
       apply: false
+      var_file: "../../env/dev.tfvars"
     secrets:
       terraform_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
