@@ -1,5 +1,6 @@
 # Cluckin Bell Infrastructure
 
+
 This repository contains the complete infrastructure-as-code for the Cluckin Bell Sitecore 10.4 application on AWS EKS, supporting dev, qa, and prod environments.
 
 ## Infrastructure Architecture
@@ -80,3 +81,4 @@ This repository was migrated from a Kubernetes-focused setup and retains the fol
 2. Update secrets and values files with actual endpoints, ARNs, etc.
 3. Deploy manifests & Helm releases per environment
 4. Set up monitoring and dashboards
+=======
