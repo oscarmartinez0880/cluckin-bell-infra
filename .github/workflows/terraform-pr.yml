@@ -1,0 +1,19 @@
+name: Terraform PR Checks
+
+on:
+  pull_request:
+    branches: [ "develop", "staging", "main" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  plan:
+    uses: ./.github/workflows/terraform-reusable.yml
+    with:
+      working_directory: "."
+      aws_region: "us-east-1"
+      apply: false
+    secrets:
+      terraform_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
