@@ -1,4 +1,23 @@
 
+# Terraform files to ignore
+.terraform/
+*.tfplan
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# IDE specific files
+
 # Terraform files
 .terraform/
 .terraform.lock.hcl
@@ -17,6 +36,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Temporary files
+*.tmp
+
 # Logs
 *.log
 
@@ -30,7 +52,7 @@ pids
 build/
 dist/
 target/
-=======
+
 
 
 # Crash log files
