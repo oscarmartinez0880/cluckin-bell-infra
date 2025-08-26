@@ -1,13 +1,3 @@
-# Core infrastructure outputs
-output "environment" {
-  description = "Environment name"
-  value       = var.environment
-}
-
-output "project_name" {
-  description = "Project name"
-  value       = var.project_name
-}
 
 # TODO: Add outputs for your infrastructure resources
 # Examples:
@@ -34,3 +24,4 @@ output "project_name" {
 #   description = "GKE cluster name"
 #   value       = google_container_cluster.main.name
 # }
+
