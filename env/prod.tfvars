@@ -1,3 +1,4 @@
+
 # Production Environment Configuration
 environment = "prod"
 aws_region  = "us-east-1"
@@ -26,3 +27,6 @@ ecr_repositories = [
   "cm",
   "cd"
 ]
+
+environment = "prod"
+aws_region  = "us-east-1"

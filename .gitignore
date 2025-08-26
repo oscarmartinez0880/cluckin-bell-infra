@@ -1,3 +1,4 @@
+
 # Terraform files to ignore
 .terraform/
 *.tfplan
@@ -16,10 +17,59 @@ terraform.rc
 Thumbs.db
 
 # IDE specific files
+
+# Terraform files
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfplan
+*.tfstate
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+
+# Temporary files
+*.tmp
+
+# Logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Build artifacts
+build/
+dist/
+target/
+
+
+
+# Crash log files
+crash.log
+crash.*.log
+
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+*.log
 
 # Temporary files
 *.tmp

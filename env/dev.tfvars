@@ -1,3 +1,4 @@
+
 # Development Environment Configuration
 environment = "dev"
 aws_region  = "us-east-1"
@@ -26,3 +27,6 @@ ecr_repositories = [
   "cm",
   "cd"
 ]
+
+environment = "dev"
+aws_region  = "us-east-1"

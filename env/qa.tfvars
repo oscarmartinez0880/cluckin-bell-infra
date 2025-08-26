@@ -1,3 +1,4 @@
+
 # QA Environment Configuration
 environment = "qa"
 aws_region  = "us-east-1"
@@ -26,3 +27,5 @@ ecr_repositories = [
   "cm",
   "cd"
 ]
+environment = "qa"
+aws_region  = "us-east-1"
