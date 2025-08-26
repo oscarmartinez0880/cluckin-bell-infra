@@ -1,0 +1,34 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CluckinBellECRPullAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CluckinBellECRRepositoryAccess", 
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": [
+        "arn:aws:ecr:us-east-1:264765154707:repository/cluckin-bell-app",
+        "arn:aws:ecr:us-east-1:264765154707:repository/wingman-api",
+        "arn:aws:ecr:us-east-1:264765154707:repository/fryer-worker",
+        "arn:aws:ecr:us-east-1:264765154707:repository/sauce-gateway",
+        "arn:aws:ecr:us-east-1:264765154707:repository/clucker-notify",
+        "arn:aws:ecr:us-east-1:346746763840:repository/cluckin-bell-app",
+        "arn:aws:ecr:us-east-1:346746763840:repository/wingman-api",
+        "arn:aws:ecr:us-east-1:346746763840:repository/fryer-worker",
+        "arn:aws:ecr:us-east-1:346746763840:repository/sauce-gateway", 
+        "arn:aws:ecr:us-east-1:346746763840:repository/clucker-notify"
+      ]
+    }
+  ]
+}
