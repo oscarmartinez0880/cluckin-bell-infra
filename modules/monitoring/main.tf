@@ -1,0 +1,152 @@
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+# CloudWatch Log Groups
+resource "aws_cloudwatch_log_group" "log_groups" {
+  for_each = var.log_groups
+
+  name              = each.key
+  retention_in_days = lookup(each.value, "retention_in_days", 7)
+  kms_key_id        = lookup(each.value, "kms_key_id", null)
+
+  tags = merge(var.tags, lookup(each.value, "tags", {}))
+}
+
+# CloudWatch Dashboards
+resource "aws_cloudwatch_dashboard" "dashboards" {
+  for_each = var.dashboards
+
+  dashboard_name = each.key
+  dashboard_body = each.value.body
+}
+
+# CloudWatch Alarms
+resource "aws_cloudwatch_metric_alarm" "alarms" {
+  for_each = var.metric_alarms
+
+  alarm_name          = each.key
+  comparison_operator = each.value.comparison_operator
+  evaluation_periods  = each.value.evaluation_periods
+  metric_name         = each.value.metric_name
+  namespace           = each.value.namespace
+  period              = each.value.period
+  statistic           = lookup(each.value, "statistic", null)
+  threshold           = each.value.threshold
+  alarm_description   = lookup(each.value, "alarm_description", "This metric monitors ${each.value.metric_name}")
+  alarm_actions       = lookup(each.value, "alarm_actions", [])
+  ok_actions          = lookup(each.value, "ok_actions", [])
+
+  insufficient_data_actions = lookup(each.value, "insufficient_data_actions", [])
+  treat_missing_data        = lookup(each.value, "treat_missing_data", "missing")
+  datapoints_to_alarm       = lookup(each.value, "datapoints_to_alarm", null)
+
+  dynamic "metric_query" {
+    for_each = lookup(each.value, "metric_queries", [])
+    content {
+      id          = metric_query.value.id
+      return_data = lookup(metric_query.value, "return_data", null)
+
+      dynamic "metric" {
+        for_each = lookup(metric_query.value, "metric", null) != null ? [metric_query.value.metric] : []
+        content {
+          metric_name = metric.value.metric_name
+          namespace   = metric.value.namespace
+          period      = metric.value.period
+          stat        = metric.value.stat
+          unit        = lookup(metric.value, "unit", null)
+          dimensions  = lookup(metric.value, "dimensions", {})
+        }
+      }
+    }
+  }
+
+  dimensions = lookup(each.value, "dimensions", {})
+
+  tags = merge(var.tags, lookup(each.value, "tags", {}))
+}
+
+# SNS Topics for notifications
+resource "aws_sns_topic" "notification_topics" {
+  for_each = var.sns_topics
+
+  name         = each.key
+  display_name = lookup(each.value, "display_name", each.key)
+
+  kms_master_key_id = lookup(each.value, "kms_master_key_id", null)
+
+  tags = merge(var.tags, lookup(each.value, "tags", {}))
+}
+
+# SNS Topic Subscriptions
+resource "aws_sns_topic_subscription" "subscriptions" {
+  for_each = local.sns_subscriptions
+
+  topic_arn = aws_sns_topic.notification_topics[each.value.topic_key].arn
+  protocol  = each.value.protocol
+  endpoint  = each.value.endpoint
+
+  filter_policy = lookup(each.value, "filter_policy", null)
+}
+
+# CloudWatch Composite Alarms
+resource "aws_cloudwatch_composite_alarm" "composite_alarms" {
+  for_each = var.composite_alarms
+
+  alarm_name        = each.key
+  alarm_description = lookup(each.value, "alarm_description", "Composite alarm for ${each.key}")
+  alarm_rule        = each.value.alarm_rule
+
+  actions_enabled           = lookup(each.value, "actions_enabled", true)
+  alarm_actions             = lookup(each.value, "alarm_actions", [])
+  ok_actions                = lookup(each.value, "ok_actions", [])
+  insufficient_data_actions = lookup(each.value, "insufficient_data_actions", [])
+
+  tags = merge(var.tags, lookup(each.value, "tags", {}))
+}
+
+# CloudWatch Log Metric Filters
+resource "aws_cloudwatch_log_metric_filter" "metric_filters" {
+  for_each = var.log_metric_filters
+
+  name           = each.key
+  log_group_name = each.value.log_group_name
+  pattern        = each.value.pattern
+
+  metric_transformation {
+    name      = each.value.metric_transformation.name
+    namespace = each.value.metric_transformation.namespace
+    value     = each.value.metric_transformation.value
+    unit      = lookup(each.value.metric_transformation, "unit", "None")
+  }
+}
+
+# Application Insights
+resource "aws_applicationinsights_application" "applications" {
+  for_each = var.application_insights
+
+  resource_group_name = each.value.resource_group_name
+  auto_config_enabled = lookup(each.value, "auto_config_enabled", true)
+  auto_create         = lookup(each.value, "auto_create", true)
+  cwe_monitor_enabled = lookup(each.value, "cwe_monitor_enabled", true)
+
+  tags = merge(var.tags, lookup(each.value, "tags", {}))
+}
+
+# Local values for processing
+locals {
+  # Flatten SNS subscriptions
+  sns_subscriptions = merge([
+    for topic_key, topic_config in var.sns_topics : {
+      for idx, subscription in lookup(topic_config, "subscriptions", []) :
+      "${topic_key}-${idx}" => merge(subscription, {
+        topic_key = topic_key
+      })
+    }
+  ]...)
+}
