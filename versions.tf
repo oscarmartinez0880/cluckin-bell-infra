@@ -2,11 +2,12 @@ terraform {
   required_version = ">= 1.7.0"
 
   required_providers {
-    # TODO: Uncomment and configure providers based on your cloud platform
-    # aws = {
-    #   source  = "hashicorp/aws"
-    #   version = "~> 5.0"
-    # }
+    # AWS provider for CI runners infrastructure
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    # TODO: Uncomment additional providers as needed
     # azurerm = {
     #   source  = "hashicorp/azurerm"
     #   version = "~> 3.0"
@@ -18,11 +19,12 @@ terraform {
   }
 }
 
-# TODO: Configure provider blocks based on your cloud platform
-# provider "aws" {
-#   region = var.aws_region
-# }
+# AWS provider configuration for CI runners
+provider "aws" {
+  region = var.aws_region
+}
 
+# TODO: Configure additional provider blocks based on your cloud platform
 # provider "azurerm" {
 #   features {}
 # }

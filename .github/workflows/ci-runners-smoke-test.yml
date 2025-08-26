@@ -1,0 +1,204 @@
+name: CI Runners Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner_labels:
+        description: 'Runner labels to test'
+        required: false
+        default: 'self-hosted,windows,x64,windows-containers'
+        type: string
+  schedule:
+    # Run smoke test weekly on Mondays at 9 AM UTC
+    - cron: '0 9 * * 1'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  smoke-test:
+    name: Windows Runner Smoke Test
+    runs-on: ${{ fromJSON(format('["{0}"]', join(split(github.event.inputs.runner_labels || 'self-hosted,windows,x64,windows-containers', ','), '", "'))) }}
+    timeout-minutes: 30
+    
+    steps:
+      - name: System Information
+        run: |
+          Write-Output "=== System Information ==="
+          Get-ComputerInfo | Select-Object WindowsProductName, WindowsVersion, TotalPhysicalMemory
+          
+          Write-Output "`n=== PowerShell Version ==="
+          $PSVersionTable
+          
+          Write-Output "`n=== Environment Variables ==="
+          Get-ChildItem Env: | Where-Object { $_.Name -like "*RUNNER*" -or $_.Name -like "*GITHUB*" } | Sort-Object Name
+      
+      - name: Check Docker Installation
+        run: |
+          Write-Output "=== Docker Version ==="
+          docker version
+          
+          Write-Output "`n=== Docker Info ==="
+          docker info
+          
+          Write-Output "`n=== Docker Images ==="
+          docker images
+      
+      - name: Test Windows Container Capability
+        run: |
+          Write-Output "=== Testing Windows Containers ==="
+          
+          # Test basic Windows container
+          Write-Output "Testing Windows Nano Server container..."
+          docker run --rm mcr.microsoft.com/windows/nanoserver:ltsc2022 cmd /c echo "Windows containers are working!"
+          
+          # Test PowerShell in container
+          Write-Output "`nTesting PowerShell in container..."
+          docker run --rm mcr.microsoft.com/powershell:lts-nanoserver-ltsc2022 pwsh -c "Write-Output 'PowerShell in container works!'; Get-Host"
+          
+          # Test .NET Framework container (if needed for Sitecore)
+          Write-Output "`nTesting .NET Framework container..."
+          docker run --rm mcr.microsoft.com/dotnet/framework/runtime:4.8-windowsservercore-ltsc2022 cmd /c echo ".NET Framework container works!"
+      
+      - name: Test Docker Build Capability
+        run: |
+          Write-Output "=== Testing Docker Build ==="
+          
+          # Create a simple test Dockerfile
+          $dockerfile = @"
+          FROM mcr.microsoft.com/windows/nanoserver:ltsc2022
+          COPY test.txt C:\test.txt
+          CMD ["cmd", "/c", "type", "C:\test.txt"]
+          "@
+          
+          $dockerfile | Out-File -FilePath Dockerfile -Encoding ascii
+          "Hello from Windows container build test!" | Out-File -FilePath test.txt -Encoding ascii
+          
+          # Build test image
+          docker build -t smoke-test:latest .
+          
+          # Run test image
+          docker run --rm smoke-test:latest
+          
+          # Clean up
+          docker rmi smoke-test:latest
+          Remove-Item Dockerfile, test.txt
+      
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+      
+      - name: Test ECR Access
+        id: ecr-test
+        run: |
+          Write-Output "=== Testing ECR Access ==="
+          
+          # Test ECR login
+          aws ecr get-login-password --region $env:AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $env:ECR_REGISTRY
+          
+          Write-Output "ECR login successful!"
+          
+          # Get or create test repository
+          $repoName = "ci-runners-smoke-test"
+          try {
+            aws ecr describe-repositories --repository-names $repoName --region $env:AWS_DEFAULT_REGION
+            Write-Output "Repository $repoName already exists"
+          } catch {
+            Write-Output "Creating repository $repoName"
+            aws ecr create-repository --repository-name $repoName --region $env:AWS_DEFAULT_REGION
+          }
+          
+          echo "SMOKE_TEST_REPO=$repoName" >> $env:GITHUB_OUTPUT
+        env:
+          ECR_REGISTRY: ${{ vars.ECR_REGISTRY }}
+      
+      - name: Test ECR Push Capability
+        run: |
+          Write-Output "=== Testing ECR Push ==="
+          
+          $ecrRegistry = "${{ vars.ECR_REGISTRY }}"
+          $repoName = "${{ steps.ecr-test.outputs.SMOKE_TEST_REPO }}"
+          $imageTag = "smoke-test-${{ github.run_id }}"
+          $targetImage = "$ecrRegistry/$repoName:$imageTag"
+          
+          # Pull a small Windows base image
+          Write-Output "Pulling base image for ECR push test..."
+          docker pull mcr.microsoft.com/windows/nanoserver:ltsc2022
+          
+          # Tag for ECR
+          docker tag mcr.microsoft.com/windows/nanoserver:ltsc2022 $targetImage
+          
+          # Push to ECR
+          Write-Output "Pushing test image to ECR: $targetImage"
+          docker push $targetImage
+          
+          # Verify push by pulling the image back
+          Write-Output "Verifying push by pulling image back..."
+          docker rmi $targetImage
+          docker pull $targetImage
+          
+          # Run the pulled image to verify it works
+          docker run --rm $targetImage cmd /c echo "ECR push/pull test successful!"
+          
+          # Clean up
+          docker rmi $targetImage
+          
+          Write-Output "✅ ECR push capability test completed successfully!"
+      
+      - name: Test GitHub Actions Integration
+        run: |
+          Write-Output "=== Testing GitHub Actions Integration ==="
+          
+          Write-Output "Runner name: $env:RUNNER_NAME"
+          Write-Output "Runner OS: $env:RUNNER_OS"
+          Write-Output "Runner architecture: $env:RUNNER_ARCH"
+          Write-Output "Workflow: $env:GITHUB_WORKFLOW"
+          Write-Output "Run ID: $env:GITHUB_RUN_ID"
+          Write-Output "Repository: $env:GITHUB_REPOSITORY"
+          
+          # Test artifact upload capability
+          Write-Output "Testing artifact upload..."
+          "Smoke test artifact from Windows runner" | Out-File -FilePath smoke-test-artifact.txt
+      
+      - name: Upload Smoke Test Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-artifact-${{ github.run_id }}
+          path: smoke-test-artifact.txt
+          retention-days: 7
+      
+      - name: Performance Metrics
+        run: |
+          Write-Output "=== Performance Metrics ==="
+          
+          # CPU Information
+          Get-WmiObject -Class Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors, MaxClockSpeed
+          
+          # Memory Information
+          $memory = Get-WmiObject -Class Win32_ComputerSystem
+          $totalMemoryGB = [math]::Round($memory.TotalPhysicalMemory / 1GB, 2)
+          Write-Output "Total Memory: $totalMemoryGB GB"
+          
+          # Disk Information
+          Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } | Select-Object DeviceID, @{Name="Size(GB)";Expression={[math]::Round($_.Size / 1GB, 2)}}, @{Name="FreeSpace(GB)";Expression={[math]::Round($_.FreeSpace / 1GB, 2)}}
+          
+          # Network Test
+          Write-Output "`nTesting network connectivity..."
+          Test-NetConnection -ComputerName github.com -Port 443
+          Test-NetConnection -ComputerName registry-1.docker.io -Port 443
+      
+      - name: Summary
+        run: |
+          Write-Output "=== Smoke Test Summary ==="
+          Write-Output "✅ System checks passed"
+          Write-Output "✅ Docker installation verified"
+          Write-Output "✅ Windows container capability confirmed"
+          Write-Output "✅ Docker build functionality tested"
+          Write-Output "✅ ECR access and push capability verified"
+          Write-Output "✅ GitHub Actions integration working"
+          Write-Output "✅ Performance metrics collected"
+          Write-Output ""
+          Write-Output "🎉 All smoke tests passed! Windows runners are ready for Sitecore builds."

@@ -25,14 +25,55 @@ variable "common_tags" {
   }
 }
 
-# TODO: Uncomment and configure provider-specific variables as needed
+# AWS-specific variables for CI runners
+variable "aws_region" {
+  description = "AWS region for CI runners infrastructure"
+  type        = string
+  default     = "us-east-1"
+}
 
-# AWS-specific variables
-# variable "aws_region" {
-#   description = "AWS region"
-#   type        = string
-#   default     = "us-east-1"
-# }
+# CI Runners Configuration
+variable "enable_ci_runners" {
+  description = "Enable Windows GitHub Actions CI runners"
+  type        = bool
+  default     = false
+}
+
+variable "ci_runners_github_app_id" {
+  description = "GitHub App ID for CI runner authentication"
+  type        = string
+  default     = ""
+}
+
+variable "ci_runners_github_app_installation_id" {
+  description = "GitHub App Installation ID for CI runners"
+  type        = string
+  default     = ""
+}
+
+variable "ci_runners_github_app_private_key_ssm_parameter" {
+  description = "SSM Parameter name containing the GitHub App private key"
+  type        = string
+  default     = "/github/app/private-key"
+}
+
+variable "ci_runners_github_repository_allowlist" {
+  description = "List of GitHub repositories allowed to use the CI runners"
+  type        = list(string)
+  default     = []
+}
+
+variable "ci_runners_instance_type" {
+  description = "EC2 instance type for CI runners"
+  type        = string
+  default     = "m5.2xlarge"
+}
+
+variable "ci_runners_max_size" {
+  description = "Maximum number of CI runner instances"
+  type        = number
+  default     = 10
+}
 
 # Azure-specific variables
 # variable "azure_location" {

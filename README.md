@@ -2,7 +2,25 @@
 
 This repository contains the Terraform infrastructure code for the Cluckin Bell project, supporting dev, qa, and prod environments with a vendor-neutral approach that can be configured for AWS, Azure, or GCP.
 
+**New: Windows GitHub Actions CI Runners for Sitecore** - This repository now includes infrastructure for autoscaling Windows Server 2022 GitHub Actions runners specifically designed for Sitecore container builds on AWS.
+
 ## Directory Structure
+
+```
+.
+├── modules/
+│   └── ci-runners/          # Windows GitHub Actions runners module
+├── docs/
+│   ├── infra-ci.md         # Terraform CI/CD documentation
+│   └── github-actions-runners.md  # CI runners usage guide
+├── .github/workflows/      # GitHub Actions workflows
+├── main.tf                 # Main infrastructure configuration
+├── variables.tf            # Input variables
+├── outputs.tf              # Output values
+├── versions.tf             # Provider requirements
+├── backend.tf              # Backend configuration
+└── terraform.tfvars.example  # Example variables file
+```
 
 ```
 .
@@ -36,31 +54,20 @@ terraform init
 
 ### 2. Configure Provider
 
-Before planning or applying, uncomment and configure the appropriate provider in `versions.tf` and `main.tf`:
+The repository is now configured for AWS by default to support the CI runners infrastructure. The AWS provider is enabled in `versions.tf` and configured to use the region specified in `variables.tf`.
 
-**For AWS:**
-```hcl
-# In versions.tf
-aws = {
-  source  = "hashicorp/aws"
-  version = "~> 5.0"
-}
-
-# In main.tf
-provider "aws" {
-  region = var.aws_region
-}
-```
+**For AWS (Default):**
+Already configured - no changes needed.
 
 **For Azure:**
 ```hcl
-# In versions.tf
+# In versions.tf - uncomment azurerm provider
 azurerm = {
   source  = "hashicorp/azurerm"
   version = "~> 3.0"
 }
 
-# In main.tf
+# In main.tf - add provider block
 provider "azurerm" {
   features {}
 }
@@ -68,13 +75,13 @@ provider "azurerm" {
 
 **For GCP:**
 ```hcl
-# In versions.tf
+# In versions.tf - uncomment google provider
 google = {
   source  = "hashicorp/google"
   version = "~> 4.0"
 }
 
-# In main.tf
+# In main.tf - add provider block
 provider "google" {
   project = var.gcp_project_id
   region  = var.gcp_region
@@ -133,6 +140,36 @@ make plan
 make apply
 ```
 
+### 5. CI Runners Setup (Optional)
+
+To enable Windows GitHub Actions runners for Sitecore builds:
+
+1. **Copy and customize variables:**
+   ```bash
+   cp terraform.tfvars.example terraform.tfvars
+   # Edit terraform.tfvars with your configuration
+   ```
+
+2. **Set up GitHub App:**
+   - Create a GitHub App with Actions:Read, Administration:Read, Metadata:Read permissions
+   - Install the app on your organization/repositories
+   - Store the private key in AWS SSM Parameter Store
+
+3. **Configure variables in terraform.tfvars:**
+   ```hcl
+   enable_ci_runners = true
+   ci_runners_github_app_id = "123456"
+   ci_runners_github_app_installation_id = "789012"
+   ci_runners_github_repository_allowlist = ["your-org/your-repo"]
+   ```
+
+4. **Apply infrastructure:**
+   ```bash
+   terraform apply
+   ```
+
+See [GitHub Actions Runners Documentation](docs/github-actions-runners.md) for detailed setup and usage instructions.
+
 ## Available Make Targets
 
 - `make help` - Show available targets
@@ -166,6 +203,26 @@ This repository includes GitHub Actions workflows for:
 
 - **PR Checks**: Runs `terraform fmt`, `validate`, and `plan` on pull requests
 - **Environment Deployments**: Separate workflows for dev, qa, and prod environments
+- **CI Runners Smoke Test**: Validates Windows runners for Sitecore container builds
+
+### Windows GitHub Actions Runners
+
+The infrastructure includes a dedicated module for autoscaling Windows Server 2022 GitHub Actions runners designed for Sitecore container builds:
+
+- **Ephemeral runners**: Scale-from-zero with per-job instances
+- **Windows containers**: Docker support for Windows container builds
+- **ECR integration**: Built-in support for pushing to Amazon ECR via OIDC
+- **Private networking**: Runners operate in private subnets behind NAT
+- **Auto scaling**: Configurable min/max instances with optional webhook scaling
+
+#### Usage in Workflows
+
+Target the runners using these labels:
+```yaml
+runs-on: [self-hosted, windows, x64, windows-containers]
+```
+
+For detailed setup and usage instructions, see [GitHub Actions Runners Documentation](docs/github-actions-runners.md).
 
 ### Required Secrets
 

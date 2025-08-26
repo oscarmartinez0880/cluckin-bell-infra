@@ -9,8 +9,31 @@ locals {
   })
 }
 
-# TODO: Add your infrastructure resources here
-# This is a placeholder - replace with your actual infrastructure
+# CI Runners Module - Windows GitHub Actions runners for Sitecore builds
+module "ci_runners" {
+  count = var.enable_ci_runners ? 1 : 0
+
+  source = "./modules/ci-runners"
+
+  name_prefix = local.name_prefix
+  tags        = local.tags
+
+  # GitHub App configuration
+  github_app_id                        = var.ci_runners_github_app_id
+  github_app_installation_id           = var.ci_runners_github_app_installation_id
+  github_app_private_key_ssm_parameter = var.ci_runners_github_app_private_key_ssm_parameter
+  github_repository_allowlist          = var.ci_runners_github_repository_allowlist
+
+  # Instance configuration
+  instance_type = var.ci_runners_instance_type
+  max_size      = var.ci_runners_max_size
+
+  # Use default settings for other configuration
+  # (VPC CIDR, subnets, volumes, etc.)
+}
+
+# TODO: Add additional infrastructure resources here
+# This is a placeholder - add your other infrastructure as needed
 
 # Example resource block (uncomment and modify as needed):
 # resource "aws_vpc" "main" {
