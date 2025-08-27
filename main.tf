@@ -522,6 +522,7 @@ module "k8s_controllers" {
   argocd_repo_server_role_arn = module.argocd_repo_server_irsa.iam_role_arn
   codecommit_repository_url   = "codecommit::${var.aws_region}://cluckin-bell"
 
+
   # Dependencies
   node_groups = module.eks.eks_managed_node_groups
 

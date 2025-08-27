@@ -1,0 +1,108 @@
+name: Terraform Applies (dev, prod, github-workflow)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**/*.tf'
+      - '.github/workflows/terraform-apply.yml'
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_INPUT: false
+  AWS_REGION: us-east-1
+
+jobs:
+  dev:
+    name: Apply (dev)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS Credentials (dev)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_DEVQA }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Select/Create Workspace (dev)
+        run: |
+          terraform workspace select dev || terraform workspace new dev
+          terraform workspace show
+
+      - name: Terraform Apply (dev)
+        run: terraform apply -auto-approve -input=false -var-file=env/dev.tfvars
+
+      - name: Capture Outputs (dev)
+        id: out
+        run: |
+          echo "mirror_role_arn_devqa=$(terraform output -raw mirror_role_arn)" >> $GITHUB_OUTPUT
+
+    outputs:
+      mirror_role_arn_devqa: ${{ steps.out.outputs.mirror_role_arn_devqa }}
+
+  prod:
+    name: Apply (prod)
+    runs-on: ubuntu-latest
+    needs: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS Credentials (prod)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Select/Create Workspace (prod)
+        run: |
+          terraform workspace select prod || terraform workspace new prod
+          terraform workspace show
+
+      - name: Terraform Apply (prod)
+        run: terraform apply -auto-approve -input=false -var-file=env/prod.tfvars
+
+      - name: Capture Outputs (prod)
+        id: out
+        run: |
+          echo "mirror_role_arn_prod=$(terraform output -raw mirror_role_arn)" >> $GITHUB_OUTPUT
+
+    outputs:
+      mirror_role_arn_prod: ${{ steps.out.outputs.mirror_role_arn_prod }}
+
+  github_workflow:
+    name: Apply (github-workflow)
+    runs-on: ubuntu-latest
+    needs: [dev, prod]
+    env:
+      GITHUB_TOKEN: ${{ secrets.APP_REPO_PAT }}
+      TF_VAR_manage_github_workflow: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init (github-workflow)
+        working-directory: terraform/github-workflow
+        run: terraform init -input=false
+
+      - name: Terraform Apply (github-workflow)
+        working-directory: terraform/github-workflow
+        run: >
+          terraform apply -auto-approve -input=false
+          -var "mirror_role_arn_devqa=${{ needs.dev.outputs.mirror_role_arn_devqa }}"
+          -var "mirror_role_arn_prod=${{ needs.prod.outputs.mirror_role_arn_prod }}"
