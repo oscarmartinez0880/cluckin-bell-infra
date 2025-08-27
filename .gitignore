@@ -12,6 +12,9 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Downloaded binaries
+terraform_*_linux_amd64.zip
+
 # OS specific files
 .DS_Store
 Thumbs.db
