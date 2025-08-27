@@ -16,7 +16,7 @@ locals {
 
   account_aliases = {
     dev  = "cluckin-bell-qa"
-    qa   = "cluckin-bell-qa" 
+    qa   = "cluckin-bell-qa"
     prod = "cluckin-bell-prod"
   }
 
@@ -29,22 +29,22 @@ locals {
   # Kubernetes namespaces
   namespaces = [
     "cluckin-bell-dev",
-    "cluckin-bell-qa", 
+    "cluckin-bell-qa",
     "cluckin-bell-prod"
   ]
 
   # IAM role name prefixes
   iam_role_prefixes = {
-    ecr_pull  = "cb-ecr-pull-role-${var.environment}"
-    app_web   = "cb-app-web-sa-role-${var.environment}"
-    api       = "cb-api-sa-role-${var.environment}"
+    ecr_pull = "cb-ecr-pull-role-${var.environment}"
+    app_web  = "cb-app-web-sa-role-${var.environment}"
+    api      = "cb-api-sa-role-${var.environment}"
   }
 
   # ECR repository names (fried chicken themed)
   ecr_repositories = [
     "cluckin-bell-app",
     "wingman-api",
-    "fryer-worker", 
+    "fryer-worker",
     "sauce-gateway",
     "clucker-notify"
   ]

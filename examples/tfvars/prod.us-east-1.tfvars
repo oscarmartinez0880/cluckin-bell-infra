@@ -25,7 +25,7 @@ ecr_retain_untagged_days = 30
 ecr_repositories = [
   "cluckin-bell-app",
   "wingman-api",
-  "fryer-worker", 
+  "fryer-worker",
   "sauce-gateway",
   "clucker-notify"
 ]

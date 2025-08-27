@@ -22,7 +22,7 @@ windows_node_desired_size   = 2
 ecr_retain_untagged_days = 10
 ecr_repositories = [
   "api",
-  "web", 
+  "web",
   "worker",
   "cm",
   "cd"
@@ -33,3 +33,4 @@ enable_aws_load_balancer_controller = true
 enable_cert_manager                 = true
 enable_external_dns                 = true
 letsencrypt_email                   = "admin@cluckin-bell.com"
+
