@@ -107,7 +107,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.0"
 
-  cluster_name    = "${var.environment}-cluckin-bell"
+  cluster_name    = "cb-${var.environment}-use1"
   cluster_version = var.kubernetes_version
 
   vpc_id                   = data.aws_vpc.main.id
