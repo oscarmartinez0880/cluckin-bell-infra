@@ -384,7 +384,7 @@ module "ssm_bastion" {
   name        = "${local.environment}-${local.cluster_name}"
   environment = local.environment
   vpc_id      = module.vpc.vpc_id
-  subnet_id   = module.vpc.private_subnet_ids[0]  # Deploy in first private subnet
+  subnet_id   = module.vpc.private_subnet_ids[0] # Deploy in first private subnet
 
   tags = merge(local.tags, {
     Purpose = "prod-bastion"

@@ -33,14 +33,14 @@ resource "helm_release" "argocd" {
           tag = var.argocd_version
         }
       }
-      
+
       configs = {
         params = {
           "server.insecure" = true
         }
         secret = {
           # Enable admin user for authentication
-          argocdServerAdminPassword = "$2a$10$rRyBsGSHK6.uc8fntPwVIeWd9tOtqBvBZ7P9uKzYiwtQkuWPvEFeO"  # Default: admin
+          argocdServerAdminPassword      = "$2a$10$rRyBsGSHK6.uc8fntPwVIeWd9tOtqBvBZ7P9uKzYiwtQkuWPvEFeO" # Default: admin
           argocdServerAdminPasswordMtime = "2023-01-01T00:00:00Z"
         }
         cm = {
@@ -50,28 +50,28 @@ resource "helm_release" "argocd" {
           "users.anonymous.enabled" = false
         }
       }
-      
+
       server = {
         service = {
           type = "LoadBalancer"
           annotations = {
-            "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
-            "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internal"  # Internal ALB
+            "service.beta.kubernetes.io/aws-load-balancer-type"   = "nlb"
+            "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internal" # Internal ALB
           }
         }
         ingress = {
           enabled = false
         }
       }
-      
+
       dex = {
         enabled = false
       }
-      
+
       notifications = {
         enabled = false
       }
-      
+
       applicationSet = {
         enabled = true
       }

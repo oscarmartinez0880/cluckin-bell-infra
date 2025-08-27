@@ -384,7 +384,7 @@ module "ssm_bastion" {
   name        = "${local.environment}-${local.cluster_name}"
   environment = local.environment
   vpc_id      = module.vpc.vpc_id
-  subnet_id   = module.vpc.private_subnet_ids[0]  # Deploy in first private subnet
+  subnet_id   = module.vpc.private_subnet_ids[0] # Deploy in first private subnet
 
   tags = merge(local.tags, {
     Purpose = "dev-qa-shared-bastion"
@@ -425,14 +425,14 @@ resource "aws_vpc_peering_connection" "dev_to_qa" {
 resource "aws_route" "dev_to_qa_private" {
   count                     = length(module.vpc.private_route_table_ids)
   route_table_id            = module.vpc.private_route_table_ids[count.index]
-  destination_cidr_block    = "10.1.0.0/16"  # QA VPC CIDR
+  destination_cidr_block    = "10.1.0.0/16" # QA VPC CIDR
   vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
 }
 
 # Routes in dev VPC public route table to qa VPC
 resource "aws_route" "dev_to_qa_public" {
   route_table_id            = module.vpc.public_route_table_id
-  destination_cidr_block    = "10.1.0.0/16"  # QA VPC CIDR
+  destination_cidr_block    = "10.1.0.0/16" # QA VPC CIDR
   vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
 }
 
@@ -440,7 +440,7 @@ resource "aws_route" "dev_to_qa_public" {
 resource "aws_route" "qa_to_dev" {
   count                     = length(data.aws_route_tables.qa.ids)
   route_table_id            = data.aws_route_tables.qa.ids[count.index]
-  destination_cidr_block    = "10.0.0.0/16"  # Dev VPC CIDR
+  destination_cidr_block    = "10.0.0.0/16" # Dev VPC CIDR
   vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
 }
 

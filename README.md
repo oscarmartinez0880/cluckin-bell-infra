@@ -98,51 +98,125 @@ See `examples/ingress-examples.yaml` for complete Ingress configuration examples
 
 ### Argo CD Access
 
-Argo CD is configured with internal ALB access. The URLs are:
+Argo CD is configured with internal ALB access and admin authentication (no OIDC). The URLs are:
 - **Development**: `https://argocd.dev.cluckn-bell.com`
 - **QA**: `https://argocd.qa.cluckn-bell.com`
 - **Production**: `https://argocd.cluckn-bell.com`
 
 #### Access Methods:
 
-1. **VPC Connectivity** (Recommended for production):
-   - VPN connection to the VPC
-   - Bastion host in public subnet
-   - Direct VPC peering/Transit Gateway
+1. **SSM Session Manager with Port Forwarding** (Recommended):
+   
+   **For Dev/QA environments (shared bastion):**
+   ```bash
+   # Get the dev bastion instance ID
+   DEV_BASTION_ID=$(cd stacks/environments/dev && terraform output -raw bastion_instance_id)
+   
+   # Start SSM session with port forwarding to ArgoCD
+   aws ssm start-session --target $DEV_BASTION_ID \
+     --document-name AWS-StartPortForwardingSessionToRemoteHost \
+     --parameters host="argocd.dev.cluckn-bell.com",portNumber="443",localPortNumber="8080"
+   
+   # For QA access via the same bastion (thanks to VPC peering and DNS association)
+   aws ssm start-session --target $DEV_BASTION_ID \
+     --document-name AWS-StartPortForwardingSessionToRemoteHost \
+     --parameters host="argocd.qa.cluckn-bell.com",portNumber="443",localPortNumber="8081"
+   
+   # Access via browser at https://localhost:8080 (dev) or https://localhost:8081 (qa)
+   ```
+   
+   **For Production environment (dedicated bastion):**
+   ```bash
+   # Get the prod bastion instance ID
+   PROD_BASTION_ID=$(cd stacks/environments/prod && terraform output -raw bastion_instance_id)
+   
+   # Start SSM session with port forwarding to ArgoCD
+   aws ssm start-session --target $PROD_BASTION_ID \
+     --document-name AWS-StartPortForwardingSessionToRemoteHost \
+     --parameters host="argocd.cluckn-bell.com",portNumber="443",localPortNumber="8082"
+   
+   # Access via browser at https://localhost:8082
+   ```
 
-2. **kubectl Port-Forward** (Development/Testing):
+2. **kubectl Port-Forward** (Alternative for development):
    ```bash
    # Configure kubectl first
    aws eks update-kubeconfig --region us-east-1 --name <environment>-cluckin-bell
    
    # Port-forward to Argo CD
-   kubectl port-forward svc/argocd-server -n argocd 8080:443
+   kubectl port-forward svc/argocd-server -n cluckin-bell 8080:80
    
-   # Access via browser at https://localhost:8080
-   # Username: admin
-   # Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+   # Access via browser at http://localhost:8080
    ```
 
-### GitHub App Configuration for Argo CD
+#### ArgoCD Authentication:
+- **Username**: `admin`
+- **Password**: Retrieved from Kubernetes secret:
+  ```bash
+  kubectl -n cluckin-bell get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+  ```
 
-To configure Argo CD with private repository access:
+### SSM Bastion Hosts
 
-1. **Create GitHub App** in your organization with these permissions:
-   - Repository permissions: Contents (read), Metadata (read), Pull requests (read)
-   - Subscribe to: Push, Pull request events
+The infrastructure includes SSM-managed bastion hosts for secure access:
 
-2. **Configure Terraform variables:**
+- **Dev/QA Shared Bastion**: Deployed in the dev VPC, provides access to both dev and qa environments via VPC peering
+- **Production Bastion**: Dedicated bastion in the prod VPC for production access only
+
+**Prerequisites for SSM access:**
+1. AWS CLI configured with appropriate permissions
+2. Session Manager plugin installed:
    ```bash
-   # In your terraform.tfvars or environment variables
-   github_app_id               = "123456"
-   github_app_installation_id = "12345678"
-   github_app_private_key      = "base64-encoded-private-key"
+   # Install on macOS
+   brew install --cask session-manager-plugin
+   
+   # Install on Ubuntu/Debian
+   curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+   sudo dpkg -i session-manager-plugin.deb
    ```
 
-3. **Apply configuration:**
+**Direct shell access via SSM:**
+```bash
+# Dev/QA bastion
+DEV_BASTION_ID=$(cd stacks/environments/dev && terraform output -raw bastion_instance_id)
+aws ssm start-session --target $DEV_BASTION_ID
+
+# Production bastion
+PROD_BASTION_ID=$(cd stacks/environments/prod && terraform output -raw bastion_instance_id)
+aws ssm start-session --target $PROD_BASTION_ID
+```
+
+---
+
+## GitOps and CodeCommit Integration
+
+The infrastructure uses AWS CodeCommit as the GitOps source for ArgoCD, eliminating the need for GitHub App credentials or external Git providers.
+
+### GitHub→CodeCommit Mirroring (Optional)
+
+To automatically mirror changes from GitHub to CodeCommit, you can optionally enable Terraform-managed GitHub workflow:
+
+1. **Configure GitHub provider** (optional):
    ```bash
-   terraform apply -var-file="env/dev.tfvars"
+   export GITHUB_TOKEN="your-repo-scoped-github-token"
    ```
+
+2. **Enable workflow management**:
+   ```bash
+   # In terraform/accounts/devqa/terraform.tfvars
+   manage_github_workflow = true
+   github_repository_name = "cluckin-bell"
+   ```
+
+3. **Apply configuration**:
+   ```bash
+   cd terraform/accounts/devqa
+   terraform apply
+   ```
+
+This creates a GitHub Actions workflow that uses OIDC to assume the CodeCommit mirroring role and pushes changes to the CodeCommit repository.
+
+**Manual setup alternative**: If you prefer not to manage the workflow via Terraform, you can manually create the workflow file using the CodeCommit mirroring role ARN from the Terraform outputs.
 
 ---
 
@@ -250,18 +324,33 @@ Automatic certificate management with environment-specific domains:
 
 ### Resource Configuration by Environment
 
-| Environment | Linux Nodes | Instance Types | VPC CIDR |
-|-------------|-------------|----------------|----------|
-| **dev** | 2 desired, max 5 | m5.large, m5.xlarge | 10.0.0.0/16 |
-| **qa** | 3 desired, max 8 | m5.large, m5.xlarge | 10.1.0.0/16 |
-| **prod** | 5 desired, max 15 | m5.xlarge, m5.2xlarge | 10.2.0.0/16 |
+| Environment | Linux Nodes | Instance Types | VPC CIDR | Bastion Access |
+|-------------|-------------|----------------|----------|----------------|
+| **dev** | 2 desired, max 5 | m5.large, m5.xlarge | 10.0.0.0/16 | Shared dev/qa bastion |
+| **qa** | 3 desired, max 8 | m5.large, m5.xlarge | 10.1.0.0/16 | Via dev bastion (VPC peering) |
+| **prod** | 5 desired, max 15 | m5.xlarge, m5.2xlarge | 10.2.0.0/16 | Dedicated prod bastion |
+
+**Bastion Configuration:**
+- Instance Type: t3.micro (Amazon Linux 2023)
+- Access Method: SSM Session Manager only
+- Security: No inbound rules, private subnet deployment
+- VPC Endpoints: SSM, SSMMessages, EC2Messages for connectivity
 
 ## Prerequisites
 
 1. **AWS CLI** configured with appropriate IAM permissions
 2. **Terraform** >= 1.0 installed
 3. **kubectl** for Kubernetes cluster management
-4. **Git** access to both repositories
+4. **Session Manager Plugin** for SSM access:
+   ```bash
+   # Install on macOS
+   brew install --cask session-manager-plugin
+   
+   # Install on Ubuntu/Debian
+   curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+   sudo dpkg -i session-manager-plugin.deb
+   ```
+5. **Git** access to repositories (CodeCommit via AWS CLI)
 
 ## Account-Level Resources
 
@@ -318,11 +407,16 @@ This creates GitHub OIDC roles for CI/CD integration.
 
 ## Security Features
 
-- **Network Isolation**: Each environment has dedicated VPC
+- **Zero-Trust Access**: SSM Session Manager provides secure access without SSH keys or public IPs
+- **Network Isolation**: Each environment has dedicated VPC with private subnets
+- **Bastion Hosts**: SSM-managed bastion instances for secure access to internal resources
+- **VPC Endpoints**: SSM VPC endpoints enable Session Manager access without NAT Gateway dependency  
+- **Network Segmentation**: VPC peering between dev/qa with controlled routing
 - **Encryption at Rest**: EKS secrets encrypted with KMS
 - **IRSA**: IAM Roles for Service Accounts for secure AWS API access
 - **TLS Automation**: Let's Encrypt certificates for all domains
-- **GitOps Audit Trail**: All changes tracked in git history
+- **GitOps Audit Trail**: All changes tracked in CodeCommit git history
+- **OIDC Authentication**: GitHub Actions use OIDC for secure, keyless CI/CD
 
 ## Version Constraints
 
@@ -337,10 +431,15 @@ This creates GitHub OIDC roles for CI/CD integration.
 
 ### Common Issues
 
-1. **ArgoCD Sync Failures**: Check application repo structure and manifests
+1. **ArgoCD Sync Failures**: Check application repo structure and manifests in CodeCommit
 2. **Certificate Issues**: Verify Route 53 hosted zone configuration
 3. **Load Balancer Issues**: Check security groups and subnet tags
 4. **DNS Issues**: Verify external-dns permissions and configuration
+5. **SSM Session Manager Issues**: 
+   - Ensure Session Manager plugin is installed
+   - Verify IAM permissions for SSM access
+   - Check VPC endpoints are healthy
+   - Confirm bastion instance is running and has SSM agent
 
 ### Useful Commands
 
@@ -356,6 +455,15 @@ kubectl get applications -n cluckin-bell
 
 # View ArgoCD logs
 kubectl logs -n cluckin-bell deployment/argocd-server
+
+# Check bastion instance status
+aws ssm describe-instance-information --filters "Key=InstanceIds,Values=INSTANCE_ID"
+
+# Test SSM connectivity
+aws ssm start-session --target INSTANCE_ID
+
+# Check VPC endpoints
+aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=VPC_ID"
 ```
 
 ## Support

@@ -402,7 +402,7 @@ module "github_workflow" {
   source = "../../modules/github-workflow"
 
   manage_github_workflow     = var.manage_github_workflow
-  repository_name           = var.github_repository_name
+  repository_name            = var.github_repository_name
   codecommit_mirror_role_arn = aws_iam_role.codecommit_mirror.arn
 
   depends_on = [aws_iam_role.codecommit_mirror]

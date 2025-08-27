@@ -19,7 +19,7 @@ resource "aws_security_group" "bastion" {
   vpc_id      = var.vpc_id
 
   # No inbound rules - access via SSM Session Manager only
-  
+
   # All outbound traffic allowed
   egress {
     from_port   = 0
@@ -79,11 +79,11 @@ resource "aws_iam_instance_profile" "bastion" {
 
 # SSM bastion EC2 instance
 resource "aws_instance" "bastion" {
-  ami                     = data.aws_ssm_parameter.amazon_linux_2023_ami.value
-  instance_type           = var.instance_type
-  subnet_id               = var.subnet_id
-  vpc_security_group_ids  = [aws_security_group.bastion.id]
-  iam_instance_profile    = aws_iam_instance_profile.bastion.name
+  ami                         = data.aws_ssm_parameter.amazon_linux_2023_ami.value
+  instance_type               = var.instance_type
+  subnet_id                   = var.subnet_id
+  vpc_security_group_ids      = [aws_security_group.bastion.id]
+  iam_instance_profile        = aws_iam_instance_profile.bastion.name
   associate_public_ip_address = false
 
   # Enable detailed monitoring
@@ -126,7 +126,7 @@ MOTD
     volume_type = "gp3"
     volume_size = 8
     encrypted   = true
-    
+
     tags = merge(var.tags, {
       Name        = "${var.name}-bastion-root-volume"
       Environment = var.environment
