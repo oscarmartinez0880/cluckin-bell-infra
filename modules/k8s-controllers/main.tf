@@ -242,24 +242,22 @@ resource "kubernetes_namespace" "argocd" {
   }
 }
 
-# Create secret for GitHub App authentication if provided
-resource "kubernetes_secret" "argocd_repo_creds" {
-  count = var.enable_argocd && var.github_app_id != "" ? 1 : 0
+# Create secret for CodeCommit repository if provided
+resource "kubernetes_secret" "argocd_codecommit_repo" {
+  count = var.enable_argocd && var.codecommit_repository_url != "" ? 1 : 0
 
   metadata {
-    name      = "argocd-repo-creds"
+    name      = "codecommit-repo"
     namespace = kubernetes_namespace.argocd[0].metadata[0].name
     labels = {
-      "argocd.argoproj.io/secret-type" = "repo-creds"
+      "argocd.argoproj.io/secret-type" = "repository"
     }
   }
 
   data = {
-    type          = "git"
-    url           = "https://github.com/oscarmartinez0880"
-    githubAppID   = var.github_app_id
-    githubAppInstallationID = var.github_app_installation_id
-    githubAppPrivateKey = var.github_app_private_key
+    type = "git"
+    url  = var.codecommit_repository_url
+    name = "cluckn-bell"
   }
 }
 
@@ -274,7 +272,7 @@ resource "helm_release" "argocd" {
   version    = var.argocd_version
 
   values = [
-    yamlencode({
+    yamlencode(merge({
       global = {
         domain = "argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"
       }
@@ -283,6 +281,12 @@ resource "helm_release" "argocd" {
         params = {
           "server.insecure" = true  # We'll use TLS termination at ALB
         }
+        repositories = var.codecommit_repository_url != "" ? {
+          "codecommit::${var.aws_region}://cluckin-bell" = {
+            url  = var.codecommit_repository_url
+            name = "cluckn-bell"
+          }
+        } : {}
       }
       
       server = {
@@ -316,7 +320,56 @@ resource "helm_release" "argocd" {
           ]
         }
       }
-    })
+    },
+    var.argocd_repo_server_role_arn != "" ? {
+      repoServer = {
+        serviceAccount = {
+          create = true
+          name   = "argocd-repo-server"
+          annotations = {
+            "eks.amazonaws.com/role-arn" = var.argocd_repo_server_role_arn
+          }
+        }
+        env = [
+          {
+            name  = "AWS_REGION"
+            value = var.aws_region
+          },
+          {
+            name  = "PATH"
+            value = "/custom-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          }
+        ]
+        initContainers = [
+          {
+            name  = "install-git-remote-codecommit"
+            image = "python:3.9-alpine"
+            command = ["/bin/sh", "-c"]
+            args = [
+              "pip install git-remote-codecommit && cp -r /usr/local/lib/python3.9/site-packages/git_remote_codecommit /custom-tools/ && cp /usr/local/bin/git-remote-codecommit /custom-tools/"
+            ]
+            volumeMounts = [
+              {
+                name      = "custom-tools"
+                mountPath = "/custom-tools"
+              }
+            ]
+          }
+        ]
+        volumes = [
+          {
+            name = "custom-tools"
+            emptyDir = {}
+          }
+        ]
+        volumeMounts = [
+          {
+            name      = "custom-tools"
+            mountPath = "/custom-tools"
+          }
+        ]
+      }
+    } : {}))
   ]
 
   depends_on = [

@@ -24,7 +24,7 @@ resource "helm_release" "argocd" {
   version    = var.argocd_version
 
   values = [
-    yamlencode({
+    yamlencode(merge({
       global = {
         image = {
           tag = var.argocd_version
@@ -61,7 +61,56 @@ resource "helm_release" "argocd" {
       applicationSet = {
         enabled = true
       }
-    })
+    },
+    var.argocd_repo_server_role_arn != "" ? {
+      repoServer = {
+        serviceAccount = {
+          create = true
+          name   = "argocd-repo-server"
+          annotations = {
+            "eks.amazonaws.com/role-arn" = var.argocd_repo_server_role_arn
+          }
+        }
+        env = [
+          {
+            name  = "AWS_REGION"
+            value = "us-east-1"
+          },
+          {
+            name  = "PATH"
+            value = "/custom-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          }
+        ]
+        initContainers = [
+          {
+            name  = "install-git-remote-codecommit"
+            image = "python:3.9-alpine"
+            command = ["/bin/sh", "-c"]
+            args = [
+              "pip install git-remote-codecommit && cp -r /usr/local/lib/python3.9/site-packages/git_remote_codecommit /custom-tools/ && cp /usr/local/bin/git-remote-codecommit /custom-tools/"
+            ]
+            volumeMounts = [
+              {
+                name      = "custom-tools"
+                mountPath = "/custom-tools"
+              }
+            ]
+          }
+        ]
+        volumes = [
+          {
+            name = "custom-tools"
+            emptyDir = {}
+          }
+        ]
+        volumeMounts = [
+          {
+            name      = "custom-tools"
+            mountPath = "/custom-tools"
+          }
+        ]
+      }
+    } : {}))
   ]
 
   depends_on = [var.node_groups]
