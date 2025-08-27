@@ -63,3 +63,18 @@ output "argocd_server_url" {
   description = "ArgoCD server URL"
   value       = module.argocd.server_url
 }
+
+output "bastion_instance_id" {
+  description = "Instance ID of the SSM bastion host (shared for dev/qa access)"
+  value       = module.ssm_bastion.instance_id
+}
+
+output "bastion_private_ip" {
+  description = "Private IP address of the SSM bastion host"
+  value       = module.ssm_bastion.private_ip
+}
+
+output "vpc_peering_connection_id" {
+  description = "ID of the VPC peering connection between dev and qa"
+  value       = aws_vpc_peering_connection.dev_to_qa.id
+}

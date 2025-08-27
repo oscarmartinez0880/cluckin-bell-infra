@@ -49,3 +49,16 @@ variable "tags" {
     Account   = "devqa"
   }
 }
+
+# Optional GitHub workflow management
+variable "manage_github_workflow" {
+  description = "Whether to manage the GitHub CodeCommit mirroring workflow via Terraform"
+  type        = bool
+  default     = false
+}
+
+variable "github_repository_name" {
+  description = "GitHub repository name for workflow management"
+  type        = string
+  default     = "cluckin-bell"
+}

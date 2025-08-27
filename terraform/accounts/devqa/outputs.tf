@@ -3,6 +3,11 @@ output "github_oidc_provider_arn" {
   value       = aws_iam_openid_connect_provider.github.arn
 }
 
+output "codecommit_mirror_role_arn" {
+  description = "ARN of the IAM role for GitHub→CodeCommit mirroring"
+  value       = aws_iam_role.codecommit_mirror.arn
+}
+
 output "eks_deploy_role_arns" {
   description = "Map of environment to EKS deploy role ARN"
   value = {

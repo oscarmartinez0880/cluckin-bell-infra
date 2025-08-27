@@ -255,6 +255,13 @@ resource "kubernetes_secret" "argocd_codecommit_repo" {
   }
 
   data = {
+
+    type                    = "git"
+    url                     = "https://github.com/oscarmartinez0880"
+    githubAppID             = var.github_app_id
+    githubAppInstallationID = var.github_app_installation_id
+    githubAppPrivateKey     = var.github_app_private_key
+
     type = "git"
     url  = var.codecommit_repository_url
     name = "cluckn-bell"
@@ -276,10 +283,10 @@ resource "helm_release" "argocd" {
       global = {
         domain = "argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"
       }
-      
+
       configs = {
         params = {
-          "server.insecure" = true  # We'll use TLS termination at ALB
+          "server.insecure" = true # We'll use TLS termination at ALB
         }
         repositories = var.codecommit_repository_url != "" ? {
           "codecommit::${var.aws_region}://cluckin-bell" = {
@@ -288,20 +295,20 @@ resource "helm_release" "argocd" {
           }
         } : {}
       }
-      
+
       server = {
         service = {
           type = "ClusterIP"
         }
         ingress = {
-          enabled = true
+          enabled          = true
           ingressClassName = "alb"
           annotations = {
-            "alb.ingress.kubernetes.io/scheme" = "internal"
-            "alb.ingress.kubernetes.io/target-type" = "ip"
-            "alb.ingress.kubernetes.io/group.name" = "argocd"
+            "alb.ingress.kubernetes.io/scheme"       = "internal"
+            "alb.ingress.kubernetes.io/target-type"  = "ip"
+            "alb.ingress.kubernetes.io/group.name"   = "argocd"
             "alb.ingress.kubernetes.io/ssl-redirect" = "443"
-            "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+            "cert-manager.io/cluster-issuer"         = "letsencrypt-prod"
           }
           hosts = [
             "argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"

@@ -54,6 +54,7 @@ module "vpc" {
   private_subnet_cidrs = local.private_subnet_cidrs
   enable_nat_gateway   = true
   enable_vpc_endpoints = true
+  enable_ssm_endpoints = true
 
   tags = local.tags
 }
@@ -433,4 +434,85 @@ module "argocd" {
     module.k8s_controllers,
     module.argocd_repo_server_irsa
   ]
+}
+
+# SSM Bastion for dev/qa shared access
+module "ssm_bastion" {
+  source = "../../../modules/ssm-bastion"
+
+  name        = "${local.environment}-${local.cluster_name}"
+  environment = local.environment
+  vpc_id      = module.vpc.vpc_id
+  subnet_id   = module.vpc.private_subnet_ids[0] # Deploy in first private subnet
+
+  tags = merge(local.tags, {
+    Purpose = "dev-qa-shared-bastion"
+    Access  = "dev-qa-environments"
+  })
+
+  depends_on = [module.vpc]
+}
+
+# Data source for QA VPC
+data "aws_vpc" "qa" {
+  filter {
+    name   = "tag:Name"
+    values = ["qa-cluckin-bell"]
+  }
+}
+
+# Data source for QA route tables
+data "aws_route_tables" "qa" {
+  vpc_id = data.aws_vpc.qa.id
+}
+
+# VPC Peering connection from dev to qa
+resource "aws_vpc_peering_connection" "dev_to_qa" {
+  vpc_id      = module.vpc.vpc_id
+  peer_vpc_id = data.aws_vpc.qa.id
+  auto_accept = true
+
+  tags = merge(local.tags, {
+    Name = "dev-to-qa-peering"
+    Side = "requester"
+  })
+
+  depends_on = [module.vpc]
+}
+
+# Routes in dev VPC private route table to qa VPC
+resource "aws_route" "dev_to_qa_private" {
+  count                     = length(module.vpc.private_route_table_ids)
+  route_table_id            = module.vpc.private_route_table_ids[count.index]
+  destination_cidr_block    = "10.1.0.0/16" # QA VPC CIDR
+  vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
+}
+
+# Routes in dev VPC public route table to qa VPC
+resource "aws_route" "dev_to_qa_public" {
+  route_table_id            = module.vpc.public_route_table_id
+  destination_cidr_block    = "10.1.0.0/16" # QA VPC CIDR
+  vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
+}
+
+# Routes in qa VPC route tables to dev VPC
+resource "aws_route" "qa_to_dev" {
+  count                     = length(data.aws_route_tables.qa.ids)
+  route_table_id            = data.aws_route_tables.qa.ids[count.index]
+  destination_cidr_block    = "10.0.0.0/16" # Dev VPC CIDR
+  vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
+}
+
+# Data source for QA private hosted zone
+data "aws_route53_zone" "qa_private" {
+  name         = "qa.cluckin-bell.com"
+  private_zone = true
+}
+
+# Associate QA private hosted zone with dev VPC for cross-environment DNS resolution
+resource "aws_route53_zone_association" "qa_zone_with_dev_vpc" {
+  zone_id = data.aws_route53_zone.qa_private.zone_id
+  vpc_id  = module.vpc.vpc_id
+
+  depends_on = [module.vpc]
 }
