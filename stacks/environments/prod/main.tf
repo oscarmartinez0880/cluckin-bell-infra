@@ -54,6 +54,7 @@ module "vpc" {
   private_subnet_cidrs = local.private_subnet_cidrs
   enable_nat_gateway   = true
   enable_vpc_endpoints = true
+  enable_ssm_endpoints = true
 
   tags = local.tags
 }
@@ -374,4 +375,21 @@ module "argocd" {
     kubernetes_namespace.cluckin_bell,
     module.k8s_controllers
   ]
+}
+
+# SSM Bastion for prod environment
+module "ssm_bastion" {
+  source = "../../../modules/ssm-bastion"
+
+  name        = "${local.environment}-${local.cluster_name}"
+  environment = local.environment
+  vpc_id      = module.vpc.vpc_id
+  subnet_id   = module.vpc.private_subnet_ids[0]  # Deploy in first private subnet
+
+  tags = merge(local.tags, {
+    Purpose = "prod-bastion"
+    Access  = "prod-environment-only"
+  })
+
+  depends_on = [module.vpc]
 }

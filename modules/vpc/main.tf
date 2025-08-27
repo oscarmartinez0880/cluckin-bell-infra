@@ -221,5 +221,54 @@ resource "aws_security_group" "vpc_endpoints" {
   })
 }
 
+# SSM VPC Endpoints for Session Manager access without NAT Gateway
+resource "aws_vpc_endpoint" "ssm" {
+  count = var.enable_ssm_endpoints ? 1 : 0
+
+  vpc_id             = aws_vpc.main.id
+  service_name       = "com.amazonaws.${data.aws_region.current.name}.ssm"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = [aws_subnet.private[0].id]  # Single AZ to minimize cost
+  security_group_ids = [aws_security_group.vpc_endpoints[0].id]
+
+  private_dns_enabled = true
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-ssm-endpoint"
+  })
+}
+
+resource "aws_vpc_endpoint" "ssmmessages" {
+  count = var.enable_ssm_endpoints ? 1 : 0
+
+  vpc_id             = aws_vpc.main.id
+  service_name       = "com.amazonaws.${data.aws_region.current.name}.ssmmessages"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = [aws_subnet.private[0].id]  # Single AZ to minimize cost
+  security_group_ids = [aws_security_group.vpc_endpoints[0].id]
+
+  private_dns_enabled = true
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-ssmmessages-endpoint"
+  })
+}
+
+resource "aws_vpc_endpoint" "ec2messages" {
+  count = var.enable_ssm_endpoints ? 1 : 0
+
+  vpc_id             = aws_vpc.main.id
+  service_name       = "com.amazonaws.${data.aws_region.current.name}.ec2messages"
+  vpc_endpoint_type  = "Interface"
+  subnet_ids         = [aws_subnet.private[0].id]  # Single AZ to minimize cost
+  security_group_ids = [aws_security_group.vpc_endpoints[0].id]
+
+  private_dns_enabled = true
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-ec2messages-endpoint"
+  })
+}
+
 # Data source for current region
 data "aws_region" "current" {}

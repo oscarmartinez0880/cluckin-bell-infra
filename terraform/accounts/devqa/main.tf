@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.0"
     }
+    github = {
+      source  = "integrations/github"
+      version = "~> 5.0"
+    }
   }
 }
 
@@ -322,4 +326,84 @@ resource "aws_ecr_lifecycle_policy" "repositories" {
       }
     ]
   })
+}
+
+# CodeCommit Mirroring Role for GitHub Actions
+resource "aws_iam_role" "codecommit_mirror" {
+  provider = aws.devqa
+  name     = "GH_CodeCommit_Mirror"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = local.github_oidc_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = merge(
+          local.github_trust_condition,
+          {
+            StringLike = {
+              "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository_owner}/cluckin-bell:ref:refs/heads/main"
+            }
+          }
+        )
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name    = "GH_CodeCommit_Mirror"
+    Purpose = "github-codecommit-mirroring"
+  })
+}
+
+# CodeCommit Mirroring Policy
+resource "aws_iam_policy" "codecommit_mirror" {
+  provider = aws.devqa
+  name     = "GH_CodeCommit_Mirror_Policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "codecommit:GitPush"
+        ]
+        Resource = "arn:aws:codecommit:us-east-1:${data.aws_caller_identity.current.account_id}:cluckin-bell"
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name    = "GH_CodeCommit_Mirror_Policy"
+    Purpose = "github-codecommit-mirroring"
+  })
+}
+
+# Attach policy to role
+resource "aws_iam_role_policy_attachment" "codecommit_mirror" {
+  provider   = aws.devqa
+  role       = aws_iam_role.codecommit_mirror.name
+  policy_arn = aws_iam_policy.codecommit_mirror.arn
+}
+
+# Data source for current account ID
+data "aws_caller_identity" "current" {
+  provider = aws.devqa
+}
+
+# Optional GitHub workflow management
+module "github_workflow" {
+  count  = var.manage_github_workflow ? 1 : 0
+  source = "../../modules/github-workflow"
+
+  manage_github_workflow     = var.manage_github_workflow
+  repository_name           = var.github_repository_name
+  codecommit_mirror_role_arn = aws_iam_role.codecommit_mirror.arn
+
+  depends_on = [aws_iam_role.codecommit_mirror]
 }

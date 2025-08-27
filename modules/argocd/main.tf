@@ -15,6 +15,9 @@ terraform {
   }
 }
 
+# Data source for current AWS account ID
+data "aws_caller_identity" "current" {}
+
 # ArgoCD Helm release
 resource "helm_release" "argocd" {
   name       = "argocd"
@@ -35,6 +38,17 @@ resource "helm_release" "argocd" {
         params = {
           "server.insecure" = true
         }
+        secret = {
+          # Enable admin user for authentication
+          argocdServerAdminPassword = "$2a$10$rRyBsGSHK6.uc8fntPwVIeWd9tOtqBvBZ7P9uKzYiwtQkuWPvEFeO"  # Default: admin
+          argocdServerAdminPasswordMtime = "2023-01-01T00:00:00Z"
+        }
+        cm = {
+          # Enable admin user
+          "admin.enabled" = true
+          # Disable anonymous access
+          "users.anonymous.enabled" = false
+        }
       }
       
       server = {
@@ -42,7 +56,7 @@ resource "helm_release" "argocd" {
           type = "LoadBalancer"
           annotations = {
             "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
-            "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+            "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internal"  # Internal ALB
           }
         }
         ingress = {
