@@ -30,18 +30,18 @@ resource "helm_release" "argocd" {
           tag = var.argocd_version
         }
       }
-      
+
       configs = {
         params = {
           "server.insecure" = true
         }
       }
-      
+
       server = {
         service = {
           type = "LoadBalancer"
           annotations = {
-            "service.beta.kubernetes.io/aws-load-balancer-type" = "nlb"
+            "service.beta.kubernetes.io/aws-load-balancer-type"   = "nlb"
             "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
           }
         }
@@ -49,15 +49,15 @@ resource "helm_release" "argocd" {
           enabled = false
         }
       }
-      
+
       dex = {
         enabled = false
       }
-      
+
       notifications = {
         enabled = false
       }
-      
+
       applicationSet = {
         enabled = true
       }

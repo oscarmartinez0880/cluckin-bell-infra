@@ -510,11 +510,11 @@ module "k8s_controllers" {
   zone_id_filters   = [aws_route53_zone.public.zone_id, aws_route53_zone.private.zone_id]
 
   # Argo CD configuration
-  argocd_version               = var.argocd_version
-  argocd_auto_sync            = var.argocd_auto_sync
-  github_app_id               = var.github_app_id
+  argocd_version             = var.argocd_version
+  argocd_auto_sync           = var.argocd_auto_sync
+  github_app_id              = var.github_app_id
   github_app_installation_id = var.github_app_installation_id
-  github_app_private_key      = var.github_app_private_key
+  github_app_private_key     = var.github_app_private_key
 
   # Dependencies
   node_groups = module.eks.eks_managed_node_groups
