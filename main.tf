@@ -510,11 +510,17 @@ module "k8s_controllers" {
   zone_id_filters   = [aws_route53_zone.public.zone_id, aws_route53_zone.private.zone_id]
 
   # Argo CD configuration
+
   argocd_version             = var.argocd_version
   argocd_auto_sync           = var.argocd_auto_sync
   github_app_id              = var.github_app_id
   github_app_installation_id = var.github_app_installation_id
   github_app_private_key     = var.github_app_private_key
+
+  argocd_version              = var.argocd_version
+  argocd_auto_sync            = var.argocd_auto_sync
+  argocd_repo_server_role_arn = module.argocd_repo_server_irsa.iam_role_arn
+  codecommit_repository_url   = "codecommit::${var.aws_region}://cluckin-bell"
 
   # Dependencies
   node_groups = module.eks.eks_managed_node_groups
@@ -527,4 +533,75 @@ module "k8s_controllers" {
     aws_route53_zone.public,
     aws_route53_zone.private
   ]
+}
+
+# AWS CodeCommit repository for GitOps
+resource "aws_codecommit_repository" "cluckin_bell" {
+  repository_name = "cluckin-bell"
+  description     = "GitOps repository for cluckin-bell application"
+
+  tags = {
+    Environment = var.environment
+    Project     = "cluckin-bell"
+    Stack       = "gitops"
+  }
+}
+
+# IRSA role for Argo CD repo-server to access CodeCommit
+module "argocd_repo_server_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name = "${var.environment}-argocd-repo-server-irsa"
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["cluckin-bell:argocd-repo-server"]
+    }
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = "cluckin-bell"
+    Stack       = "gitops"
+  }
+}
+
+# IAM policy for CodeCommit read-only access
+resource "aws_iam_policy" "argocd_codecommit_access" {
+  name        = "${var.environment}-argocd-codecommit-access"
+  description = "Policy for Argo CD to access CodeCommit repository"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "codecommit:GitPull",
+          "codecommit:GetBranch",
+          "codecommit:GetCommit",
+          "codecommit:GetRepository",
+          "codecommit:ListBranches",
+          "codecommit:ListRepositories",
+          "codecommit:BatchGetCommits",
+          "codecommit:BatchGetRepositories"
+        ]
+        Resource = aws_codecommit_repository.cluckin_bell.arn
+      }
+    ]
+  })
+
+  tags = {
+    Environment = var.environment
+    Project     = "cluckin-bell"
+    Stack       = "gitops"
+  }
+}
+
+# Attach policy to IRSA role
+resource "aws_iam_role_policy_attachment" "argocd_codecommit_access" {
+  policy_arn = aws_iam_policy.argocd_codecommit_access.arn
+  role       = module.argocd_repo_server_irsa.iam_role_name
 }

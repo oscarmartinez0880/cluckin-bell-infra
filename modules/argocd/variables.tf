@@ -15,7 +15,7 @@ variable "environment" {
 }
 
 variable "git_repository" {
-  description = "Git repository URL for ArgoCD to sync from"
+  description = "Git repository URL for ArgoCD to sync from (CodeCommit format: codecommit::region://repo-name)"
   type        = string
 }
 
@@ -40,4 +40,10 @@ variable "node_groups" {
   description = "EKS node groups dependency"
   type        = any
   default     = {}
+}
+
+variable "argocd_repo_server_role_arn" {
+  description = "IAM role ARN for Argo CD repo-server to access CodeCommit"
+  type        = string
+  default     = ""
 }
