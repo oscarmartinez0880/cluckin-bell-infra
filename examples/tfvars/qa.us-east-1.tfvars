@@ -24,7 +24,7 @@ windows_node_desired_size   = 2
 ecr_retain_untagged_days = 10
 ecr_repositories = [
   "cluckin-bell-app",
-  "wingman-api", 
+  "wingman-api",
   "fryer-worker",
   "sauce-gateway",
   "clucker-notify"

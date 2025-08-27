@@ -22,11 +22,9 @@ windows_node_desired_size   = 3
 ecr_retain_untagged_days = 30
 ecr_repositories = [
   "api",
-  "web", 
+  "web",
   "worker",
   "cm",
   "cd"
 ]
 
-environment = "prod"
-aws_region  = "us-east-1"
