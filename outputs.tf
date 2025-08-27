@@ -93,6 +93,44 @@ output "ecr_repository_arns" {
   }
 }
 
+# DNS/TLS Controller outputs
+output "aws_load_balancer_controller_role_arn" {
+  description = "ARN of the AWS Load Balancer Controller IRSA role"
+  value       = module.aws_load_balancer_controller_irsa.iam_role_arn
+}
+
+output "cert_manager_role_arn" {
+  description = "ARN of the cert-manager IRSA role"
+  value       = module.cert_manager_irsa.iam_role_arn
+}
+
+output "external_dns_role_arn" {
+  description = "ARN of the external-dns IRSA role"
+  value       = module.external_dns_irsa.iam_role_arn
+}
+
+output "k8s_controllers_status" {
+  description = "Status of deployed Kubernetes controllers"
+  value = {
+    aws_load_balancer_controller = module.k8s_controllers.aws_load_balancer_controller_status
+    cert_manager                 = module.k8s_controllers.cert_manager_status
+    external_dns                 = module.k8s_controllers.external_dns_status
+  }
+}
+
+output "letsencrypt_cluster_issuers" {
+  description = "Available Let's Encrypt cluster issuers"
+  value       = module.k8s_controllers.letsencrypt_cluster_issuers
+}
+
+output "domains" {
+  description = "Configured domains for the environment"
+  value = {
+    frontend = local.domains.frontend[var.environment]
+    api      = local.domains.api[var.environment]
+  }
+}
+
 # TODO: Add outputs for your infrastructure resources
 # Examples:
 

@@ -1,28 +1,7 @@
-terraform {
-  required_version = ">= 1.7.0"
+# NOTE: Terraform version and provider configuration is defined in main.tf
+# This file is kept for reference but the actual configuration is in main.tf
 
-  required_providers {
-    # TODO: Uncomment and configure providers based on your cloud platform
-    # aws = {
-    #   source  = "hashicorp/aws"
-    #   version = "~> 5.0"
-    # }
-    # azurerm = {
-    #   source  = "hashicorp/azurerm"
-    #   version = "~> 3.0"
-    # }
-    # google = {
-    #   source  = "hashicorp/google"
-    #   version = "~> 4.0"
-    # }
-  }
-}
-
-# TODO: Configure provider blocks based on your cloud platform
-# provider "aws" {
-#   region = var.aws_region
-# }
-
+# TODO: Configure additional provider blocks based on your needs
 # provider "azurerm" {
 #   features {}
 # }

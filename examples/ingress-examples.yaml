@@ -1,0 +1,155 @@
+# Example Kubernetes Ingress configurations for Cluckin' Bell application
+# These examples demonstrate how to use the deployed DNS/TLS controllers
+
+# Frontend Ingress with ALB and automatic HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cluckin-bell-frontend
+  namespace: cluckin-bell-${environment}
+  annotations:
+    # AWS Load Balancer Controller annotations
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    
+    # cert-manager annotation for automatic SSL certificate
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    
+    # external-dns annotation for automatic DNS record creation
+    external-dns.alpha.kubernetes.io/hostname: ${frontend_domain}
+    
+    # Optional: Custom ALB settings
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+spec:
+  ingressClassName: alb
+  tls:
+  - hosts:
+    - ${frontend_domain}  # dev.cluckin-bell.com, qa.cluckin-bell.com, or cluckin-bell.com
+    secretName: cluckin-bell-frontend-tls
+  rules:
+  - host: ${frontend_domain}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: cluckin-bell-app
+            port:
+              number: 80
+
+---
+
+# API Ingress with ALB and automatic HTTPS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cluckin-bell-api
+  namespace: cluckin-bell-${environment}
+  annotations:
+    # AWS Load Balancer Controller annotations
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    
+    # cert-manager annotation for automatic SSL certificate
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    
+    # external-dns annotation for automatic DNS record creation
+    external-dns.alpha.kubernetes.io/hostname: ${api_domain}
+    
+    # API-specific ALB settings
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '10'
+    
+    # CORS headers for API
+    alb.ingress.kubernetes.io/actions.cors: |
+      {
+        "Type": "forward",
+        "ForwardConfig": {
+          "TargetGroups": [
+            {
+              "ServiceName": "wingman-api",
+              "ServicePort": 80,
+              "Weight": 100
+            }
+          ]
+        }
+      }
+spec:
+  ingressClassName: alb
+  tls:
+  - hosts:
+    - ${api_domain}  # api.dev.cluckin-bell.com, api.qa.cluckin-bell.com, or api.cluckin-bell.com
+    secretName: cluckin-bell-api-tls
+  rules:
+  - host: ${api_domain}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wingman-api
+            port:
+              number: 80
+
+---
+
+# Example with staging certificate for development/testing
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cluckin-bell-staging
+  namespace: cluckin-bell-dev
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    
+    # Use staging issuer for non-production environments
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    
+    external-dns.alpha.kubernetes.io/hostname: staging.dev.cluckin-bell.com
+spec:
+  ingressClassName: alb
+  tls:
+  - hosts:
+    - staging.dev.cluckin-bell.com
+    secretName: cluckin-bell-staging-tls
+  rules:
+  - host: staging.dev.cluckin-bell.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: cluckin-bell-app
+            port:
+              number: 80
+
+---
+
+# Example Certificate resource (usually created automatically by cert-manager)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cluckin-bell-wildcard
+  namespace: cluckin-bell-prod
+spec:
+  secretName: cluckin-bell-wildcard-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - cluckin-bell.com
+  - "*.cluckin-bell.com"

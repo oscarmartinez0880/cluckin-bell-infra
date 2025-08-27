@@ -45,6 +45,22 @@ The platform-eks stack provides:
 - **Labels**: `role=windows-workload`, `os=windows`
 - **Scaling**: Environment-specific sizing (dev/qa: 2 desired, prod: 3 desired)
 
+### DNS and TLS Management
+
+The infrastructure includes automated DNS and TLS certificate management:
+
+- **AWS Load Balancer Controller**: Provisions ALBs/NLBs for Kubernetes Ingress resources
+- **cert-manager**: Automates SSL/TLS certificate provisioning using Let's Encrypt
+- **external-dns**: Automatically manages Route 53 DNS records for services
+- **IRSA Integration**: All controllers use IAM Roles for Service Accounts for secure AWS API access
+
+#### Supported Domains
+- **Development**: `dev.cluckin-bell.com`, `api.dev.cluckin-bell.com`
+- **QA**: `qa.cluckin-bell.com`, `api.qa.cluckin-bell.com`
+- **Production**: `cluckin-bell.com`, `api.cluckin-bell.com`
+
+See `examples/ingress-examples.yaml` for complete Ingress configuration examples.
+
 ---
 
 ## Deployment Guide
@@ -82,6 +98,19 @@ The platform-eks stack provides:
 4. **Configure kubectl**:
    ```bash
    aws eks update-kubeconfig --region us-east-1 --name <environment>-cluckin-bell
+   ```
+
+5. **Verify DNS/TLS Controllers**:
+   ```bash
+   # Check AWS Load Balancer Controller
+   kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+   
+   # Check cert-manager
+   kubectl get pods -n cert-manager
+   kubectl get clusterissuers
+   
+   # Check external-dns
+   kubectl get pods -n kube-system -l app.kubernetes.io/name=external-dns
    ```
 
 ### Sitecore CM/CD Pod Scheduling
