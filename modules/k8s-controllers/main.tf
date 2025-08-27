@@ -20,7 +20,7 @@ resource "helm_release" "aws_load_balancer_controller" {
   count = var.enable_aws_load_balancer_controller ? 1 : 0
 
   name       = "aws-load-balancer-controller"
-  namespace  = "kube-system"
+  namespace  = var.namespace == "kube-system" ? "kube-system" : var.namespace
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   version    = var.aws_load_balancer_controller_version
@@ -60,10 +60,10 @@ resource "helm_release" "aws_load_balancer_controller" {
 
 # cert-manager
 resource "kubernetes_namespace" "cert_manager" {
-  count = var.enable_cert_manager ? 1 : 0
+  count = var.enable_cert_manager && var.namespace != "kube-system" ? 1 : 0
 
   metadata {
-    name = "cert-manager"
+    name = var.namespace
     labels = {
       "cert-manager.io/disable-validation" = "true"
     }
@@ -74,7 +74,7 @@ resource "helm_release" "cert_manager" {
   count = var.enable_cert_manager ? 1 : 0
 
   name       = "cert-manager"
-  namespace  = kubernetes_namespace.cert_manager[0].metadata[0].name
+  namespace  = var.namespace
   repository = "https://charts.jetstack.io"
   chart      = "cert-manager"
   version    = var.cert_manager_version
@@ -173,7 +173,7 @@ resource "helm_release" "external_dns" {
   count = var.enable_external_dns ? 1 : 0
 
   name       = "external-dns"
-  namespace  = "kube-system"
+  namespace  = var.namespace == "kube-system" ? "kube-system" : var.namespace
   repository = "https://kubernetes-sigs.github.io/external-dns/"
   chart      = "external-dns"
   version    = var.external_dns_version

@@ -1,8 +1,43 @@
 # Cluckin Bell Infrastructure
 
-This repository contains the complete, production-grade Terraform infrastructure and Kubernetes setup for Sitecore 10.4 XP Scaled on AWS EKS, supporting dev, qa, and prod environments with Windows node support for Sitecore CM/CD workloads.
+This repository contains Terraform infrastructure as code for the Cluckin Bell application, providing multi-environment EKS clusters with GitOps using ArgoCD.
 
-This repository contains the complete infrastructure-as-code for the Cluckin Bell Sitecore 10.4 application on AWS EKS, supporting dev, qa, and prod environments.
+## Architecture Overview
+
+### Multi-Environment Setup
+
+The infrastructure is organized around environment-specific EKS clusters:
+
+| Environment | Cluster Name | VPC CIDR | ArgoCD Git Path | Domain |
+|-------------|--------------|----------|------------------|--------|
+| **dev** | cb-dev-use1 | 10.0.0.0/16 | k8s/dev | dev.cluckin-bell.com |
+| **qa** | cb-qa-use1 | 10.1.0.0/16 | k8s/qa | qa.cluckin-bell.com |
+| **prod** | cb-prod-use1 | 10.2.0.0/16 | k8s/prod | cluckin-bell.com |
+
+### GitOps Architecture
+
+- **Platform Components** (Terraform-managed): VPC, EKS, external-dns, cert-manager, ArgoCD
+- **Application Workloads** (ArgoCD-managed): All apps from [`oscarmartinez0880/cluckin-bell`](https://github.com/oscarmartinez0880/cluckin-bell) repository
+- **Single Namespace Strategy**: All components deployed to `cluckin-bell` namespace per cluster
+
+## Repository Structure
+
+```
+├── stacks/environments/          # Environment-specific infrastructure
+│   ├── dev/                     # Development EKS cluster
+│   ├── qa/                      # QA EKS cluster  
+│   ├── prod/                    # Production EKS cluster
+│   └── README.md                # Environment deployment guide
+├── modules/                     # Reusable Terraform modules
+│   ├── vpc/                     # VPC with subnets, NAT gateways
+│   ├── k8s-controllers/         # Platform controllers (ALB, cert-manager, external-dns)
+│   ├── argocd/                  # ArgoCD GitOps setup
+│   └── ...
+├── terraform/accounts/          # Account-level resources (IAM, ECR)
+│   ├── devqa/                   # Dev/QA account resources
+│   └── prod/                    # Production account resources
+└── deploy-environments.sh       # Multi-environment deployment script
+```
 
 ## Infrastructure Architecture
 
@@ -128,218 +163,122 @@ To configure Argo CD with private repository access:
 
 2. **Plan Infrastructure** (per environment):
    ```bash
-   # Development
-   terraform plan -var-file="env/dev.tfvars"
-   
-   # QA
-   terraform plan -var-file="env/qa.tfvars"
-   
-   # Production
-   terraform plan -var-file="env/prod.tfvars"
-   ```
+## Quick Start
 
-3. **Apply Infrastructure**:
-   ```bash
-   terraform apply -var-file="env/dev.tfvars"
-   ```
+### Deploy All Environments
 
-4. **Configure kubectl**:
-   ```bash
-   aws eks update-kubeconfig --region us-east-1 --name <environment>-cluckin-bell
-   ```
+Use the automated deployment script:
 
-5. **Verify DNS/TLS Controllers**:
-   ```bash
-   # Check AWS Load Balancer Controller
-   kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
-   
-   # Check cert-manager
-   kubectl get pods -n cert-manager
-   kubectl get clusterissuers
-   
-   # Check external-dns
-   kubectl get pods -n kube-system -l app.kubernetes.io/name=external-dns
-   ```
+```bash
+# Deploy all environments (dev, qa, prod)
+./deploy-environments.sh
 
-### Sitecore CM/CD Pod Scheduling
-
-For Sitecore CM and CD pods to run on Windows nodes, use the following configuration:
-
-#### Required nodeSelector and tolerations:
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: sitecore-cm
-spec:
-  nodeSelector:
-    kubernetes.io/os: windows
-    role: windows-workload
-  tolerations:
-  - key: "os"
-    operator: "Equal"
-    value: "windows"
-    effect: "NoSchedule"
-  containers:
-  - name: sitecore-cm
-    image: your-ecr-repo/cm:latest
-    # ... rest of container spec
+# Deploy a specific environment
+./deploy-environments.sh dev
+./deploy-environments.sh qa  
+./deploy-environments.sh prod
 ```
 
-#### Example Deployment for Sitecore CM:
+### Manual Environment Deployment
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: sitecore-cm
-  namespace: sitecore
-spec:
-  replicas: 2
-  selector:
-    matchLabels:
-      app: sitecore-cm
-  template:
-    metadata:
-      labels:
-        app: sitecore-cm
-    spec:
-      nodeSelector:
-        kubernetes.io/os: windows
-        role: windows-workload
-      tolerations:
-      - key: "os"
-        operator: "Equal"
-        value: "windows"
-        effect: "NoSchedule"
-      containers:
-      - name: sitecore-cm
-        image: <account-id>.dkr.ecr.us-east-1.amazonaws.com/dev-cluckin-bell-cm:latest
-        ports:
-        - containerPort: 80
-        resources:
-          requests:
-            memory: "2Gi"
-            cpu: "1000m"
-          limits:
-            memory: "4Gi"
-            cpu: "2000m"
+```bash
+# Deploy dev environment
+cd stacks/environments/dev
+terraform init
+terraform plan
+terraform apply
+
+# Get cluster details
+terraform output cluster_name
+terraform output argocd_server_url
 ```
 
----
+### ArgoCD Access
 
-## Environment Configuration
+After deployment, access ArgoCD web interface:
 
-### Development (dev)
-- **Windows Nodes**: 2 desired, max 6 (m5.2xlarge)
-- **Linux Nodes**: 2 desired, max 5 (m5.large, m5.xlarge)
-- **ECR Retention**: 10 days for untagged images
+```bash
+# Update kubeconfig for the cluster
+aws eks update-kubeconfig --region us-east-1 --name cb-dev-use1
 
-### QA (qa)
-- **Windows Nodes**: 2 desired, max 6 (m5.2xlarge)
-- **Linux Nodes**: 3 desired, max 8 (m5.large, m5.xlarge)
-- **ECR Retention**: 10 days for untagged images
+# Get ArgoCD URL
+cd stacks/environments/dev && terraform output argocd_server_url
 
-### Production (prod)
-- **Windows Nodes**: 3 desired, max 6 (m5.2xlarge)
-- **Linux Nodes**: 5 desired, max 15 (m5.xlarge, m5.2xlarge)
-- **ECR Retention**: 30 days for untagged images
+# Get admin password
+kubectl -n cluckin-bell get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+```
 
----
+## GitOps Workflow
 
-## Version Constraints
+1. **Platform Management**: Use this repository to manage infrastructure
+2. **Application Deployment**: Use [`oscarmartinez0880/cluckin-bell`](https://github.com/oscarmartinez0880/cluckin-bell) repository
+3. **Auto-Sync**: ArgoCD automatically syncs applications from git paths
+4. **Environment Promotion**: Promote through environments via git
 
-- **Terraform**: >= 1.0
-- **AWS Provider**: ~> 5.0
-- **Kubernetes Provider**: ~> 2.20
-- **EKS Module**: ~> 20.0
-- **Kubernetes**: 1.29 (configurable per environment)
-- **Windows Server**: 2022 Core (WINDOWS_CORE_2022_x86_64)
+### Application Repository Structure
 
----
+The application repository should contain:
 
-## Security Considerations
+```
+oscarmartinez0880/cluckin-bell/
+├── k8s/
+│   ├── dev/       # Dev environment manifests
+│   ├── qa/        # QA environment manifests
+│   └── prod/      # Production environment manifests
+└── ...
+```
 
-- All EKS clusters use KMS encryption for secrets
-- IRSA (IAM Roles for Service Accounts) enabled
-- ECR repositories have image scanning enabled
-- Windows nodes have appropriate security group rules for Windows services
-- Node groups have minimal IAM permissions with ECR read-only access
+## Infrastructure Features
 
----
+### Each Environment Includes
+
+- **VPC**: Dedicated VPC with public/private subnets across 2 AZs
+- **EKS Cluster**: Managed Kubernetes cluster with Linux node groups
+- **Platform Controllers**:
+  - AWS Load Balancer Controller for Ingress resources
+  - cert-manager for automatic TLS certificate management
+  - external-dns for Route 53 DNS automation
+- **ArgoCD**: GitOps controller for application deployment
+- **Security**: KMS encryption, IRSA roles, proper networking
+
+### DNS and TLS Management
+
+Automatic certificate management with environment-specific domains:
+- **Dev**: `*.dev.cluckin-bell.com`
+- **QA**: `*.qa.cluckin-bell.com` 
+- **Prod**: `*.cluckin-bell.com`
+
+### Resource Configuration by Environment
+
+| Environment | Linux Nodes | Instance Types | VPC CIDR |
+|-------------|-------------|----------------|----------|
+| **dev** | 2 desired, max 5 | m5.large, m5.xlarge | 10.0.0.0/16 |
+| **qa** | 3 desired, max 8 | m5.large, m5.xlarge | 10.1.0.0/16 |
+| **prod** | 5 desired, max 15 | m5.xlarge, m5.2xlarge | 10.2.0.0/16 |
+
+## Prerequisites
+
+1. **AWS CLI** configured with appropriate IAM permissions
+2. **Terraform** >= 1.0 installed
+3. **kubectl** for Kubernetes cluster management
+4. **Git** access to both repositories
+
+## Account-Level Resources
+
+Before deploying environments, ensure account-level resources are set up:
+
+```bash
+# Deploy account-level IAM roles and ECR repositories
+cd terraform/accounts/devqa    # For dev/qa environments
+terraform init && terraform apply
+
+cd terraform/accounts/prod    # For production environment  
+terraform init && terraform apply
+```
+
+This creates GitHub OIDC roles for CI/CD integration.
 
 ## Monitoring and Observability
-
-See `k8s-monitoring/` directory for:
-- Prometheus configuration
-- Grafana dashboards
-- Windows-specific monitoring considerations
-
----
-
-## CI/CD Integration
-
-This repository includes GitHub Actions workflows for:
-- **terraform-pr.yml**: Terraform plan on pull requests
-- **terraform-dev.yml**: Deploy to development environment
-- **terraform-qa.yml**: Deploy to QA environment
-- **terraform-prod.yml**: Deploy to production environment
-
-Set the `AWS_TERRAFORM_ROLE_ARN` repository secret for authentication.
-
----
-
-## Troubleshooting
-
-### Windows Pod Scheduling Issues
-
-If Windows pods are not scheduling:
-
-1. **Check node readiness**:
-   ```bash
-   kubectl get nodes -l kubernetes.io/os=windows
-   ```
-
-2. **Verify taints and tolerations**:
-   ```bash
-   kubectl describe node <windows-node-name>
-   ```
-
-3. **Check pod events**:
-   ```bash
-   kubectl describe pod <pod-name>
-   ```
-
-### Common Windows Node Issues
-
-- **VPC CNI**: Ensure aws-node-windows DaemonSet is running
-- **Container Runtime**: Windows containers require Windows Server 2022 base images
-- **Resource Limits**: Windows containers typically require more memory than Linux equivalents
-
----
-
-## Contributing
-
-1. Create feature branch from main
-2. Make changes and test locally
-3. Submit pull request with Terraform plan output
-4. Ensure all CI checks pass before merging
-=======
-- `stacks/{stack-name}/`: Terraform configurations for each infrastructure stack
-- `env/`: Environment-specific Terraform variable files (dev.tfvars, qa.tfvars, prod.tfvars)
-- `k8s/{dev,qa,prod}/`: Kubernetes manifests for each environment
-- `helm/`: Helm values per environment and role
-- `k8s-monitoring/`: Prometheus+Grafana monitoring stack and dashboards
-- `.github/workflows/`: CI/CD workflows for infrastructure deployment
-
-## Getting Started
-
-### Prerequisites
-
-1. AWS CLI configured with appropriate permissions
-2. Terraform >= 1.0 installed
-3. kubectl installed for Kubernetes operations
 
 ### Backend Setup (S3 State Storage)
 
@@ -372,40 +311,58 @@ If Windows pods are not scheduling:
 5. **Data Stack**: Deploy databases and storage
 6. **Registry Observability Stack**: Deploy ECR and monitoring
 
-### CI/CD
+- **ArgoCD Dashboard**: View application deployment status and sync health
+- **AWS CloudWatch**: EKS cluster metrics and container logs
+- **Kubernetes Events**: Real-time cluster events and warnings
+- **Application Health**: ArgoCD health checks for deployed applications
 
-The repository includes automated Terraform workflows:
+## Security Features
 
-- **Pull Requests**: Runs `terraform plan` for validation
-- **Branch Deployments**: 
-  - `develop` → dev environment
-  - `staging` → qa environment  
-  - `main` → prod environment
+- **Network Isolation**: Each environment has dedicated VPC
+- **Encryption at Rest**: EKS secrets encrypted with KMS
+- **IRSA**: IAM Roles for Service Accounts for secure AWS API access
+- **TLS Automation**: Let's Encrypt certificates for all domains
+- **GitOps Audit Trail**: All changes tracked in git history
 
-Set the `AWS_TERRAFORM_ROLE_ARN` repository secret with an IAM role trusted by GitHub OIDC.
+## Version Constraints
 
-## Security
+- **Terraform**: >= 1.0
+- **AWS Provider**: ~> 5.0
+- **Kubernetes Provider**: ~> 2.20
+- **Helm Provider**: ~> 2.0
+- **EKS Module**: ~> 20.0
+- **Kubernetes Version**: 1.29
 
-- All IAM roles follow least-privilege principles
-- GitHub OIDC trust policies constrain access to specific repositories
-- ECR permissions limited to cluckin-bell/* namespace
-- Infrastructure changes require PR approval
-- Security scanning with tfsec on all PRs
+## Troubleshooting
 
----
+### Common Issues
 
-## Legacy Content
+1. **ArgoCD Sync Failures**: Check application repo structure and manifests
+2. **Certificate Issues**: Verify Route 53 hosted zone configuration
+3. **Load Balancer Issues**: Check security groups and subnet tags
+4. **DNS Issues**: Verify external-dns permissions and configuration
 
-This repository was migrated from a Kubernetes-focused setup and retains the following structure for application deployment:
+### Useful Commands
 
-- `k8s/{dev,qa,prod}/`: All Kubernetes manifests for each environment
-- `helm/`: Helm values per environment and role  
-- `k8s-monitoring/`: Full Prometheus+Grafana monitoring stack and dashboards
+```bash
+# Check cluster status
+kubectl get nodes
 
-### Application Deployment Quickstart
+# Check platform controllers
+kubectl get pods -n cluckin-bell
 
-1. Apply infrastructure with the Terraform stacks above
-2. Update secrets and values files with actual endpoints, ARNs, etc.
-3. Deploy manifests & Helm releases per environment
-4. Set up monitoring and dashboards
+# Check ArgoCD applications
+kubectl get applications -n cluckin-bell
+
+# View ArgoCD logs
+kubectl logs -n cluckin-bell deployment/argocd-server
+```
+
+## Support
+
+For issues and questions:
+1. Check the [environment-specific README](stacks/environments/README.md)
+2. Review ArgoCD application status in the web interface
+3. Check Terraform state and outputs
+4. Review AWS CloudWatch logs for detailed error information
 
