@@ -158,6 +158,32 @@ output "argocd_kubectl_port_forward_command" {
   value       = "kubectl port-forward svc/argocd-server -n argocd 8080:443"
 }
 
+# CodeCommit outputs
+output "codecommit_repository_name" {
+  description = "Name of the CodeCommit repository for GitOps"
+  value       = aws_codecommit_repository.cluckin_bell.repository_name
+}
+
+output "codecommit_repository_arn" {
+  description = "ARN of the CodeCommit repository"
+  value       = aws_codecommit_repository.cluckin_bell.arn
+}
+
+output "codecommit_repository_clone_url_ssh" {
+  description = "SSH clone URL for the CodeCommit repository"
+  value       = aws_codecommit_repository.cluckin_bell.clone_url_ssh
+}
+
+output "codecommit_repository_clone_url_https" {
+  description = "HTTPS clone URL for the CodeCommit repository"
+  value       = aws_codecommit_repository.cluckin_bell.clone_url_http
+}
+
+output "argocd_repo_server_role_arn" {
+  description = "ARN of the Argo CD repo-server IRSA role"
+  value       = module.argocd_repo_server_irsa.iam_role_arn
+}
+
 # TODO: Add outputs for your infrastructure resources
 # Examples:
 

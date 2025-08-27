@@ -125,22 +125,3 @@ variable "argocd_auto_sync" {
   type        = bool
   default     = false
 }
-
-variable "github_app_id" {
-  description = "GitHub App ID for Argo CD authentication"
-  type        = string
-  default     = ""
-}
-
-variable "github_app_installation_id" {
-  description = "GitHub App Installation ID for Argo CD authentication"
-  type        = string
-  default     = ""
-}
-
-variable "github_app_private_key" {
-  description = "GitHub App private key for Argo CD authentication (base64 encoded)"
-  type        = string
-  default     = ""
-  sensitive   = true
-}

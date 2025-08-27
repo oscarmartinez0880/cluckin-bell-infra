@@ -313,6 +313,61 @@ resource "aws_iam_role_policy" "external_dns_route53" {
   })
 }
 
+# IRSA role for Argo CD repo-server to access CodeCommit
+module "argocd_repo_server_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name = "${local.environment}-argocd-repo-server-irsa"
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["${local.namespace}:argocd-repo-server"]
+    }
+  }
+
+  tags = merge(local.tags, {
+    Stack = "gitops"
+  })
+}
+
+# IAM policy for CodeCommit read-only access
+resource "aws_iam_policy" "argocd_codecommit_access" {
+  name        = "${local.environment}-argocd-codecommit-access"
+  description = "Policy for Argo CD to access CodeCommit repository"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "codecommit:GitPull",
+          "codecommit:GetBranch",
+          "codecommit:GetCommit",
+          "codecommit:GetRepository",
+          "codecommit:ListBranches",
+          "codecommit:ListRepositories",
+          "codecommit:BatchGetCommits",
+          "codecommit:BatchGetRepositories"
+        ]
+        Resource = "arn:aws:codecommit:${local.region}:*:cluckin-bell"
+      }
+    ]
+  })
+
+  tags = merge(local.tags, {
+    Stack = "gitops"
+  })
+}
+
+# Attach policy to IRSA role
+resource "aws_iam_role_policy_attachment" "argocd_codecommit_access" {
+  policy_arn = aws_iam_policy.argocd_codecommit_access.arn
+  role       = module.argocd_repo_server_irsa.iam_role_name
+}
+
 # Create the cluckin-bell namespace
 resource "kubernetes_namespace" "cluckin_bell" {
   metadata {
@@ -330,6 +385,7 @@ module "k8s_controllers" {
   source = "../../../modules/k8s-controllers"
 
   cluster_name = module.eks.cluster_name
+  environment  = local.environment
   aws_region   = local.region
   vpc_id       = module.vpc.vpc_id
   namespace    = local.namespace
@@ -338,6 +394,7 @@ module "k8s_controllers" {
   enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
   enable_cert_manager                 = var.enable_cert_manager
   enable_external_dns                 = var.enable_external_dns
+  enable_argocd                       = false  # We use separate argocd module
 
   # IRSA role ARNs
   aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa.iam_role_arn
@@ -364,14 +421,16 @@ module "k8s_controllers" {
 module "argocd" {
   source = "../../../modules/argocd"
 
-  cluster_name   = module.eks.cluster_name
-  namespace      = local.namespace
-  environment    = local.environment
-  git_repository = "https://github.com/oscarmartinez0880/cluckin-bell.git"
-  git_path       = "k8s/dev"
+  cluster_name                = module.eks.cluster_name
+  namespace                   = local.namespace
+  environment                 = local.environment
+  git_repository              = "codecommit::us-east-1://cluckin-bell"
+  git_path                    = "k8s/dev"
+  argocd_repo_server_role_arn = module.argocd_repo_server_irsa.iam_role_arn
 
   depends_on = [
     kubernetes_namespace.cluckin_bell,
-    module.k8s_controllers
+    module.k8s_controllers,
+    module.argocd_repo_server_irsa
   ]
 }

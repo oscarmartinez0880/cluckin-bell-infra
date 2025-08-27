@@ -120,21 +120,14 @@ variable "argocd_auto_sync" {
   default     = false
 }
 
-variable "github_app_id" {
-  description = "GitHub App ID for Argo CD authentication"
+variable "argocd_repo_server_role_arn" {
+  description = "IAM role ARN for Argo CD repo-server to access CodeCommit"
   type        = string
   default     = ""
 }
 
-variable "github_app_installation_id" {
-  description = "GitHub App Installation ID for Argo CD authentication"
+variable "codecommit_repository_url" {
+  description = "CodeCommit repository URL for Argo CD"
   type        = string
   default     = ""
-}
-
-variable "github_app_private_key" {
-  description = "GitHub App private key for Argo CD authentication (base64 encoded)"
-  type        = string
-  default     = ""
-  sensitive   = true
 }
