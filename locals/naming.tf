@@ -73,14 +73,14 @@ locals {
   # Domain names
   domains = {
     frontend = {
-      dev  = "dev.cluckin-bell.com"
-      qa   = "qa.cluckin-bell.com"
-      prod = "cluckin-bell.com"
+      dev  = "dev.cluckn-bell.com"
+      qa   = "qa.cluckn-bell.com"
+      prod = "cluckn-bell.com"
     }
     api = {
-      dev  = "api.dev.cluckin-bell.com"
-      qa   = "api.qa.cluckin-bell.com"
-      prod = "api.cluckin-bell.com"
+      dev  = "api.dev.cluckn-bell.com"
+      qa   = "api.qa.cluckn-bell.com"
+      prod = "api.cluckn-bell.com"
     }
   }
 

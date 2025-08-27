@@ -32,5 +32,15 @@ ecr_repositories = [
 enable_aws_load_balancer_controller = true
 enable_cert_manager                 = true
 enable_external_dns                 = true
-letsencrypt_email                   = "admin@cluckin-bell.com"
+letsencrypt_email                   = "admin@cluckn-bell.com"
+
+# Argo CD Configuration
+enable_argocd    = true
+argocd_version   = "7.6.12"
+argocd_auto_sync = false
+
+# GitHub App Configuration (set in environment or secure storage)
+# github_app_id               = "123456"
+# github_app_installation_id = "12345678"
+# github_app_private_key      = "base64-encoded-private-key"
 

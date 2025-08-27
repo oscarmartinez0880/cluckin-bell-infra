@@ -22,3 +22,13 @@ output "letsencrypt_cluster_issuers" {
   description = "Available Let's Encrypt cluster issuers"
   value       = var.enable_cert_manager ? ["letsencrypt-staging", "letsencrypt-prod"] : []
 }
+
+output "argocd_status" {
+  description = "Status of Argo CD deployment"
+  value       = var.enable_argocd ? helm_release.argocd[0].status : null
+}
+
+output "argocd_namespace" {
+  description = "Argo CD namespace"
+  value       = var.enable_argocd ? kubernetes_namespace.argocd[0].metadata[0].name : null
+}

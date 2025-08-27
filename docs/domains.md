@@ -8,17 +8,17 @@ This document outlines the domain configuration for the Cluckin' Bell applicatio
 
 | Environment | Domain | Account | Description |
 |-------------|--------|---------|-------------|
-| dev | dev.cluckin-bell.com | 264765154707 (cluckin-bell-qa) | Development environment |
-| qa | qa.cluckin-bell.com | 264765154707 (cluckin-bell-qa) | QA/staging environment |
-| prod | cluckin-bell.com | 346746763840 (cluckin-bell-prod) | Production environment |
+| dev | dev.cluckn-bell.com | 264765154707 (cluckin-bell-qa) | Development environment |
+| qa | qa.cluckn-bell.com | 264765154707 (cluckin-bell-qa) | QA/staging environment |
+| prod | cluckn-bell.com | 346746763840 (cluckin-bell-prod) | Production environment |
 
 ### API Domains
 
 | Environment | Domain | Account | Description |
 |-------------|--------|---------|-------------|
-| dev | api.dev.cluckin-bell.com | 264765154707 (cluckin-bell-qa) | Development API |
-| qa | api.qa.cluckin-bell.com | 264765154707 (cluckin-bell-qa) | QA/staging API |
-| prod | api.cluckin-bell.com | 346746763840 (cluckin-bell-prod) | Production API |
+| dev | api.dev.cluckn-bell.com | 264765154707 (cluckin-bell-qa) | Development API |
+| qa | api.qa.cluckn-bell.com | 264765154707 (cluckin-bell-qa) | QA/staging API |
+| prod | api.cluckn-bell.com | 346746763840 (cluckin-bell-prod) | Production API |
 
 ## Route 53 Configuration
 
@@ -26,15 +26,15 @@ This document outlines the domain configuration for the Cluckin' Bell applicatio
 
 The following Route 53 hosted zones should be configured:
 
-- **cluckin-bell.com** (in production account 346746763840)
-  - Manages: cluckin-bell.com, api.cluckin-bell.com
+- **cluckn-bell.com** (in production account 346746763840)
+  - Manages: cluckn-bell.com, api.cluckn-bell.com
   - Contains NS records for dev and qa subdomains
 
-- **dev.cluckin-bell.com** (in qa account 264765154707)
-  - Manages: dev.cluckin-bell.com, api.dev.cluckin-bell.com
+- **dev.cluckn-bell.com** (in qa account 264765154707)
+  - Manages: dev.cluckn-bell.com, api.dev.cluckn-bell.com
 
-- **qa.cluckin-bell.com** (in qa account 264765154707)  
-  - Manages: qa.cluckin-bell.com, api.qa.cluckin-bell.com
+- **qa.cluckn-bell.com** (in qa account 264765154707)  
+  - Manages: qa.cluckn-bell.com, api.qa.cluckn-bell.com
 
 ### DNS Delegation
 
@@ -59,7 +59,7 @@ spec:
   ingressClassName: alb
   tls:
   - hosts:
-    - ${frontend_domain}  # dev.cluckin-bell.com, qa.cluckin-bell.com, or cluckin-bell.com
+    - ${frontend_domain}  # dev.cluckn-bell.com, qa.cluckn-bell.com, or cluckn-bell.com
     secretName: cluckin-bell-frontend-tls
   rules:
   - host: ${frontend_domain}
@@ -91,7 +91,7 @@ spec:
   ingressClassName: alb
   tls:
   - hosts:
-    - ${api_domain}  # api.dev.cluckin-bell.com, api.qa.cluckin-bell.com, or api.cluckin-bell.com
+    - ${api_domain}  # api.dev.cluckn-bell.com, api.qa.cluckn-bell.com, or api.cluckn-bell.com
     secretName: cluckin-bell-api-tls
   rules:
   - host: ${api_domain}
@@ -144,19 +144,19 @@ Configure appropriate health check paths:
 ## Environment-Specific Configuration
 
 ### Development
-- Domain: dev.cluckin-bell.com, api.dev.cluckin-bell.com
+- Domain: dev.cluckn-bell.com, api.dev.cluckn-bell.com
 - Account: 264765154707 (cluckin-bell-qa)
 - Cluster: cluckin-bell-eks-dev-us-east-1
 - Namespace: cluckin-bell-dev
 
 ### QA
-- Domain: qa.cluckin-bell.com, api.qa.cluckin-bell.com  
+- Domain: qa.cluckn-bell.com, api.qa.cluckn-bell.com  
 - Account: 264765154707 (cluckin-bell-qa)
 - Cluster: cluckin-bell-eks-qa-us-east-1
 - Namespace: cluckin-bell-qa
 
 ### Production
-- Domain: cluckin-bell.com, api.cluckin-bell.com
+- Domain: cluckn-bell.com, api.cluckn-bell.com
 - Account: 346746763840 (cluckin-bell-prod)
 - Cluster: cluckin-bell-eks-prod-us-east-1
 - Namespace: cluckin-bell-prod

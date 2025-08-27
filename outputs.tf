@@ -131,6 +131,33 @@ output "domains" {
   }
 }
 
+# Route53 outputs
+output "public_hosted_zone_id" {
+  description = "Route53 public hosted zone ID for cluckn-bell.com"
+  value       = aws_route53_zone.public.zone_id
+}
+
+output "public_hosted_zone_name_servers" {
+  description = "Name servers for the public hosted zone"
+  value       = aws_route53_zone.public.name_servers
+}
+
+output "private_hosted_zone_id" {
+  description = "Route53 private hosted zone ID for cluckn-bell.com"
+  value       = aws_route53_zone.private.zone_id
+}
+
+# Argo CD outputs
+output "argocd_url" {
+  description = "Argo CD server URL"
+  value       = "https://argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"
+}
+
+output "argocd_kubectl_port_forward_command" {
+  description = "kubectl port-forward command for local Argo CD access"
+  value       = "kubectl port-forward svc/argocd-server -n argocd 8080:443"
+}
+
 # TODO: Add outputs for your infrastructure resources
 # Examples:
 

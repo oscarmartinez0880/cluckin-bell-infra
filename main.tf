@@ -61,14 +61,14 @@ locals {
   # Domain names
   domains = {
     frontend = {
-      dev  = "dev.cluckin-bell.com"
-      qa   = "qa.cluckin-bell.com"
-      prod = "cluckin-bell.com"
+      dev  = "dev.cluckn-bell.com"
+      qa   = "qa.cluckn-bell.com"
+      prod = "cluckn-bell.com"
     }
     api = {
-      dev  = "api.dev.cluckin-bell.com"
-      qa   = "api.qa.cluckin-bell.com"
-      prod = "api.cluckin-bell.com"
+      dev  = "api.dev.cluckn-bell.com"
+      qa   = "api.qa.cluckn-bell.com"
+      prod = "api.cluckn-bell.com"
     }
   }
 }
@@ -107,7 +107,7 @@ module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.0"
 
-  cluster_name    = "${var.environment}-cluckin-bell"
+  cluster_name    = "cb-${var.environment}-use1"
   cluster_version = var.kubernetes_version
 
   vpc_id                   = data.aws_vpc.main.id
@@ -419,7 +419,10 @@ resource "aws_iam_role_policy" "cert_manager_route53" {
           "route53:ChangeResourceRecordSets",
           "route53:ListResourceRecordSets"
         ]
-        Resource = "arn:aws:route53:::hostedzone/*"
+        Resource = [
+          aws_route53_zone.public.arn,
+          aws_route53_zone.private.arn
+        ]
       },
       {
         Effect = "Allow"
@@ -464,7 +467,10 @@ resource "aws_iam_role_policy" "external_dns_route53" {
         Action = [
           "route53:ChangeResourceRecordSets"
         ]
-        Resource = "arn:aws:route53:::hostedzone/*"
+        Resource = [
+          aws_route53_zone.public.arn,
+          aws_route53_zone.private.arn
+        ]
       },
       {
         Effect = "Allow"
@@ -483,6 +489,7 @@ module "k8s_controllers" {
   source = "./modules/k8s-controllers"
 
   cluster_name = module.eks.cluster_name
+  environment  = var.environment
   aws_region   = var.aws_region
   vpc_id       = data.aws_vpc.main.id
 
@@ -490,6 +497,7 @@ module "k8s_controllers" {
   enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
   enable_cert_manager                 = var.enable_cert_manager
   enable_external_dns                 = var.enable_external_dns
+  enable_argocd                       = var.enable_argocd
 
   # IRSA role ARNs
   aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa.iam_role_arn
@@ -498,7 +506,15 @@ module "k8s_controllers" {
 
   # Configuration
   letsencrypt_email = var.letsencrypt_email
-  domain_filter     = var.environment == "prod" ? "cluckin-bell.com" : "${var.environment}.cluckin-bell.com"
+  domain_filter     = var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"
+  zone_id_filters   = [aws_route53_zone.public.zone_id, aws_route53_zone.private.zone_id]
+
+  # Argo CD configuration
+  argocd_version               = var.argocd_version
+  argocd_auto_sync            = var.argocd_auto_sync
+  github_app_id               = var.github_app_id
+  github_app_installation_id = var.github_app_installation_id
+  github_app_private_key      = var.github_app_private_key
 
   # Dependencies
   node_groups = module.eks.eks_managed_node_groups
@@ -507,6 +523,8 @@ module "k8s_controllers" {
     module.eks,
     module.aws_load_balancer_controller_irsa,
     module.cert_manager_irsa,
-    module.external_dns_irsa
+    module.external_dns_irsa,
+    aws_route53_zone.public,
+    aws_route53_zone.private
   ]
 }
