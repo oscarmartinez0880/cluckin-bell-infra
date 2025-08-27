@@ -104,5 +104,43 @@ variable "enable_external_dns" {
 variable "letsencrypt_email" {
   description = "Email address for Let's Encrypt certificate registration"
   type        = string
-  default     = "admin@cluckin-bell.com"
+  default     = "admin@cluckn-bell.com"
+}
+
+# Argo CD variables
+variable "enable_argocd" {
+  description = "Enable Argo CD"
+  type        = bool
+  default     = true
+}
+
+variable "argocd_version" {
+  description = "Version of Argo CD Helm chart"
+  type        = string
+  default     = "7.6.12"
+}
+
+variable "argocd_auto_sync" {
+  description = "Enable auto sync for Argo CD applications"
+  type        = bool
+  default     = false
+}
+
+variable "github_app_id" {
+  description = "GitHub App ID for Argo CD authentication"
+  type        = string
+  default     = ""
+}
+
+variable "github_app_installation_id" {
+  description = "GitHub App Installation ID for Argo CD authentication"
+  type        = string
+  default     = ""
+}
+
+variable "github_app_private_key" {
+  description = "GitHub App private key for Argo CD authentication (base64 encoded)"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

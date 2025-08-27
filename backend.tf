@@ -1,32 +1,21 @@
-# TODO: Configure remote backend for production use
+# Terraform backend configuration
 # This is currently set to local backend for development
-# Uncomment and configure one of the remote backend options below
+# For production, use S3 backend after running the s3-backend bootstrap stack
 
 terraform {
   backend "local" {
     path = "terraform.tfstate"
   }
 
-  # AWS S3 + DynamoDB backend example:
+  # S3 backend configuration (use after bootstrap):
+  # 1. Deploy stacks/s3-backend first
+  # 2. Copy backend.hcl.example to backend.hcl and update with your account ID
+  # 3. Run: terraform init -backend-config=backend.hcl -migrate-state
+  # 
   # backend "s3" {
-  #   bucket         = "your-terraform-state-bucket"
-  #   key            = "infra/terraform.tfstate"
-  #   region         = "us-east-1"
-  #   dynamodb_table = "terraform-state-lock"
-  #   encrypt        = true
-  # }
-
-  # Google Cloud Storage backend example:
-  # backend "gcs" {
-  #   bucket = "your-terraform-state-bucket"
-  #   prefix = "infra"
-  # }
-
-  # Azure Storage backend example:
-  # backend "azurerm" {
-  #   resource_group_name  = "your-rg"
-  #   storage_account_name = "yourstorageaccount"
-  #   container_name       = "terraform-state"
-  #   key                  = "infra.terraform.tfstate"
+  #   bucket  = "tfstate-cluckn-bell-ACCOUNT_ID"
+  #   key     = "terraform.tfstate"
+  #   region  = "us-east-1"
+  #   encrypt = true
   # }
 }

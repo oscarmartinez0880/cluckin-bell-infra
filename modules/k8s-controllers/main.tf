@@ -193,6 +193,15 @@ resource "helm_release" "external_dns" {
     value = var.domain_filter
   }
 
+  # Zone ID filters for managing both public and private zones
+  dynamic "set" {
+    for_each = var.zone_id_filters
+    content {
+      name  = "zoneIdFilters[${set.key}]"
+      value = set.value
+    }
+  }
+
   set {
     name  = "policy"
     value = "sync"
@@ -219,4 +228,99 @@ resource "helm_release" "external_dns" {
   }
 
   depends_on = [var.node_groups]
+}
+
+# Create namespace for Argo CD
+resource "kubernetes_namespace" "argocd" {
+  count = var.enable_argocd ? 1 : 0
+
+  metadata {
+    name = "argocd"
+    labels = {
+      "app.kubernetes.io/name" = "argocd"
+    }
+  }
+}
+
+# Create secret for GitHub App authentication if provided
+resource "kubernetes_secret" "argocd_repo_creds" {
+  count = var.enable_argocd && var.github_app_id != "" ? 1 : 0
+
+  metadata {
+    name      = "argocd-repo-creds"
+    namespace = kubernetes_namespace.argocd[0].metadata[0].name
+    labels = {
+      "argocd.argoproj.io/secret-type" = "repo-creds"
+    }
+  }
+
+  data = {
+    type          = "git"
+    url           = "https://github.com/oscarmartinez0880"
+    githubAppID   = var.github_app_id
+    githubAppInstallationID = var.github_app_installation_id
+    githubAppPrivateKey = var.github_app_private_key
+  }
+}
+
+# Argo CD Helm release
+resource "helm_release" "argocd" {
+  count = var.enable_argocd ? 1 : 0
+
+  name       = "argocd"
+  namespace  = kubernetes_namespace.argocd[0].metadata[0].name
+  repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+  version    = var.argocd_version
+
+  values = [
+    yamlencode({
+      global = {
+        domain = "argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"
+      }
+      
+      configs = {
+        params = {
+          "server.insecure" = true  # We'll use TLS termination at ALB
+        }
+      }
+      
+      server = {
+        service = {
+          type = "ClusterIP"
+        }
+        ingress = {
+          enabled = true
+          ingressClassName = "alb"
+          annotations = {
+            "alb.ingress.kubernetes.io/scheme" = "internal"
+            "alb.ingress.kubernetes.io/target-type" = "ip"
+            "alb.ingress.kubernetes.io/group.name" = "argocd"
+            "alb.ingress.kubernetes.io/ssl-redirect" = "443"
+            "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+          }
+          hosts = [
+            "argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"
+          ]
+          paths = [
+            "/"
+          ]
+          pathType = "Prefix"
+          tls = [
+            {
+              secretName = "argocd-server-tls"
+              hosts = [
+                "argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"
+              ]
+            }
+          ]
+        }
+      }
+    })
+  ]
+
+  depends_on = [
+    kubernetes_namespace.argocd,
+    helm_release.aws_load_balancer_controller
+  ]
 }

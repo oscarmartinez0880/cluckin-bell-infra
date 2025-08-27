@@ -55,11 +55,59 @@ The infrastructure includes automated DNS and TLS certificate management:
 - **IRSA Integration**: All controllers use IAM Roles for Service Accounts for secure AWS API access
 
 #### Supported Domains
-- **Development**: `dev.cluckin-bell.com`, `api.dev.cluckin-bell.com`
-- **QA**: `qa.cluckin-bell.com`, `api.qa.cluckin-bell.com`
-- **Production**: `cluckin-bell.com`, `api.cluckin-bell.com`
+- **Development**: `dev.cluckn-bell.com`, `api.dev.cluckn-bell.com`
+- **QA**: `qa.cluckn-bell.com`, `api.qa.cluckn-bell.com`
+- **Production**: `cluckn-bell.com`, `api.cluckn-bell.com`
 
 See `examples/ingress-examples.yaml` for complete Ingress configuration examples.
+
+### Argo CD Access
+
+Argo CD is configured with internal ALB access. The URLs are:
+- **Development**: `https://argocd.dev.cluckn-bell.com`
+- **QA**: `https://argocd.qa.cluckn-bell.com`
+- **Production**: `https://argocd.cluckn-bell.com`
+
+#### Access Methods:
+
+1. **VPC Connectivity** (Recommended for production):
+   - VPN connection to the VPC
+   - Bastion host in public subnet
+   - Direct VPC peering/Transit Gateway
+
+2. **kubectl Port-Forward** (Development/Testing):
+   ```bash
+   # Configure kubectl first
+   aws eks update-kubeconfig --region us-east-1 --name <environment>-cluckin-bell
+   
+   # Port-forward to Argo CD
+   kubectl port-forward svc/argocd-server -n argocd 8080:443
+   
+   # Access via browser at https://localhost:8080
+   # Username: admin
+   # Password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+   ```
+
+### GitHub App Configuration for Argo CD
+
+To configure Argo CD with private repository access:
+
+1. **Create GitHub App** in your organization with these permissions:
+   - Repository permissions: Contents (read), Metadata (read), Pull requests (read)
+   - Subscribe to: Push, Pull request events
+
+2. **Configure Terraform variables:**
+   ```bash
+   # In your terraform.tfvars or environment variables
+   github_app_id               = "123456"
+   github_app_installation_id = "12345678"
+   github_app_private_key      = "base64-encoded-private-key"
+   ```
+
+3. **Apply configuration:**
+   ```bash
+   terraform apply -var-file="env/dev.tfvars"
+   ```
 
 ---
 
@@ -293,20 +341,36 @@ If Windows pods are not scheduling:
 2. Terraform >= 1.0 installed
 3. kubectl installed for Kubernetes operations
 
-### Deployment Order
+### Backend Setup (S3 State Storage)
 
-1. **Bootstrap Stack**: Deploy first to create GitHub OIDC IAM roles
+1. **Deploy S3 Backend Bootstrap Stack First:**
    ```bash
-   cd stacks/bootstrap
+   cd stacks/s3-backend
    terraform init
    terraform plan -var-file="../../env/dev.tfvars"
    terraform apply -var-file="../../env/dev.tfvars"
    ```
 
-2. **Network Stack**: Deploy VPC and networking resources
-3. **Platform EKS Stack**: Deploy EKS cluster 
-4. **Data Stack**: Deploy databases and storage
-5. **Registry Observability Stack**: Deploy ECR and monitoring
+2. **Configure Backend for Main Stack:**
+   Copy the backend example and update with your account ID:
+   ```bash
+   cp backend.hcl.example backend.hcl
+   # Edit backend.hcl to replace ACCOUNT_ID with your AWS account ID
+   ```
+
+3. **Migrate State to S3:**
+   ```bash
+   terraform init -backend-config=backend.hcl -migrate-state
+   ```
+
+### Deployment Order
+
+1. **Bootstrap Stack**: Deploy first to create GitHub OIDC IAM roles
+2. **S3 Backend Stack**: Create S3 bucket for Terraform state
+3. **Network Stack**: Deploy VPC and networking resources
+4. **Platform EKS Stack**: Deploy EKS cluster 
+5. **Data Stack**: Deploy databases and storage
+6. **Registry Observability Stack**: Deploy ECR and monitoring
 
 ### CI/CD
 
