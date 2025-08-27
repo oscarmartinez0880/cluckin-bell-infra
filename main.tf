@@ -9,6 +9,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.20"
     }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0"
+    }
   }
 }
 
@@ -20,6 +24,51 @@ provider "aws" {
       Environment = var.environment
       Project     = "cluckin-bell"
       ManagedBy   = "terraform"
+    }
+  }
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+  }
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    }
+  }
+}
+
+# Import naming conventions and locals
+locals {
+  # Core project information
+  project = "cluckin-bell"
+  region  = "us-east-1"
+
+  # Domain names
+  domains = {
+    frontend = {
+      dev  = "dev.cluckin-bell.com"
+      qa   = "qa.cluckin-bell.com"
+      prod = "cluckin-bell.com"
+    }
+    api = {
+      dev  = "api.dev.cluckin-bell.com"
+      qa   = "api.qa.cluckin-bell.com"
+      prod = "api.cluckin-bell.com"
     }
   }
 }
@@ -305,4 +354,159 @@ resource "aws_ecr_lifecycle_policy" "repos" {
       }
     ]
   })
+}
+
+# IRSA roles for Kubernetes controllers
+module "aws_load_balancer_controller_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name = "${var.environment}-aws-load-balancer-controller-irsa"
+
+  attach_load_balancer_controller_policy = true
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:aws-load-balancer-controller"]
+    }
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = "cluckin-bell"
+    Stack       = "platform-eks"
+  }
+}
+
+module "cert_manager_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name = "${var.environment}-cert-manager-irsa"
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["cert-manager:cert-manager"]
+    }
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = "cluckin-bell"
+    Stack       = "platform-eks"
+  }
+}
+
+resource "aws_iam_role_policy" "cert_manager_route53" {
+  name = "${var.environment}-cert-manager-route53"
+  role = module.cert_manager_irsa.iam_role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:GetChange"
+        ]
+        Resource = "arn:aws:route53:::change/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ChangeResourceRecordSets",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = "arn:aws:route53:::hostedzone/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ListHostedZonesByName"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+module "external_dns_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name = "${var.environment}-external-dns-irsa"
+
+  oidc_providers = {
+    main = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:external-dns"]
+    }
+  }
+
+  tags = {
+    Environment = var.environment
+    Project     = "cluckin-bell"
+    Stack       = "platform-eks"
+  }
+}
+
+resource "aws_iam_role_policy" "external_dns_route53" {
+  name = "${var.environment}-external-dns-route53"
+  role = module.external_dns_irsa.iam_role_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ChangeResourceRecordSets"
+        ]
+        Resource = "arn:aws:route53:::hostedzone/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ListHostedZones",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Deploy Kubernetes controllers
+module "k8s_controllers" {
+  source = "./modules/k8s-controllers"
+
+  cluster_name = module.eks.cluster_name
+  aws_region   = var.aws_region
+  vpc_id       = data.aws_vpc.main.id
+
+  # Enable controllers
+  enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
+  enable_cert_manager                 = var.enable_cert_manager
+  enable_external_dns                 = var.enable_external_dns
+
+  # IRSA role ARNs
+  aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa.iam_role_arn
+  cert_manager_role_arn                 = module.cert_manager_irsa.iam_role_arn
+  external_dns_role_arn                 = module.external_dns_irsa.iam_role_arn
+
+  # Configuration
+  letsencrypt_email = var.letsencrypt_email
+  domain_filter     = var.environment == "prod" ? "cluckin-bell.com" : "${var.environment}.cluckin-bell.com"
+
+  # Dependencies
+  node_groups = module.eks.eks_managed_node_groups
+
+  depends_on = [
+    module.eks,
+    module.aws_load_balancer_controller_irsa,
+    module.cert_manager_irsa,
+    module.external_dns_irsa
+  ]
 }

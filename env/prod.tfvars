@@ -28,5 +28,8 @@ ecr_repositories = [
   "cd"
 ]
 
-environment = "prod"
-aws_region  = "us-east-1"
+# DNS/TLS Controllers  
+enable_aws_load_balancer_controller = true
+enable_cert_manager                 = true
+enable_external_dns                 = true
+letsencrypt_email                   = "admin@cluckin-bell.com"
