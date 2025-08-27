@@ -14,6 +14,12 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "namespace" {
+  description = "Kubernetes namespace for platform controllers"
+  type        = string
+  default     = "kube-system"
+}
+
 variable "node_groups" {
   description = "Dependency on EKS node groups"
   type        = any
