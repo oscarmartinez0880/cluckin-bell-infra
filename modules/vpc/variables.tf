@@ -33,6 +33,12 @@ variable "enable_vpc_endpoints" {
   default     = true
 }
 
+variable "enable_ssm_endpoints" {
+  description = "Should be true if you want to provision SSM VPC endpoints for Session Manager"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "A map of tags to assign to the resource"
   type        = map(string)

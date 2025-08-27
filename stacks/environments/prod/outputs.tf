@@ -63,3 +63,13 @@ output "argocd_server_url" {
   description = "ArgoCD server URL"
   value       = module.argocd.server_url
 }
+
+output "bastion_instance_id" {
+  description = "Instance ID of the SSM bastion host for prod environment"
+  value       = module.ssm_bastion.instance_id
+}
+
+output "bastion_private_ip" {
+  description = "Private IP address of the SSM bastion host"
+  value       = module.ssm_bastion.private_ip
+}

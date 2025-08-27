@@ -15,6 +15,9 @@ terraform {
   }
 }
 
+# Data source for current AWS account ID
+data "aws_caller_identity" "current" {}
+
 # ArgoCD Helm release
 resource "helm_release" "argocd" {
   name       = "argocd"
@@ -24,7 +27,7 @@ resource "helm_release" "argocd" {
   version    = var.argocd_version
 
   values = [
-    yamlencode({
+    yamlencode(merge({
       global = {
         image = {
           tag = var.argocd_version
@@ -35,6 +38,17 @@ resource "helm_release" "argocd" {
         params = {
           "server.insecure" = true
         }
+        secret = {
+          # Enable admin user for authentication
+          argocdServerAdminPassword      = "$2a$10$rRyBsGSHK6.uc8fntPwVIeWd9tOtqBvBZ7P9uKzYiwtQkuWPvEFeO" # Default: admin
+          argocdServerAdminPasswordMtime = "2023-01-01T00:00:00Z"
+        }
+        cm = {
+          # Enable admin user
+          "admin.enabled" = true
+          # Disable anonymous access
+          "users.anonymous.enabled" = false
+        }
       }
 
       server = {
@@ -43,6 +57,8 @@ resource "helm_release" "argocd" {
           annotations = {
             "service.beta.kubernetes.io/aws-load-balancer-type"   = "nlb"
             "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+            "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internal" # Internal ALB
+
           }
         }
         ingress = {
@@ -61,7 +77,56 @@ resource "helm_release" "argocd" {
       applicationSet = {
         enabled = true
       }
-    })
+    },
+    var.argocd_repo_server_role_arn != "" ? {
+      repoServer = {
+        serviceAccount = {
+          create = true
+          name   = "argocd-repo-server"
+          annotations = {
+            "eks.amazonaws.com/role-arn" = var.argocd_repo_server_role_arn
+          }
+        }
+        env = [
+          {
+            name  = "AWS_REGION"
+            value = "us-east-1"
+          },
+          {
+            name  = "PATH"
+            value = "/custom-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+          }
+        ]
+        initContainers = [
+          {
+            name  = "install-git-remote-codecommit"
+            image = "python:3.9-alpine"
+            command = ["/bin/sh", "-c"]
+            args = [
+              "pip install git-remote-codecommit && cp -r /usr/local/lib/python3.9/site-packages/git_remote_codecommit /custom-tools/ && cp /usr/local/bin/git-remote-codecommit /custom-tools/"
+            ]
+            volumeMounts = [
+              {
+                name      = "custom-tools"
+                mountPath = "/custom-tools"
+              }
+            ]
+          }
+        ]
+        volumes = [
+          {
+            name = "custom-tools"
+            emptyDir = {}
+          }
+        ]
+        volumeMounts = [
+          {
+            name      = "custom-tools"
+            mountPath = "/custom-tools"
+          }
+        ]
+      }
+    } : {}))
   ]
 
   depends_on = [var.node_groups]
