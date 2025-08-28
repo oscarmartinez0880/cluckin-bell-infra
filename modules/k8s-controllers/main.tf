@@ -255,16 +255,9 @@ resource "kubernetes_secret" "argocd_codecommit_repo" {
   }
 
   data = {
-
-    type                    = "git"
-    url                     = "https://github.com/oscarmartinez0880"
-    githubAppID             = var.github_app_id
-    githubAppInstallationID = var.github_app_installation_id
-    githubAppPrivateKey     = var.github_app_private_key
-
     type = "git"
     url  = var.codecommit_repository_url
-    name = "cluckn-bell"
+    name = "cluckin-bell"
   }
 }
 

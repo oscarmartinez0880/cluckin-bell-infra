@@ -2,7 +2,7 @@
 # Terraform and Provider Configuration
 ###############################################################################
 terraform {
-  required_version = "~> 1.13.1"
+  required_version = ">= 1.0.0"
 
   required_providers {
     aws = {
@@ -196,6 +196,103 @@ data "aws_iam_policy_document" "external_dns_assume" {
 #   role       = aws_iam_role.external_dns.name
 #   policy_arn = aws_iam_policy.external_dns.arn
 # }
+
+###############################################################################
+# WAF v2 - Production Security Baseline
+###############################################################################
+module "waf_prod" {
+  source = "../../../modules_new/wafv2"
+
+  providers = { aws = aws.prod }
+
+  name_prefix          = "cb-prod"
+  environment          = "prod"
+  enable_bot_control   = true # Enable Bot Control for production
+  api_rate_limit       = 2000 # 2000 requests per 5 minutes for /api paths
+  geo_block_countries  = []   # Empty by default, can be configured via variables
+  admin_ip_allow_cidrs = []   # Empty by default, can be configured via variables
+  enable_logging       = true # Enable WAF logging for production
+  log_retention_days   = 30
+
+  tags = {
+    Project     = "cluckn-bell"
+    Environment = "prod"
+  }
+}
+
+###############################################################################
+# CloudWatch Container Insights - Production
+###############################################################################
+
+# IAM role for CloudWatch Agent
+module "cloudwatch_agent_irsa_prod" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+  providers = { aws = aws.prod }
+
+  role_name = "cb-cloudwatch-agent-prod"
+
+  attach_cloudwatch_observability_policy = true
+
+  oidc_providers = {
+    prod = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["amazon-cloudwatch:cloudwatch-agent"]
+    }
+  }
+
+  tags = {
+    Project     = "cluckn-bell"
+    Environment = "prod"
+  }
+}
+
+# IAM role for Fluent Bit
+module "fluent_bit_irsa_prod" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+  providers = { aws = aws.prod }
+
+  role_name = "cb-fluent-bit-prod"
+
+  attach_cloudwatch_observability_policy = true
+
+  oidc_providers = {
+    prod = {
+      provider_arn               = module.eks.oidc_provider_arn
+      namespace_service_accounts = ["amazon-cloudwatch:aws-for-fluent-bit"]
+    }
+  }
+
+  tags = {
+    Project     = "cluckn-bell"
+    Environment = "prod"
+  }
+}
+
+# Container Insights configuration
+module "container_insights_prod" {
+  source = "../../../modules_new/container_insights"
+
+  providers = {
+    aws        = aws.prod
+    kubernetes = kubernetes.prod
+    helm       = helm.prod
+  }
+
+  cluster_name              = module.eks.cluster_name
+  aws_region                = var.region
+  cloudwatch_agent_role_arn = module.cloudwatch_agent_irsa_prod.iam_role_arn
+  fluent_bit_role_arn       = module.fluent_bit_irsa_prod.iam_role_arn
+  log_retention_days        = 30
+
+  tags = {
+    Project     = "cluckn-bell"
+    Environment = "prod"
+  }
+
+  depends_on = [module.eks]
+}
 
 # ExternalDNS configuration moved to alb_extdns_hardening.tf for HA and internal zone support
 
