@@ -64,12 +64,21 @@ module "eks" {
   cluster_name                   = "cb-use1-prod"
   cluster_version                = "1.30"
   cluster_endpoint_public_access = true
+  cluster_endpoint_public_access_cidrs = var.api_public_cidrs_prod
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
   enable_irsa                              = true
   enable_cluster_creator_admin_permissions = true
+
+  # Enable KMS secrets envelope encryption
+  cluster_encryption_config = var.enable_cluster_encryption_prod ? [
+    {
+      provider_key_arn = aws_kms_key.eks_secrets_prod.arn
+      resources        = ["secrets"]
+    }
+  ] : []
 
   eks_managed_node_group_defaults = {
     ami_type       = "AL2_x86_64"
@@ -85,6 +94,8 @@ module "eks" {
     Project = "cluckn-bell"
     Env     = "prod"
   }
+
+  depends_on = [aws_kms_key.eks_secrets_prod]
 }
 
 ###############################################################################
@@ -159,55 +170,34 @@ data "aws_iam_policy_document" "external_dns_assume" {
   }
 }
 
-resource "aws_iam_policy" "external_dns" {
-  provider = aws.prod
-  name     = "cb-external-dns-prod"
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect   = "Allow",
-        Action   = ["route53:ChangeResourceRecordSets"],
-        Resource = ["arn:aws:route53:::hostedzone/${var.prod_apex_zone_id}"]
-      },
-      {
-        Effect   = "Allow",
-        Action   = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:GetHostedZone"],
-        Resource = ["*"]
-      }
-    ]
-  })
-}
+# IAM policy for ExternalDNS moved to alb_extdns_hardening.tf to include internal zones
+# resource "aws_iam_policy" "external_dns" {
+#   provider = aws.prod
+#   name     = "cb-external-dns-prod"
+#   policy = jsonencode({
+#     Version = "2012-10-17",
+#     Statement = [
+#       {
+#         Effect   = "Allow",
+#         Action   = ["route53:ChangeResourceRecordSets"],
+#         Resource = ["arn:aws:route53:::hostedzone/${var.prod_apex_zone_id}"]
+#       },
+#       {
+#         Effect   = "Allow",
+#         Action   = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:GetHostedZone"],
+#         Resource = ["*"]
+#       }
+#     ]
+#   })
+# }
 
-resource "aws_iam_role_policy_attachment" "external_dns_attach" {
-  provider   = aws.prod
-  role       = aws_iam_role.external_dns.name
-  policy_arn = aws_iam_policy.external_dns.arn
-}
+# resource "aws_iam_role_policy_attachment" "external_dns_attach" {
+#   provider   = aws.prod
+#   role       = aws_iam_role.external_dns.name
+#   policy_arn = aws_iam_policy.external_dns.arn
+# }
 
-resource "helm_release" "external_dns" {
-  provider   = helm.prod
-  name       = "external-dns"
-  repository = "https://kubernetes-sigs.github.io/external-dns/"
-  chart      = "external-dns"
-  version    = "1.15.0"
-
-  values = [yamlencode({
-    provider      = "aws",
-    policy        = "upsert-only",
-    txtOwnerId    = "cb-prod-external-dns",
-    domainFilters = ["cluckn-bell.com"],
-    serviceAccount = {
-      annotations = { "eks.amazonaws.com/role-arn" = aws_iam_role.external_dns.arn },
-      create      = true,
-      name        = "external-dns"
-    }
-  })]
-
-  depends_on = [
-    module.eks
-  ]
-}
+# ExternalDNS configuration moved to alb_extdns_hardening.tf for HA and internal zone support
 
 ###############################################################################
 # Variables
@@ -227,4 +217,11 @@ variable "prod_profile" {
 variable "prod_apex_zone_id" {
   description = "Route53 Hosted Zone ID for cluckn-bell.com"
   type        = string
+}
+
+# EKS API endpoint configuration for future CIDR restrictions
+variable "api_public_cidrs_prod" {
+  description = "List of CIDR blocks that can access the EKS public API endpoint (empty = allow all)"
+  type        = list(string)
+  default     = []  # Empty by default to allow all (current behavior)
 }
