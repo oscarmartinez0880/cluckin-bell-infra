@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- deployment.yaml
+- service.yaml
+- ingress.yaml
+
+commonLabels:
+  app: cluckin-bell-app
+
+images:
+- name: 264765154707.dkr.ecr.us-east-1.amazonaws.com/cluckin-bell-app
+  newTag: dev

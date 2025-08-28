@@ -1,0 +1,35 @@
+# QA environment values for cluckin-bell-app
+
+image:
+  repository: 264765154707.dkr.ecr.us-east-1.amazonaws.com/cluckin-bell-app
+  tag: "qa"
+
+replicaCount: 2
+
+ingress:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: qa.cluckn-bell.com
+  hosts:
+    - host: qa.cluckn-bell.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: cluckin-bell-app-qa-tls
+      hosts:
+        - qa.cluckn-bell.com
+
+environment: qa
+
+env:
+  NODE_ENV: staging
+  PORT: "3000"
+  LOG_LEVEL: info
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
