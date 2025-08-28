@@ -1,0 +1,35 @@
+# Development environment values for cluckin-bell-app
+
+image:
+  repository: 264765154707.dkr.ecr.us-east-1.amazonaws.com/cluckin-bell-app
+  tag: "dev"
+
+replicaCount: 1
+
+ingress:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: dev.cluckn-bell.com
+  hosts:
+    - host: dev.cluckn-bell.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: cluckin-bell-app-dev-tls
+      hosts:
+        - dev.cluckn-bell.com
+
+environment: dev
+
+env:
+  NODE_ENV: development
+  PORT: "3000"
+  LOG_LEVEL: debug
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

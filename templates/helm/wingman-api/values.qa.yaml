@@ -1,0 +1,36 @@
+# QA environment values for wingman-api
+
+image:
+  repository: 264765154707.dkr.ecr.us-east-1.amazonaws.com/wingman-api
+  tag: "qa"
+
+replicaCount: 2
+
+ingress:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: api.qa.cluckn-bell.com
+  hosts:
+    - host: api.qa.cluckn-bell.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: wingman-api-qa-tls
+      hosts:
+        - api.qa.cluckn-bell.com
+
+environment: qa
+
+env:
+  NODE_ENV: staging
+  PORT: "8080"
+  LOG_LEVEL: info
+  API_VERSION: v1
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi

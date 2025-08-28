@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wingman-api
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: wingman-api
+        env:
+        - name: NODE_ENV
+          value: "development"
+        - name: LOG_LEVEL
+          value: "debug"
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi

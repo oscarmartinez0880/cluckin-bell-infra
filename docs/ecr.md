@@ -12,9 +12,27 @@ The following ECR repositories should be created in both the QA/Dev account (264
 |----------------|---------|-------------|
 | `cluckin-bell-app` | Main Application | Primary web application container |
 | `wingman-api` | API Service | Backend API service container |
-| `fryer-worker` | Background Worker | Asynchronous job processing container |
-| `sauce-gateway` | Gateway/Proxy | API gateway and routing container |
-| `clucker-notify` | Notifications | Notification service container |
+
+## Image Tagging Strategy
+
+### Environment-Specific Tagging Standards
+
+To ensure consistent deployments across environments while preventing the use of `:latest` tags outside production, the following tagging strategy is implemented:
+
+| Environment | ECR Account | Repository Base | Image Tag | Example |
+|-------------|-------------|-----------------|-----------|---------|
+| Development | 264765154707 | `264765154707.dkr.ecr.us-east-1.amazonaws.com/` | `dev` | `264765154707.dkr.ecr.us-east-1.amazonaws.com/cluckin-bell-app:dev` |
+| QA | 264765154707 | `264765154707.dkr.ecr.us-east-1.amazonaws.com/` | `qa` | `264765154707.dkr.ecr.us-east-1.amazonaws.com/cluckin-bell-app:qa` |
+| Production | 346746763840 | `346746763840.dkr.ecr.us-east-1.amazonaws.com/` | `prod` | `346746763840.dkr.ecr.us-east-1.amazonaws.com/cluckin-bell-app:prod` |
+
+### Secondary Tagging
+- **SHA Tags**: All environments also push `sha-{git-sha}` tags for traceability
+- **Latest Tag**: Only production pushes `latest` tag (in addition to `prod`)
+- **No `:latest` outside prod**: Development and QA environments must not use `:latest` tags
+
+### Repository Account Separation
+- **Nonprod Account (264765154707)**: Serves both dev and qa environments, sharing the same ECR repositories but with different tags
+- **Prod Account (346746763840)**: Dedicated for production with separate ECR repositories for security isolation
 
 ## Required Configuration
 
@@ -34,32 +52,55 @@ Each ECR repository must be configured with the following settings:
 
 ### Lifecycle Policy
 - **Untagged Images**: Retain for 1 day
-- **Tagged Images**: Keep last 30 images with "v" prefix
+- **Tagged Images**: Keep last 50 images with environment tags (`dev`, `qa`, `prod`, `sha-`)
 - **All Images**: Maximum 100 images total
 
 ## Terraform Module Example
 
+### Nonprod Account (264765154707)
 ```hcl
 module "ecr_repositories" {
   source = "./modules/ecr"
 
   repository_names = [
     "cluckin-bell-app",
-    "wingman-api", 
-    "fryer-worker",
-    "sauce-gateway",
-    "clucker-notify"
+    "wingman-api"
   ]
 
   image_tag_mutability = "IMMUTABLE"
   scan_on_push         = true
   enable_lifecycle_policy = true
-  max_image_count      = 100
+  max_image_count      = 50
   untagged_image_days  = 1
 
   tags = {
-    Project   = "cluckin-bell"
-    Env       = var.environment
+    Project     = "cluckin-bell"
+    Environment = "nonprod"
+    Account     = "264765154707"
+  }
+}
+```
+
+### Prod Account (346746763840)
+```hcl
+module "ecr_repositories" {
+  source = "./modules/ecr"
+
+  repository_names = [
+    "cluckin-bell-app",
+    "wingman-api"
+  ]
+
+  image_tag_mutability = "IMMUTABLE"
+  scan_on_push         = true
+  enable_lifecycle_policy = true
+  max_image_count      = 50
+  untagged_image_days  = 1
+
+  tags = {
+    Project     = "cluckin-bell"
+    Environment = "prod"
+    Account     = "346746763840"
     ManagedBy = "terraform"
   }
 }
