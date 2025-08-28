@@ -1,15 +1,49 @@
 # Terraform CI/CD Workflows
 
-This repository includes reusable workflows for Terraform. Set the following repository secret:
+This repository includes workflows for Terraform using GitHub OIDC. Set the per-environment variable in GitHub:
 
-- AWS_TERRAFORM_ROLE_ARN: IAM Role ARN trusted by GitHub OIDC with permissions to plan/apply.
+- AWS_TERRAFORM_ROLE_ARN: IAM Role ARN to assume for Terraform plan/apply, scoped per environment (dev, qa, prod).
 
 Wrappers:
 - Terraform PR Checks: runs plan on PRs.
-- Terraform Dev/QA/Prod: plans on push; to apply, manually run the workflow with apply=true. Dev/QA/Prod map to develop/staging/main branches.
+- Terraform Deploy: manual workflow to plan/apply on demand.
 
-Inputs to adjust:
-- working_directory: where your Terraform lives (default ".").
-- var_file: set to per-environment tfvars if you use them (e.g., env/dev.tfvars).
+## Required GitHub permissions
 
-Security: tfsec runs on PRs. Review results in Security > Code scanning alerts.
+Each job that assumes an AWS role must include:
+
+```yaml
+permissions:
+  id-token: write
+  contents: read
+```
+
+## Deploy workflow usage
+
+1. Apply the Terraform in `terraform/accounts/devqa` and `terraform/accounts/prod` to create the OIDC roles:
+   - Dev/QA role: `cb-terraform-deploy-devqa` (trusts environments dev and qa)
+   - Prod role: `cb-terraform-deploy-prod` (trusts environment prod)
+
+2. Capture the outputs:
+   - `tf_deploy_devqa_role_arn`
+   - `tf_deploy_prod_role_arn`
+
+3. In GitHub, configure environment variables:
+   - Settings → Environments → dev → Variables:
+     - `AWS_TERRAFORM_ROLE_ARN = arn:aws:iam::264765154707:role/cb-terraform-deploy-devqa`
+   - Settings → Environments → qa → Variables:
+     - `AWS_TERRAFORM_ROLE_ARN = arn:aws:iam::264765154707:role/cb-terraform-deploy-devqa`
+   - Settings → Environments → prod → Variables:
+     - `AWS_TERRAFORM_ROLE_ARN = arn:aws:iam::346746763840:role/cb-terraform-deploy-prod`
+
+4. Run the workflow: Actions → Terraform Deploy → Run workflow.
+   - Choose environment (dev/qa/prod)
+   - Optionally set `working_directory` and `var_file`
+   - Toggle `apply` to run `terraform apply`
+
+## Notes
+
+- Kubernetes versions should remain ≥ 1.30; Terraform version is pinned to 1.13.1 in the workflow.
+- Start with AdministratorAccess for bootstrap and reduce privileges once your Terraform scope is stable.
+- Trust policies are environment-scoped to align with `environment:` in the job, e.g.,
+  - `repo:oscarmartinez0880/cluckin-bell-infra:environment:dev|qa|prod`.
