@@ -6,7 +6,7 @@ environment = "prod"
 aws_region  = "us-east-1"
 
 # Kubernetes cluster configuration
-kubernetes_version = "1.29"
+kubernetes_version = "1.30"
 
 # Linux node group configuration for production
 linux_node_instance_types = ["m5.xlarge", "m5.2xlarge"]
