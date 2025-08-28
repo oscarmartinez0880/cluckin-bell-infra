@@ -1,28 +1,64 @@
-name: Terraform Dev
+name: Deploy Dev (develop branch default)
 
 on:
   push:
-    branches: [ "develop" ]
-  workflow_dispatch:
-    inputs:
-      apply:
-        description: "Apply changes (true to apply, false to plan only)"
-        required: true
-        default: "false"
-        type: choice
-        options: ["false", "true"]
+    branches: ["develop"]
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 3 * * *"  # Nightly at 03:00 UTC
 
 permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: terraform-dev-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  deploy:
-    uses: ./.github/workflows/terraform-reusable.yml
-    with:
-      working_directory: "stacks/bootstrap"
-      aws_region: "us-east-1"
-      apply: ${{ inputs.apply == 'true' }}
-      var_file: "../../env/dev.tfvars"
-    secrets:
-      terraform_role_arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
+  deploy-dev:
+    name: Terraform Apply (dev)
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        shell: bash
+        working-directory: stacks/environments/dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN_DEV }}
+          aws-region: ${{ vars.AWS_REGION || secrets.AWS_REGION }}
+
+      - name: Setup Terraform 1.10.x
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~> 1.10.0"
+          terraform_wrapper: false
+
+      - name: Terraform Init (S3 native locking)
+        run: |
+          REGION="${{ vars.AWS_REGION || secrets.AWS_REGION }}"
+          BUCKET="${{ secrets.TFSTATE_BUCKET_DEV }}"
+          KEY="${{ secrets.TFSTATE_KEY_DEV }}"
+          terraform init \
+            -backend-config="region=${REGION}" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true" \
+            -backend-config="bucket=${BUCKET}" \
+            -backend-config="key=${KEY}"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply (auto-approve)
+        if: github.event_name != 'pull_request'
+        run: terraform apply -input=false -auto-approve tfplan
