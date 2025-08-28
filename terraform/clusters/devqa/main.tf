@@ -2,7 +2,7 @@
 # Terraform and Provider Configuration
 ###############################################################################
 terraform {
-  required_version = "~> 1.13.1"
+  required_version = ">= 1.0.0"
 
   required_providers {
     aws = {
@@ -97,9 +97,9 @@ module "eks_devqa" {
   version   = "~> 20.8"
   providers = { aws = aws.devqa }
 
-  cluster_name                   = "cb-use1-shared"
-  cluster_version                = "1.30"
-  cluster_endpoint_public_access = true
+  cluster_name                         = "cb-use1-shared"
+  cluster_version                      = "1.30"
+  cluster_endpoint_public_access       = true
   cluster_endpoint_public_access_cidrs = var.api_public_cidrs_devqa
 
   vpc_id     = module.vpc_devqa.vpc_id
@@ -111,7 +111,7 @@ module "eks_devqa" {
   # KMS encryption disabled by default for dev/qa (can be enabled later)
   cluster_encryption_config = var.enable_cluster_encryption_devqa ? [
     {
-      provider_key_arn = var.kms_key_arn_devqa  # Would need to be created if enabled
+      provider_key_arn = var.kms_key_arn_devqa # Would need to be created if enabled
       resources        = ["secrets"]
     }
   ] : []
@@ -324,6 +324,103 @@ data "aws_iam_policy_document" "external_dns_assume_devqa" {
 # ExternalDNS configuration moved to alb_extdns_hardening.tf for HA and internal zone support
 
 ###############################################################################
+# WAF v2 - Dev/QA Security Baseline
+###############################################################################
+module "waf_devqa" {
+  source = "../../../modules_new/wafv2"
+
+  providers = { aws = aws.devqa }
+
+  name_prefix          = "cb-devqa"
+  environment          = "devqa"
+  enable_bot_control   = false # Bot Control disabled for dev/qa to reduce costs
+  api_rate_limit       = 5000  # Higher rate limit for dev/qa testing
+  geo_block_countries  = []    # Empty by default, can be configured via variables
+  admin_ip_allow_cidrs = []    # Empty by default, can be configured via variables
+  enable_logging       = false # Logging disabled for dev/qa to reduce costs
+  log_retention_days   = 7
+
+  tags = {
+    Project     = "cluckn-bell"
+    Environment = "devqa"
+  }
+}
+
+###############################################################################
+# CloudWatch Container Insights - Dev/QA
+###############################################################################
+
+# IAM role for CloudWatch Agent (DevQA)
+module "cloudwatch_agent_irsa_devqa" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+  providers = { aws = aws.devqa }
+
+  role_name = "cb-cloudwatch-agent-devqa"
+
+  attach_cloudwatch_observability_policy = true
+
+  oidc_providers = {
+    devqa = {
+      provider_arn               = module.eks_devqa.oidc_provider_arn
+      namespace_service_accounts = ["amazon-cloudwatch:cloudwatch-agent"]
+    }
+  }
+
+  tags = {
+    Project     = "cluckn-bell"
+    Environment = "devqa"
+  }
+}
+
+# IAM role for Fluent Bit (DevQA)
+module "fluent_bit_irsa_devqa" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+  providers = { aws = aws.devqa }
+
+  role_name = "cb-fluent-bit-devqa"
+
+  attach_cloudwatch_observability_policy = true
+
+  oidc_providers = {
+    devqa = {
+      provider_arn               = module.eks_devqa.oidc_provider_arn
+      namespace_service_accounts = ["amazon-cloudwatch:aws-for-fluent-bit"]
+    }
+  }
+
+  tags = {
+    Project     = "cluckn-bell"
+    Environment = "devqa"
+  }
+}
+
+# Container Insights configuration (DevQA)
+module "container_insights_devqa" {
+  source = "../../../modules_new/container_insights"
+
+  providers = {
+    aws        = aws.devqa
+    kubernetes = kubernetes.devqa
+    helm       = helm.devqa
+  }
+
+  cluster_name              = module.eks_devqa.cluster_name
+  aws_region                = var.region
+  cloudwatch_agent_role_arn = module.cloudwatch_agent_irsa_devqa.iam_role_arn
+  fluent_bit_role_arn       = module.fluent_bit_irsa_devqa.iam_role_arn
+  log_retention_days        = 7 # Shorter retention for dev/qa
+
+  tags = {
+    Project     = "cluckn-bell"
+    Environment = "devqa"
+  }
+
+  depends_on = [module.eks_devqa]
+}
+
+###############################################################################
 # Variables
 ###############################################################################
 variable "region" {
@@ -358,7 +455,7 @@ variable "qa_zone_id" {
 variable "api_public_cidrs_devqa" {
   description = "List of CIDR blocks that can access the EKS public API endpoint (empty = allow all)"
   type        = list(string)
-  default     = []  # Empty by default to allow all (current behavior)
+  default     = [] # Empty by default to allow all (current behavior)
 }
 
 # KMS encryption variables (disabled by default for dev/qa)

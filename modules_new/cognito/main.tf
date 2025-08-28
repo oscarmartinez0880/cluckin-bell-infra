@@ -67,7 +67,7 @@ resource "aws_cognito_user" "admin_users" {
   }
 
   message_action = "SUPPRESS"
-  
+
   temporary_password = "TempPass123!"
 
   depends_on = [aws_cognito_user_pool.main]

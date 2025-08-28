@@ -11,8 +11,8 @@ resource "helm_release" "external_dns_prod_hardened" {
     podDisruptionBudget = {
       minAvailable = 1
     }
-    provider = "aws"
-    policy   = "upsert-only"
+    provider   = "aws"
+    policy     = "upsert-only"
     txtOwnerId = "cb-prod-external-dns"
     domainFilters = [
       "cluckn-bell.com",
@@ -25,14 +25,14 @@ resource "helm_release" "external_dns_prod_hardened" {
       create = true
       name   = "external-dns"
     }
-    
+
     # Additional hardening
     securityContext = {
       runAsNonRoot = true
       runAsUser    = 65534
       fsGroup      = 65534
     }
-    
+
     resources = {
       limits = {
         cpu    = "100m"
@@ -43,7 +43,7 @@ resource "helm_release" "external_dns_prod_hardened" {
         memory = "64Mi"
       }
     }
-    
+
     # Anti-affinity to spread replicas across nodes
     affinity = {
       podAntiAffinity = {
@@ -78,8 +78,8 @@ resource "aws_iam_policy" "external_dns_prod_with_internal" {
     Version = "2012-10-17",
     Statement = [
       {
-        Effect   = "Allow",
-        Action   = ["route53:ChangeResourceRecordSets"],
+        Effect = "Allow",
+        Action = ["route53:ChangeResourceRecordSets"],
         Resource = [
           "arn:aws:route53:::hostedzone/${var.prod_apex_zone_id}",
           "arn:aws:route53:::hostedzone/${aws_route53_zone.internal_prod.zone_id}"

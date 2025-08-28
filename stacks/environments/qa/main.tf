@@ -394,7 +394,7 @@ module "k8s_controllers" {
   enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
   enable_cert_manager                 = var.enable_cert_manager
   enable_external_dns                 = var.enable_external_dns
-  enable_argocd                       = false  # We use separate argocd module
+  enable_argocd                       = false # We use separate argocd module
 
   # IRSA role ARNs
   aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa.iam_role_arn
@@ -421,9 +421,9 @@ module "k8s_controllers" {
 module "argocd" {
   source = "../../../modules/argocd"
 
-  cluster_name   = module.eks.cluster_name
-  namespace      = local.namespace
-  environment    = local.environment
+  cluster_name                = module.eks.cluster_name
+  namespace                   = local.namespace
+  environment                 = local.environment
   git_repository              = "codecommit::us-east-1://cluckin-bell"
   git_path                    = "k8s/qa"
   argocd_repo_server_role_arn = module.argocd_repo_server_irsa.iam_role_arn
