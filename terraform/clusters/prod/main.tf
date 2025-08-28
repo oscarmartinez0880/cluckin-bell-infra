@@ -4,12 +4,12 @@ provider "aws" {
 }
 
 module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.8"
+  source    = "terraform-aws-modules/vpc/aws"
+  version   = "~> 5.8"
   providers = { aws = aws.prod }
 
-  name = "cb-prod-use1"
-  cidr = "10.61.0.0/16"
+  name            = "cb-prod-use1"
+  cidr            = "10.61.0.0/16"
   azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
   private_subnets = ["10.61.1.0/24", "10.61.2.0/24", "10.61.3.0/24"]
   public_subnets  = ["10.61.101.0/24", "10.61.102.0/24", "10.61.103.0/24"]
@@ -21,8 +21,8 @@ module "vpc" {
 }
 
 module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.8"
+  source    = "terraform-aws-modules/eks/aws"
+  version   = "~> 20.8"
   providers = { aws = aws.prod }
 
   cluster_name                   = "cb-use1-prod"
@@ -72,8 +72,8 @@ provider "helm" {
 }
 
 module "aws_load_balancer_controller" {
-  source  = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
-  version = "~> 20.8"
+  source    = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
+  version   = "~> 20.8"
   providers = { aws = aws.prod }
 
   cluster_name              = module.eks.cluster_name
@@ -115,8 +115,8 @@ resource "aws_iam_policy" "external_dns" {
         Resource = ["arn:aws:route53:::hostedzone/${var.prod_apex_zone_id}"]
       },
       {
-        Effect = "Allow",
-        Action = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:GetHostedZone"],
+        Effect   = "Allow",
+        Action   = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:GetHostedZone"],
         Resource = ["*"]
       }
     ]
@@ -124,7 +124,7 @@ resource "aws_iam_policy" "external_dns" {
 }
 
 resource "aws_iam_role_policy_attachment" "external_dns_attach" {
-  provider  = aws.prod
+  provider   = aws.prod
   role       = aws_iam_role.external_dns.name
   policy_arn = aws_iam_policy.external_dns.arn
 }

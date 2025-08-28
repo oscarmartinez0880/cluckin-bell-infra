@@ -46,5 +46,5 @@ resource "aws_route53_record" "delegate_qa" {
 }
 
 output "prod_apex_zone_id" { value = aws_route53_zone.apex.zone_id }
-output "dev_zone_id"       { value = aws_route53_zone.dev.zone_id }
-output "qa_zone_id"        { value = aws_route53_zone.qa.zone_id }
+output "dev_zone_id" { value = aws_route53_zone.dev.zone_id }
+output "qa_zone_id" { value = aws_route53_zone.qa.zone_id }

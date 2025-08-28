@@ -4,8 +4,8 @@ provider "aws" {
 }
 
 module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.8"
+  source    = "terraform-aws-modules/vpc/aws"
+  version   = "~> 5.8"
   providers = { aws = aws.devqa }
 
   name = "cb-devqa-use1"
@@ -92,9 +92,9 @@ module "aws_load_balancer_controller" {
 
   providers = { aws = aws.devqa }
 
-  cluster_name                = module.eks.cluster_name
-  cluster_oidc_provider_arn   = module.eks.oidc_provider_arn
-  create_policy               = true
+  cluster_name              = module.eks.cluster_name
+  cluster_oidc_provider_arn = module.eks.oidc_provider_arn
+  create_policy             = true
 }
 
 # ExternalDNS (scoped to dev/qa sub-zones)
@@ -127,16 +127,16 @@ resource "aws_iam_policy" "external_dns" {
     Version = "2012-10-17",
     Statement = [
       {
-        Effect   = "Allow",
-        Action   = ["route53:ChangeResourceRecordSets"],
+        Effect = "Allow",
+        Action = ["route53:ChangeResourceRecordSets"],
         Resource = [
           "arn:aws:route53:::hostedzone/${var.dev_zone_id}",
           "arn:aws:route53:::hostedzone/${var.qa_zone_id}"
         ]
       },
       {
-        Effect = "Allow",
-        Action = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:GetHostedZone"],
+        Effect   = "Allow",
+        Action   = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:GetHostedZone"],
         Resource = ["*"]
       }
     ]
@@ -144,7 +144,7 @@ resource "aws_iam_policy" "external_dns" {
 }
 
 resource "aws_iam_role_policy_attachment" "external_dns_attach" {
-  provider  = aws.devqa
+  provider   = aws.devqa
   role       = aws_iam_role.external_dns.name
   policy_arn = aws_iam_policy.external_dns.arn
 }
@@ -169,4 +169,4 @@ resource "helm_release" "external_dns" {
 }
 
 variable "dev_zone_id" { type = string }
-variable "qa_zone_id"  { type = string }
+variable "qa_zone_id" { type = string }
