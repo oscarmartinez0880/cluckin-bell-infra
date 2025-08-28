@@ -1,12 +1,18 @@
-# NOTE: Terraform version and provider configuration is defined in main.tf
-# This file is kept for reference but the actual configuration is in main.tf
+terraform {
+  required_version = ">= 1.10.0"
 
-# TODO: Configure additional provider blocks based on your needs
-# provider "azurerm" {
-#   features {}
-# }
-
-# provider "google" {
-#   project = var.gcp_project_id
-#   region  = var.gcp_region
-# }
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.0"
+    }
+  }
+}
