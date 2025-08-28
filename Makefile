@@ -57,3 +57,33 @@ workspace-select: ## Select a workspace (usage: make workspace-select WORKSPACE=
 lint: fmt-check validate ## Run linting (format check and validate)
 
 ci: init lint plan ## Run CI pipeline (init, lint, plan)
+
+# ECR Testing targets
+test-ecr-dry: ## Run ECR workflow tests in dry-run mode
+	@echo "Running ECR tests in dry-run mode..."
+	./scripts/run-ecr-tests.sh run-tests --environment all --application all --dry-run true
+
+test-ecr-dev: ## Run ECR workflow tests for dev environment
+	@echo "Running ECR tests for dev environment..."
+	./scripts/run-ecr-tests.sh run-tests --environment dev --application all --dry-run false --wait
+
+test-ecr-qa: ## Run ECR workflow tests for qa environment
+	@echo "Running ECR tests for qa environment..."
+	./scripts/run-ecr-tests.sh run-tests --environment qa --application all --dry-run false --wait
+
+test-ecr-prod: ## Run ECR workflow tests for prod environment
+	@echo "Running ECR tests for prod environment..."
+	./scripts/run-ecr-tests.sh run-tests --environment prod --application all --dry-run false --wait
+
+test-ecr-all: ## Run ECR workflow tests for all environments
+	@echo "Running ECR tests for all environments..."
+	./scripts/run-ecr-tests.sh run-tests --environment all --application all --dry-run false --wait
+
+test-ecr-status: ## Check status of ECR workflow tests
+	./scripts/run-ecr-tests.sh check-status
+
+test-ecr-collect: ## Collect ECR test results and generate reports
+	./scripts/collect-ecr-results.sh --include-screenshots
+
+test-ecr-help: ## Show ECR testing help
+	./scripts/run-ecr-tests.sh help

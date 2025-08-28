@@ -1,0 +1,344 @@
+name: Test ECR Workflow Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment to test'
+        required: true
+        type: choice
+        options: [dev, qa, prod, all]
+      application:
+        description: 'Application to test'
+        required: true
+        type: choice
+        options: [cluckin-bell-app, wingman-api, all]
+      dry_run:
+        description: 'Dry run mode (simulate without actual ECR push)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  setup:
+    name: Setup Test Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.setup.outputs.matrix }}
+    steps:
+      - id: setup
+        shell: bash
+        run: |
+          # Create test matrix based on inputs
+          if [[ "${{ inputs.environment }}" == "all" ]]; then
+            environments='["dev", "qa", "prod"]'
+          else
+            environments='["${{ inputs.environment }}"]'
+          fi
+          
+          if [[ "${{ inputs.application }}" == "all" ]]; then
+            applications='["cluckin-bell-app", "wingman-api"]'
+          else
+            applications='["${{ inputs.application }}"]'
+          fi
+          
+          # Create matrix combinations
+          matrix=$(jq -n \
+            --argjson envs "$environments" \
+            --argjson apps "$applications" \
+            '{
+              include: [
+                $envs[] as $env | $apps[] as $app | {
+                  environment: $env,
+                  application: $app,
+                  account_id: (if $env == "prod" then "346746763840" else "264765154707" end),
+                  ecr_role: (
+                    if $env == "prod" then
+                      "arn:aws:iam::346746763840:role/GH_ECR_Push_" + ($app | gsub("-"; "_")) + "_prod"
+                    else
+                      "arn:aws:iam::264765154707:role/GH_ECR_Push_" + ($app | gsub("-"; "_")) + "_" + $env
+                    end
+                  ),
+                  image_tag: (if $env == "prod" then "prod" else $env end)
+                }
+              ]
+            }')
+          
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          echo "Generated matrix:"
+          echo "$matrix" | jq .
+
+  test-ecr:
+    name: Test ECR - ${{ matrix.application }} (${{ matrix.environment }})
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+      fail-fast: false
+    environment: ${{ matrix.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test Environment Setup
+        id: test-setup
+        run: |
+          echo "Testing ECR workflow for:"
+          echo "  Application: ${{ matrix.application }}"
+          echo "  Environment: ${{ matrix.environment }}"
+          echo "  Account ID: ${{ matrix.account_id }}"
+          echo "  ECR Role: ${{ matrix.ecr_role }}"
+          echo "  Image Tag: ${{ matrix.image_tag }}"
+          echo "  Dry Run: ${{ inputs.dry_run }}"
+          
+          # Set ECR repository URL
+          ecr_repo="${{ matrix.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ matrix.application }}"
+          echo "ecr_repo=$ecr_repo" >> $GITHUB_OUTPUT
+          echo "  ECR Repository: $ecr_repo"
+
+      - name: Configure AWS credentials (OIDC)
+        if: ${{ !inputs.dry_run }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ matrix.ecr_role }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: gha-ecr-test-${{ github.run_id }}-${{ matrix.environment }}-${{ matrix.application }}
+
+      - name: Test ECR Authentication
+        if: ${{ !inputs.dry_run }}
+        id: ecr-auth
+        run: |
+          echo "Testing ECR authentication..."
+          
+          # Test ECR login
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+            docker login --username AWS --password-stdin ${{ matrix.account_id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          
+          echo "✅ ECR authentication successful"
+
+      - name: Test ECR Repository Access
+        if: ${{ !inputs.dry_run }}
+        id: ecr-access
+        run: |
+          echo "Testing ECR repository access..."
+          
+          # Check if repository exists
+          if aws ecr describe-repositories --repository-names ${{ matrix.application }} --region ${{ env.AWS_REGION }} >/dev/null 2>&1; then
+            echo "✅ ECR repository '${{ matrix.application }}' exists"
+            
+            # List existing images
+            echo "Existing images in repository:"
+            aws ecr describe-images \
+              --repository-name ${{ matrix.application }} \
+              --region ${{ env.AWS_REGION }} \
+              --query 'imageDetails[*].[imageTags[0], imagePushedAt]' \
+              --output table || echo "No images found"
+              
+          else
+            echo "❌ ECR repository '${{ matrix.application }}' not found"
+            exit 1
+          fi
+
+      - name: Simulate Image Build and Push
+        id: simulate-build
+        run: |
+          echo "Simulating image build and push..."
+          
+          # Create a simple test Dockerfile
+          mkdir -p /tmp/test-build
+          cat > /tmp/test-build/Dockerfile << 'EOF'
+          FROM nginx:alpine
+          COPY index.html /usr/share/nginx/html/
+          EXPOSE 80
+          CMD ["nginx", "-g", "daemon off;"]
+          EOF
+          
+          cat > /tmp/test-build/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head><title>Test Application</title></head>
+          <body>
+            <h1>${{ matrix.application }} - ${{ matrix.environment }}</h1>
+            <p>Build: ${{ github.run_id }}</p>
+            <p>Timestamp: $(date)</p>
+          </body>
+          </html>
+          EOF
+          
+          cd /tmp/test-build
+          
+          # Build test image
+          echo "Building test image..."
+          docker build -t test-${{ matrix.application }}:${{ matrix.image_tag }} .
+          
+          # Tag for ECR
+          image_uri="${{ steps.test-setup.outputs.ecr_repo }}:${{ matrix.image_tag }}"
+          docker tag test-${{ matrix.application }}:${{ matrix.image_tag }} "$image_uri"
+          
+          echo "✅ Test image built and tagged: $image_uri"
+          echo "image_uri=$image_uri" >> $GITHUB_OUTPUT
+
+      - name: Push Test Image to ECR
+        if: ${{ !inputs.dry_run }}
+        id: ecr-push
+        run: |
+          echo "Pushing test image to ECR..."
+          
+          image_uri="${{ steps.simulate-build.outputs.image_uri }}"
+          
+          # Push image
+          docker push "$image_uri"
+          
+          echo "✅ Test image pushed successfully: $image_uri"
+          
+          # Verify the push
+          echo "Verifying pushed image..."
+          aws ecr describe-images \
+            --repository-name ${{ matrix.application }} \
+            --image-ids imageTag=${{ matrix.image_tag }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'imageDetails[0].[imageTags, imagePushedAt, imageSizeInBytes]' \
+            --output table
+
+      - name: Generate Test Report
+        if: always()
+        id: report
+        run: |
+          echo "Generating test report..."
+          
+          report_file="/tmp/test-report-${{ matrix.application }}-${{ matrix.environment }}.md"
+          
+          cat > "$report_file" << EOF
+          # ECR Test Report
+          
+          **Application**: ${{ matrix.application }}  
+          **Environment**: ${{ matrix.environment }}  
+          **Account ID**: ${{ matrix.account_id }}  
+          **ECR Repository**: ${{ steps.test-setup.outputs.ecr_repo }}  
+          **Image Tag**: ${{ matrix.image_tag }}  
+          **Dry Run**: ${{ inputs.dry_run }}  
+          **Test Run ID**: ${{ github.run_id }}  
+          **Timestamp**: $(date -u)
+          
+          ## Test Results
+          
+          | Test Step | Status | Notes |
+          |-----------|--------|-------|
+          | Environment Setup | ✅ | Configuration validated |
+          | ECR Authentication | $(if [[ "${{ inputs.dry_run }}" == "true" ]]; then echo "🔸 Skipped (dry run)"; elif [[ "${{ steps.ecr-auth.outcome }}" == "success" ]]; then echo "✅ Success"; else echo "❌ Failed"; fi) | $(if [[ "${{ inputs.dry_run }}" == "false" ]]; then echo "OIDC authentication to AWS"; else echo "Dry run mode"; fi) |
+          | ECR Repository Access | $(if [[ "${{ inputs.dry_run }}" == "true" ]]; then echo "🔸 Skipped (dry run)"; elif [[ "${{ steps.ecr-access.outcome }}" == "success" ]]; then echo "✅ Success"; else echo "❌ Failed"; fi) | $(if [[ "${{ inputs.dry_run }}" == "false" ]]; then echo "Repository exists and accessible"; else echo "Dry run mode"; fi) |
+          | Image Build | $(if [[ "${{ steps.simulate-build.outcome }}" == "success" ]]; then echo "✅ Success"; else echo "❌ Failed"; fi) | Test image built locally |
+          | ECR Push | $(if [[ "${{ inputs.dry_run }}" == "true" ]]; then echo "🔸 Skipped (dry run)"; elif [[ "${{ steps.ecr-push.outcome }}" == "success" ]]; then echo "✅ Success"; else echo "❌ Failed"; fi) | $(if [[ "${{ inputs.dry_run }}" == "false" ]]; then echo "Image pushed to ECR"; else echo "Dry run mode"; fi) |
+          
+          ## Expected Image URI
+          \`\`\`
+          ${{ steps.simulate-build.outputs.image_uri }}
+          \`\`\`
+          
+          ## Next Steps
+          $(if [[ "${{ inputs.dry_run }}" == "true" ]]; then echo "- Run with dry_run=false to perform actual ECR operations"; else echo "- Verify image is available for deployment"; fi)
+          $(if [[ "${{ inputs.dry_run }}" == "false" ]]; then echo "- Check ECR console for image details"; fi)
+          
+          EOF
+          
+          cat "$report_file"
+          echo "report_file=$report_file" >> $GITHUB_OUTPUT
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecr-test-report-${{ matrix.application }}-${{ matrix.environment }}
+          path: ${{ steps.report.outputs.report_file }}
+          retention-days: 30
+
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [setup, test-ecr]
+    if: always()
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ecr-test-report-*
+          merge-multiple: true
+          path: ./reports
+
+      - name: Generate Summary Report
+        run: |
+          echo "Generating summary report..."
+          
+          summary_file="ecr-test-summary-${{ github.run_id }}.md"
+          
+          cat > "$summary_file" << EOF
+          # ECR Workflow Test Summary
+          
+          **Test Run ID**: ${{ github.run_id }}  
+          **Timestamp**: $(date -u)  
+          **Triggered by**: ${{ github.actor }}  
+          **Input Parameters**:
+          - Environment: ${{ inputs.environment }}
+          - Application: ${{ inputs.application }}  
+          - Dry Run: ${{ inputs.dry_run }}
+          
+          ## Individual Test Reports
+          
+          EOF
+          
+          # Add links to individual reports
+          for report in ./reports/*.md; do
+            if [[ -f "$report" ]]; then
+              echo "- [$(basename "$report" .md)](./$(basename "$report"))" >> "$summary_file"
+            fi
+          done
+          
+          cat >> "$summary_file" << EOF
+          
+          ## Test Matrix Results
+          
+          The following combinations were tested:
+          
+          EOF
+          
+          # Display the test matrix
+          echo '${{ needs.setup.outputs.matrix }}' | jq -r '.include[] | "- **\(.application)** in **\(.environment)** environment (Account: \(.account_id))"' >> "$summary_file"
+          
+          cat >> "$summary_file" << EOF
+          
+          ## Usage Instructions
+          
+          To run these tests:
+          
+          1. **Dry Run Mode** (default): Tests configuration without actual ECR operations
+             \`\`\`
+             gh workflow run test-ecr-workflow.yml -f environment=dev -f application=all -f dry_run=true
+             \`\`\`
+          
+          2. **Live Test Mode**: Performs actual ECR authentication and operations
+             \`\`\`
+             gh workflow run test-ecr-workflow.yml -f environment=dev -f application=all -f dry_run=false
+             \`\`\`
+          
+          3. **Test All Environments**:
+             \`\`\`
+             gh workflow run test-ecr-workflow.yml -f environment=all -f application=all -f dry_run=false
+             \`\`\`
+          
+          EOF
+          
+          cat "$summary_file"
+
+      - name: Upload Summary Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: ecr-test-summary-${{ github.run_id }}
+          path: ecr-test-summary-${{ github.run_id }}.md
+          retention-days: 30
