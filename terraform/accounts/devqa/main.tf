@@ -60,24 +60,35 @@ resource "aws_iam_openid_connect_provider" "github" {
 # Local values for common trust policy conditions
 locals {
   github_oidc_arn = aws_iam_openid_connect_provider.github.arn
+  github_owner = "oscarmartinez0880"
+  github_repo  = "cluckin-bell"
 
   # Common trust policy conditions for GitHub Actions
   github_trust_condition = {
     StringEquals = {
       "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+      "token.actions.githubusercontent.com:repository" = "${local.github_owner}/${local.github_repo}"
     }
   }
 
-  # Environment-specific trust conditions
+  # Environment-specific trust conditions - tightened to protected refs and environments
   environment_conditions = {
     dev = {
       StringLike = {
-        "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository_owner}/cluckin-bell:environment:dev"
+        "token.actions.githubusercontent.com:sub" = [
+          "repo:${local.github_owner}/${local.github_repo}:ref:refs/heads/main",
+          "repo:${local.github_owner}/${local.github_repo}:environment:dev"
+        ]
+        "token.actions.githubusercontent.com:workflow_ref" = "${local.github_owner}/${local.github_repo}/.github/workflows/deploy.yaml@refs/heads/main"
       }
     }
     qa = {
       StringLike = {
-        "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository_owner}/cluckin-bell:environment:qa"
+        "token.actions.githubusercontent.com:sub" = [
+          "repo:${local.github_owner}/${local.github_repo}:ref:refs/heads/main",
+          "repo:${local.github_owner}/${local.github_repo}:environment:qa"
+        ]
+        "token.actions.githubusercontent.com:workflow_ref" = "${local.github_owner}/${local.github_repo}/.github/workflows/deploy.yaml@refs/heads/main"
       }
     }
   }

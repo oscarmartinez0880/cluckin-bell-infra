@@ -88,6 +88,17 @@ module "eks" {
     default = { min_size = 3, max_size = 6, desired_size = 3 }
   }
 
+  # Cluster encryption configuration
+  cluster_encryption_config = [{ 
+    provider_key_arn = aws_kms_key.eks_secrets.arn
+    resources = ["secrets"] 
+  }]
+
+  # Cluster endpoint controls
+  cluster_endpoint_private_access = true
+  cluster_endpoint_public_access  = true
+  cluster_endpoint_public_access_cidrs = var.api_public_cidrs
+
   tags = {
     Project = "cluckn-bell"
     Env     = "prod"
@@ -126,20 +137,7 @@ provider "helm" {
 ###############################################################################
 # AWS Load Balancer Controller (ALB Controller) - Prod
 ###############################################################################
-module "aws_load_balancer_controller" {
-  source  = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
-  version = "~> 20.8"
-
-  providers = {
-    aws        = aws.prod
-    helm       = helm.prod
-    kubernetes = kubernetes.prod
-  }
-
-  cluster_name              = module.eks.cluster_name
-  cluster_oidc_provider_arn = module.eks.oidc_provider_arn
-  create_policy             = true
-}
+# NOTE: ALB Controller configuration moved to alb_extdns_hardening.tf with HA and PDB
 
 ###############################################################################
 # ExternalDNS - Prod (scoped to apex zone)
@@ -192,29 +190,7 @@ resource "aws_iam_role_policy_attachment" "external_dns_attach" {
   policy_arn = aws_iam_policy.external_dns.arn
 }
 
-resource "helm_release" "external_dns" {
-  provider   = helm.prod
-  name       = "external-dns"
-  repository = "https://kubernetes-sigs.github.io/external-dns/"
-  chart      = "external-dns"
-  version    = "1.15.0"
-
-  values = [yamlencode({
-    provider      = "aws",
-    policy        = "upsert-only",
-    txtOwnerId    = "cb-prod-external-dns",
-    domainFilters = ["cluckn-bell.com"],
-    serviceAccount = {
-      annotations = { "eks.amazonaws.com/role-arn" = aws_iam_role.external_dns.arn },
-      create      = true,
-      name        = "external-dns"
-    }
-  })]
-
-  depends_on = [
-    module.eks
-  ]
-}
+# NOTE: ExternalDNS helm_release moved to alb_extdns_hardening.tf with HA and PDB configuration
 
 ###############################################################################
 # Variables
