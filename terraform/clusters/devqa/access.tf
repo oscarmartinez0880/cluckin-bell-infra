@@ -1,9 +1,4 @@
 # Grant cluster-admin in cb-use1-shared to the two deploy roles
-provider "aws" {
-  alias  = "devqa"
-  region = "us-east-1"
-}
-
 data "aws_caller_identity" "current" {
   provider = aws.devqa
 }

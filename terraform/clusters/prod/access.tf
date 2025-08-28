@@ -1,9 +1,4 @@
 # Grant cluster-admin in cb-use1-prod to the prod deploy role
-provider "aws" {
-  alias  = "prod"
-  region = "us-east-1"
-}
-
 data "aws_caller_identity" "current" {
   provider = aws.prod
 }
