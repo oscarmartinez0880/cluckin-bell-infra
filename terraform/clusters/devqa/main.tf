@@ -1,11 +1,50 @@
-provider "aws" {
-  alias  = "devqa"
-  region = "us-east-1"
+###############################################################################
+# Terraform and Provider Configuration
+###############################################################################
+terraform {
+  required_version = "~> 1.13.1"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.12"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.33"
+    }
+  }
 }
 
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.8"
+###############################################################################
+# AWS Providers (per account)
+# - cluckin-bell-qa (dev/qa shared cluster) - 264765154707
+# - cluckin-bell-prod (prod cluster)         - 346746763840
+###############################################################################
+provider "aws" {
+  alias   = "devqa"
+  region  = var.region
+  profile = var.devqa_profile
+}
+
+provider "aws" {
+  alias   = "prod"
+  region  = var.region
+  profile = var.prod_profile
+}
+
+###############################################################################
+# Networking - VPCs
+###############################################################################
+
+# Shared Dev/QA VPC in cluckin-bell-qa
+module "vpc_devqa" {
+  source    = "terraform-aws-modules/vpc/aws"
+  version   = "~> 5.8"
   providers = { aws = aws.devqa }
 
   name = "cb-devqa-use1"
@@ -25,20 +64,48 @@ module "vpc" {
   }
 }
 
-module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "~> 20.8"
+# Prod VPC in cluckin-bell-prod
+module "vpc_prod" {
+  source    = "terraform-aws-modules/vpc/aws"
+  version   = "~> 5.8"
+  providers = { aws = aws.prod }
 
+  name = "cb-prod-use1"
+  cidr = "10.70.0.0/16"
+
+  azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
+  private_subnets = ["10.70.1.0/24", "10.70.2.0/24", "10.70.3.0/24"]
+  public_subnets  = ["10.70.101.0/24", "10.70.102.0/24", "10.70.103.0/24"]
+
+  enable_nat_gateway     = true
+  single_nat_gateway     = true
+  one_nat_gateway_per_az = false
+
+  tags = {
+    Project = "cluckn-bell"
+    Env     = "prod"
+  }
+}
+
+###############################################################################
+# EKS Clusters (Kubernetes >= 1.30)
+###############################################################################
+
+# Shared Dev/QA EKS Cluster
+module "eks_devqa" {
+  source    = "terraform-aws-modules/eks/aws"
+  version   = "~> 20.8"
   providers = { aws = aws.devqa }
 
   cluster_name                   = "cb-use1-shared"
   cluster_version                = "1.30"
   cluster_endpoint_public_access = true
 
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  vpc_id     = module.vpc_devqa.vpc_id
+  subnet_ids = module.vpc_devqa.private_subnets
 
-  enable_cluster_creator_admin_permissions = true
+  enable_irsa                                = true
+  enable_cluster_creator_admin_permissions   = true
 
   eks_managed_node_group_defaults = {
     ami_type       = "AL2_x86_64"
@@ -60,67 +127,162 @@ module "eks" {
   }
 }
 
-# K8s providers configured from EKS outputs (for helm installs)
-data "aws_eks_cluster" "this" {
-  provider = aws.devqa
-  name     = module.eks.cluster_name
-}
+# Prod EKS Cluster
+module "eks_prod" {
+  source    = "terraform-aws-modules/eks/aws"
+  version   = "~> 20.8"
+  providers = { aws = aws.prod }
 
-data "aws_eks_cluster_auth" "this" {
-  provider = aws.devqa
-  name     = module.eks.cluster_name
-}
+  cluster_name                   = "cb-use1-prod"
+  cluster_version                = "1.30"
+  cluster_endpoint_public_access = true
 
-provider "kubernetes" {
-  host                   = data.aws_eks_cluster.this.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.this.token
-}
+  vpc_id     = module.vpc_prod.vpc_id
+  subnet_ids = module.vpc_prod.private_subnets
 
-provider "helm" {
-  kubernetes {
-    host                   = data.aws_eks_cluster.this.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.this.token
+  enable_irsa                              = true
+  enable_cluster_creator_admin_permissions = true
+
+  eks_managed_node_group_defaults = {
+    ami_type       = "AL2_x86_64"
+    instance_types = ["m5.large"]
+    disk_size      = 50
+  }
+
+  eks_managed_node_groups = {
+    default = {
+      min_size     = 2
+      max_size     = 5
+      desired_size = 2
+    }
+  }
+
+  tags = {
+    Project = "cluckn-bell"
+    Env     = "prod"
   }
 }
 
-# AWS Load Balancer Controller
-module "aws_load_balancer_controller" {
+###############################################################################
+# Kubernetes/Helm Providers (per cluster)
+###############################################################################
+
+# Dev/QA cluster auth and providers
+data "aws_eks_cluster" "devqa" {
+  provider = aws.devqa
+  name     = module.eks_devqa.cluster_name
+}
+
+data "aws_eks_cluster_auth" "devqa" {
+  provider = aws.devqa
+  name     = module.eks_devqa.cluster_name
+}
+
+provider "kubernetes" {
+  alias                  = "devqa"
+  host                   = data.aws_eks_cluster.devqa.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.devqa.token
+}
+
+provider "helm" {
+  alias = "devqa"
+  kubernetes {
+    host                   = data.aws_eks_cluster.devqa.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.devqa.token
+  }
+}
+
+# Prod cluster auth and providers
+data "aws_eks_cluster" "prod" {
+  provider = aws.prod
+  name     = module.eks_prod.cluster_name
+}
+
+data "aws_eks_cluster_auth" "prod" {
+  provider = aws.prod
+  name     = module.eks_prod.cluster_name
+}
+
+provider "kubernetes" {
+  alias                  = "prod"
+  host                   = data.aws_eks_cluster.prod.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.prod.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.prod.token
+}
+
+provider "helm" {
+  alias = "prod"
+  kubernetes {
+    host                   = data.aws_eks_cluster.prod.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.prod.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.prod.token
+  }
+}
+
+###############################################################################
+# AWS Load Balancer Controller (ALB Controller) - Dev/QA and Prod
+###############################################################################
+
+module "aws_load_balancer_controller_devqa" {
   source  = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
   version = "~> 20.8"
 
-  providers = { aws = aws.devqa }
+  providers = {
+    aws        = aws.devqa
+    helm       = helm.devqa
+    kubernetes = kubernetes.devqa
+  }
 
-  cluster_name                = module.eks.cluster_name
-  cluster_oidc_provider_arn   = module.eks.oidc_provider_arn
-  create_policy               = true
+  cluster_name              = module.eks_devqa.cluster_name
+  cluster_oidc_provider_arn = module.eks_devqa.oidc_provider_arn
+  create_policy             = true
 }
 
-# ExternalDNS (scoped to dev/qa sub-zones)
-resource "aws_iam_role" "external_dns" {
+module "aws_load_balancer_controller_prod" {
+  source  = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
+  version = "~> 20.8"
+
+  providers = {
+    aws        = aws.prod
+    helm       = helm.prod
+    kubernetes = kubernetes.prod
+  }
+
+  cluster_name              = module.eks_prod.cluster_name
+  cluster_oidc_provider_arn = module.eks_prod.oidc_provider_arn
+  create_policy             = true
+}
+
+###############################################################################
+# ExternalDNS - Dev/QA cluster (scoped to dev/qa sub-zones)
+###############################################################################
+
+# IRSA role for ExternalDNS
+resource "aws_iam_role" "external_dns_devqa" {
   provider           = aws.devqa
   name               = "cb-external-dns-devqa"
-  assume_role_policy = data.aws_iam_policy_document.external_dns_assume.json
+  assume_role_policy = data.aws_iam_policy_document.external_dns_assume_devqa.json
 }
 
-data "aws_iam_policy_document" "external_dns_assume" {
+data "aws_iam_policy_document" "external_dns_assume_devqa" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     effect  = "Allow"
     principals {
       type        = "Federated"
-      identifiers = [module.eks.oidc_provider_arn]
+      identifiers = [module.eks_devqa.oidc_provider_arn]
     }
     condition {
       test     = "StringEquals"
-      variable = replace(module.eks.cluster_oidc_issuer_url, "https://", "") + ":sub"
+      variable = "${replace(module.eks_devqa.cluster_oidc_issuer_url, "https://", "")}:sub"
       values   = ["system:serviceaccount:default:external-dns"]
     }
   }
 }
 
-resource "aws_iam_policy" "external_dns" {
+resource "aws_iam_policy" "external_dns_devqa" {
   provider = aws.devqa
   name     = "cb-external-dns-devqa"
   policy = jsonencode({
@@ -135,21 +297,22 @@ resource "aws_iam_policy" "external_dns" {
         ]
       },
       {
-        Effect = "Allow",
-        Action = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:GetHostedZone"],
+        Effect   = "Allow",
+        Action   = ["route53:ListHostedZones", "route53:ListResourceRecordSets", "route53:GetHostedZone"],
         Resource = ["*"]
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "external_dns_attach" {
-  provider  = aws.devqa
-  role       = aws_iam_role.external_dns.name
-  policy_arn = aws_iam_policy.external_dns.arn
+resource "aws_iam_role_policy_attachment" "external_dns_attach_devqa" {
+  provider   = aws.devqa
+  role       = aws_iam_role.external_dns_devqa.name
+  policy_arn = aws_iam_policy.external_dns_devqa.arn
 }
 
-resource "helm_release" "external_dns" {
+resource "helm_release" "external_dns_devqa" {
+  provider   = helm.devqa
   name       = "external-dns"
   repository = "https://kubernetes-sigs.github.io/external-dns/"
   chart      = "external-dns"
@@ -161,12 +324,44 @@ resource "helm_release" "external_dns" {
     txtOwnerId    = "cb-devqa-external-dns",
     domainFilters = ["dev.cluckn-bell.com", "qa.cluckn-bell.com"],
     serviceAccount = {
-      annotations = { "eks.amazonaws.com/role-arn" = aws_iam_role.external_dns.arn },
+      annotations = { "eks.amazonaws.com/role-arn" = aws_iam_role.external_dns_devqa.arn },
       create      = true,
       name        = "external-dns"
     }
   })]
+
+  depends_on = [
+    module.eks_devqa
+  ]
 }
 
-variable "dev_zone_id" { type = string }
-variable "qa_zone_id"  { type = string }
+###############################################################################
+# Variables
+###############################################################################
+variable "region" {
+  description = "AWS Region for all EKS clusters"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "devqa_profile" {
+  description = "AWS CLI profile for cluckin-bell-qa account (264765154707)"
+  type        = string
+  default     = "cluckin-bell-qa"
+}
+
+variable "prod_profile" {
+  description = "AWS CLI profile for cluckin-bell-prod account (346746763840)"
+  type        = string
+  default     = "cluckin-bell-prod"
+}
+
+variable "dev_zone_id" {
+  description = "Route53 Hosted Zone ID for dev.cluckn-bell.com"
+  type        = string
+}
+
+variable "qa_zone_id" {
+  description = "Route53 Hosted Zone ID for qa.cluckn-bell.com"
+  type        = string
+}
