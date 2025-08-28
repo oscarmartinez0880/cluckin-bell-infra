@@ -27,6 +27,13 @@ provider "aws" {
   alias   = "prod"
   region  = var.region
   profile = var.prod_profile
+  default_tags {
+    tags = {
+      Project = "cluckn-bell"
+      Owner   = var.owner_tag
+      Env     = "prod"
+    }
+  }
 }
 
 ###############################################################################
@@ -216,6 +223,12 @@ variable "region" {
   description = "AWS Region for the prod EKS cluster"
   type        = string
   default     = "us-east-1"
+}
+
+variable "owner_tag" {
+  description = "Owner tag for all resources"
+  type        = string
+  default     = "oscarmartinez0880"
 }
 
 variable "prod_profile" {
