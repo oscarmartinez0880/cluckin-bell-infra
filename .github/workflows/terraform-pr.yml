@@ -1,0 +1,58 @@
+name: Terraform PR Checks
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - 'terraform/accounts/**'
+      - '.github/workflows/terraform-*.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  plan:
+    name: Plan (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [ 'terraform/accounts/devqa', 'terraform/accounts/prod' ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform 1.13.1
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+
+      - name: Configure AWS credentials (OIDC)
+        if: contains(matrix.dir, 'prod')
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_PROD }}
+          aws-region: us-east-1
+
+      - name: Configure AWS credentials (OIDC)
+        if: contains(matrix.dir, 'devqa')
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_DEVQA }}
+          aws-region: us-east-1
+
+      - name: Terraform fmt (check)
+        working-directory: ${{ matrix.dir }}
+        run: terraform fmt -check -diff
+
+      - name: Terraform init
+        working-directory: ${{ matrix.dir }}
+        run: terraform init -input=false
+
+      - name: Terraform validate
+        working-directory: ${{ matrix.dir }}
+        run: terraform validate
+
+      - name: Terraform plan
+        working-directory: ${{ matrix.dir }}
+        run: terraform plan -input=false -no-color

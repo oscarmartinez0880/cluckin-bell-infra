@@ -1,0 +1,1 @@
+# GitHub mirror outputs moved to CodeCommit setup

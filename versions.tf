@@ -1,0 +1,1 @@
+# Terraform version requirements moved to main.tf to avoid duplication

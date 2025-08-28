@@ -58,12 +58,12 @@ resource "aws_secretsmanager_secret_version" "main" {
   for_each = var.secrets
 
   secret_id = aws_secretsmanager_secret.main[each.key].id
-  
+
   secret_string = jsonencode(
     merge(
       each.value.static_values,
       {
-        for field_key, field_config in each.value.generated_values : 
+        for field_key, field_config in each.value.generated_values :
         field_key => random_password.field_passwords["${each.key}:${field_key}"].result
       }
     )

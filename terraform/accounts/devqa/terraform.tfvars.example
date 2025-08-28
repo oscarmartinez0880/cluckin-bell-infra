@@ -1,0 +1,17 @@
+# DevQA Account Configuration
+# Account ID: 264765154707
+
+region                     = "us-east-1"
+account_id                = "264765154707"
+github_repository_owner   = "oscarmartinez0880"
+app_repositories          = ["cluckin-bell-app", "wingman-api"]
+environments              = ["dev", "qa"]
+cluster_name_prefix       = "cb"
+ecr_lifecycle_keep_count  = 50
+
+tags = {
+  Project     = "cluckin-bell"
+  ManagedBy   = "terraform"
+  Account     = "devqa"
+  Environment = "multi"
+}

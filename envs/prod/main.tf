@@ -16,7 +16,7 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  
+
   default_tags {
     tags = local.common_tags
   }
@@ -39,7 +39,7 @@ module "apex_zone" {
   source = "../../modules_new/route53_zone"
 
   zone_name = "cluckn-bell.com"
-  
+
   # Add NS delegations for dev and qa subdomains
   subdomain_zones = {
     "dev.cluckn-bell.com" = var.dev_zone_name_servers
@@ -53,10 +53,10 @@ module "apex_zone" {
 module "vpc" {
   source = "../../modules_new/vpc"
 
-  name                   = "cluckn-bell-prod"
-  vpc_cidr              = "10.1.0.0/16"
-  public_subnet_cidrs   = ["10.1.1.0/24", "10.1.2.0/24", "10.1.3.0/24"]
-  private_subnet_cidrs  = ["10.1.101.0/24", "10.1.102.0/24", "10.1.103.0/24"]
+  name                 = "cluckn-bell-prod"
+  vpc_cidr             = "10.1.0.0/16"
+  public_subnet_cidrs  = ["10.1.1.0/24", "10.1.2.0/24", "10.1.3.0/24"]
+  private_subnet_cidrs = ["10.1.101.0/24", "10.1.102.0/24", "10.1.103.0/24"]
 
   tags = local.common_tags
 }
@@ -65,17 +65,17 @@ module "vpc" {
 module "eks" {
   source = "../../modules_new/eks"
 
-  cluster_name        = "cluckn-bell-prod"
-  kubernetes_version  = "1.29"
-  private_subnet_ids  = module.vpc.private_subnet_ids
-  public_subnet_ids   = module.vpc.public_subnet_ids
+  cluster_name       = "cluckn-bell-prod"
+  kubernetes_version = "1.29"
+  private_subnet_ids = module.vpc.private_subnet_ids
+  public_subnet_ids  = module.vpc.public_subnet_ids
 
   node_groups = {
     ng-prod = {
-      instance_type  = "t3.small"
-      desired_size   = 2
-      min_size       = 2
-      max_size       = 3
+      instance_type = "t3.small"
+      desired_size  = 2
+      min_size      = 2
+      max_size      = 3
       labels = {
         env = "prod"
       }
@@ -98,7 +98,7 @@ module "prod_cert" {
 module "ecr" {
   source = "../../modules_new/ecr"
 
-  repository_name  = "cluckin-bell-app"
+  repository_name = "cluckin-bell-app"
   max_image_count = 10
   tags            = local.common_tags
 }
@@ -112,22 +112,22 @@ module "cloudwatch" {
     "/eks/prod/apps"    = "Application logs"
   }
   retention_in_days = 1
-  tags             = local.common_tags
+  tags              = local.common_tags
 }
 
 # IRSA Roles
 module "irsa_aws_load_balancer_controller" {
   source = "../../modules_new/irsa"
 
-  role_name          = "cluckn-bell-prod-aws-load-balancer-controller"
-  oidc_provider_arn  = module.eks.oidc_provider_arn
-  namespace          = "kube-system"
-  service_account    = "aws-load-balancer-controller"
-  
+  role_name         = "cluckn-bell-prod-aws-load-balancer-controller"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  namespace         = "kube-system"
+  service_account   = "aws-load-balancer-controller"
+
   managed_policy_arns = [
     "arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"
   ]
-  
+
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -223,7 +223,7 @@ module "irsa_aws_load_balancer_controller" {
         Resource = "arn:aws:ec2:*:*:security-group/*"
         Condition = {
           Null = {
-            "aws:RequestTag/elbv2.k8s.aws/cluster" = "true"
+            "aws:RequestTag/elbv2.k8s.aws/cluster"  = "true"
             "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
           }
         }
@@ -278,7 +278,7 @@ module "irsa_aws_load_balancer_controller" {
         ]
         Condition = {
           Null = {
-            "aws:RequestTag/elbv2.k8s.aws/cluster" = "true"
+            "aws:RequestTag/elbv2.k8s.aws/cluster"  = "true"
             "aws:ResourceTag/elbv2.k8s.aws/cluster" = "false"
           }
         }
@@ -343,11 +343,11 @@ module "irsa_aws_load_balancer_controller" {
 module "irsa_external_dns" {
   source = "../../modules_new/irsa"
 
-  role_name          = "cluckn-bell-prod-external-dns"
-  oidc_provider_arn  = module.eks.oidc_provider_arn
-  namespace          = "kube-system"
-  service_account    = "external-dns"
-  
+  role_name         = "cluckn-bell-prod-external-dns"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  namespace         = "kube-system"
+  service_account   = "external-dns"
+
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -377,11 +377,11 @@ module "irsa_external_dns" {
 module "irsa_cluster_autoscaler" {
   source = "../../modules_new/irsa"
 
-  role_name          = "cluckn-bell-prod-cluster-autoscaler"
-  oidc_provider_arn  = module.eks.oidc_provider_arn
-  namespace          = "kube-system"
-  service_account    = "cluster-autoscaler"
-  
+  role_name         = "cluckn-bell-prod-cluster-autoscaler"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  namespace         = "kube-system"
+  service_account   = "cluster-autoscaler"
+
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -407,11 +407,11 @@ module "irsa_cluster_autoscaler" {
 module "irsa_aws_for_fluent_bit" {
   source = "../../modules_new/irsa"
 
-  role_name          = "cluckn-bell-prod-aws-for-fluent-bit"
-  oidc_provider_arn  = module.eks.oidc_provider_arn
-  namespace          = "amazon-cloudwatch"
-  service_account    = "fluent-bit"
-  
+  role_name         = "cluckn-bell-prod-aws-for-fluent-bit"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  namespace         = "amazon-cloudwatch"
+  service_account   = "fluent-bit"
+
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -437,11 +437,11 @@ module "irsa_aws_for_fluent_bit" {
 module "irsa_external_secrets" {
   source = "../../modules_new/irsa"
 
-  role_name          = "cluckn-bell-prod-external-secrets"
-  oidc_provider_arn  = module.eks.oidc_provider_arn
-  namespace          = "external-secrets-system"
-  service_account    = "external-secrets"
-  
+  role_name         = "cluckn-bell-prod-external-secrets"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  namespace         = "external-secrets-system"
+  service_account   = "external-secrets"
+
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -467,7 +467,7 @@ module "cognito" {
 
   user_pool_name = "cluckn-bell-prod"
   domain_name    = "cluckn-bell-prod"
-  
+
   clients = {
     argocd = {
       callback_urls = ["https://argocd.cluckn-bell.com/auth/callback"]
@@ -478,8 +478,8 @@ module "cognito" {
       logout_urls   = ["https://grafana.cluckn-bell.com/"]
     }
   }
-  
-  admin_user_emails = []  # No users created in prod initially
+
+  admin_user_emails = [] # No users created in prod initially
 
   tags = local.common_tags
 }
@@ -490,7 +490,7 @@ module "github_oidc" {
 
   role_name             = "cluckn-bell-prod-github-ecr-push"
   github_repo_condition = "repo:oscarmartinez0880/cluckin-bell-app:ref:refs/heads/develop"
-  
+
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -539,7 +539,7 @@ module "secrets" {
       }
     }
     "/cluckn-bell/prod/wordpress/prod/auth" = {
-      description = "WordPress auth keys and salts for prod environment"
+      description   = "WordPress auth keys and salts for prod environment"
       static_values = {}
       generated_values = {
         "AUTH_KEY"         = "auth_key"

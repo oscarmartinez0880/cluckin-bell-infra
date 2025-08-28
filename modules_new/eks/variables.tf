@@ -22,11 +22,11 @@ variable "public_subnet_ids" {
 variable "node_groups" {
   description = "Map of node group configurations"
   type = map(object({
-    instance_type  = string
-    desired_size   = number
-    min_size       = number
-    max_size       = number
-    labels         = map(string)
+    instance_type = string
+    desired_size  = number
+    min_size      = number
+    max_size      = number
+    labels        = map(string)
   }))
   default = {}
 }

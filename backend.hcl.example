@@ -1,0 +1,8 @@
+# Example backend configuration
+# Copy this file to backend.hcl and customize for your setup
+# Then run: terraform init -backend-config=backend.hcl
+
+bucket  = "tfstate-cluckn-bell-ACCOUNT_ID"
+key     = "terraform.tfstate"
+region  = "us-east-1"
+encrypt = true

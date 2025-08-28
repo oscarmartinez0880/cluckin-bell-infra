@@ -1,0 +1,64 @@
+# NOTE: Managed by Terraform. Do not edit in GitHub.
+name: Mirror to CodeCommit
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  mirror-devqa:
+    name: Mirror to CodeCommit (dev/qa)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials (dev/qa)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${mirror_role_arn_devqa}
+          aws-region: ${aws_region}
+          role-session-name: mirror-devqa
+
+      - name: Push --mirror to CodeCommit (dev/qa)
+        env:
+          AWS_REGION: ${aws_region}
+          REPO_NAME: ${repo_name}
+        run: |
+          git config --global credential.helper '!aws codecommit credential-helper $@'
+          git config --global credential.UseHttpPath true
+          git remote add codecommit "https://git-codecommit.${aws_region}.amazonaws.com/v1/repos/${repo_name}"
+          git push --mirror codecommit
+
+  mirror-prod:
+    name: Mirror to CodeCommit (prod)
+    runs-on: ubuntu-latest
+    needs: mirror-devqa
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials (prod)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${mirror_role_arn_prod}
+          aws-region: ${aws_region}
+          role-session-name: mirror-prod
+
+      - name: Push --mirror to CodeCommit (prod)
+        env:
+          AWS_REGION: ${aws_region}
+          REPO_NAME: ${repo_name}
+        run: |
+          git config --global credential.helper '!aws codecommit credential-helper $@'
+          git config --global credential.UseHttpPath true
+          git remote add codecommit "https://git-codecommit.${aws_region}.amazonaws.com/v1/repos/${repo_name}"
+          git push --mirror codecommit
