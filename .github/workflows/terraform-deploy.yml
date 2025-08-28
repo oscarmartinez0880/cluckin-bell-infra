@@ -1,0 +1,110 @@
+name: Terraform Deploy
+
+on:
+  push:
+    branches: ["develop"]
+    paths:
+      - 'stacks/**'
+      - 'modules/**'
+      - '.github/workflows/terraform-deploy.yml'
+  schedule:
+    - cron: '0 6 * * *' # Daily at 06:00 UTC, runs dev by default
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to run (dev|qa|prod)"
+        required: true
+        default: "dev"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: 1.10.1
+  AWS_REGION: us-east-1
+
+jobs:
+  terraform:
+    name: Terraform (${{ env.ENV }})
+    runs-on: ubuntu-latest
+    environment: ${{ env.ENV }}
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      # Default to dev for push/schedule; workflow_dispatch can override
+      ENV: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Select environment secrets
+        id: select-secrets
+        run: |
+          case "${{ env.ENV }}" in
+            dev)
+              echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID_DEV }}" >> $GITHUB_ENV
+              echo "AWS_ROLE_TO_ASSUME=${{ secrets.AWS_ROLE_DEV }}" >> $GITHUB_ENV
+              ;;
+            qa)
+              echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID_QA }}" >> $GITHUB_ENV
+              echo "AWS_ROLE_TO_ASSUME=${{ secrets.AWS_ROLE_QA }}" >> $GITHUB_ENV
+              ;;
+            prod)
+              echo "AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID_PROD }}" >> $GITHUB_ENV
+              echo "AWS_ROLE_TO_ASSUME=${{ secrets.AWS_ROLE_PROD }}" >> $GITHUB_ENV
+              ;;
+            *)
+              echo "Unsupported ENV: ${{ env.ENV }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform fmt
+        working-directory: stacks/environments/${{ env.ENV }}
+        run: terraform fmt -check -diff
+
+      - name: Terraform init (native S3 locking)
+        working-directory: stacks/environments/${{ env.ENV }}
+        run: |
+          terraform init \
+            -backend-config="bucket=tfstate-cluckn-bell-${AWS_ACCOUNT_ID}" \
+            -backend-config="key=stacks/environments/${{ env.ENV }}/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true" \
+            -backend-config="use_lockfile=true"
+
+      - name: Terraform validate
+        working-directory: stacks/environments/${{ env.ENV }}
+        run: terraform validate
+
+      - name: Terraform plan
+        id: plan
+        working-directory: stacks/environments/${{ env.ENV }}
+        run: terraform plan -out tfplan
+
+      - name: Terraform apply (dev auto-apply on push/schedule)
+        if: (github.event_name == 'push' || github.event_name == 'schedule') && env.ENV == 'dev'
+        working-directory: stacks/environments/${{ env.ENV }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Upload plan artifact (for manual approvals / non-dev)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ env.ENV }}
+          path: stacks/environments/${{ env.ENV }}/tfplan
