@@ -43,12 +43,15 @@ jobs:
 
       - name: Terraform Init (S3 native locking)
         run: |
+          REGION="${{ vars.AWS_REGION || secrets.AWS_REGION }}"
+          BUCKET="${{ secrets.TFSTATE_BUCKET_DEV }}"
+          KEY="${{ secrets.TFSTATE_KEY_DEV }}"
           terraform init \
-            -backend-config="region=${{ vars.AWS_REGION || secrets.AWS_REGION }}" \
+            -backend-config="region=${REGION}" \
             -backend-config="encrypt=true" \
             -backend-config="use_lockfile=true" \
-            -backend-config="bucket=${{ secrets.TFSTATE_BUCKET_DEV }}" \
-            -backend-config="key=${{ secrets.TFSTATE_KEY_DEV }}"
+            -backend-config="bucket=${BUCKET}" \
+            -backend-config="key=${KEY}"
 
       - name: Terraform Validate
         run: terraform validate
