@@ -1,4 +1,9 @@
+###############################################################################
+# Terraform and Provider Configuration
+###############################################################################
 terraform {
+  required_version = "~> 1.13.1"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -7,17 +12,26 @@ terraform {
   }
 }
 
-# Prod account hosts apex zone and delegates dev/qa to devqa account
-
+###############################################################################
+# AWS Providers
+# - cluckin-bell-prod (prod account) hosts apex zone
+# - cluckin-bell-qa (dev/qa account) hosts delegated sub-zones
+###############################################################################
 provider "aws" {
-  alias  = "prod"
-  region = "us-east-1"
+  alias   = "prod"
+  region  = var.region
+  profile = var.prod_profile
 }
 
 provider "aws" {
-  alias  = "devqa"
-  region = "us-east-1"
+  alias   = "devqa"
+  region  = var.region
+  profile = var.devqa_profile
 }
+
+###############################################################################
+# Route53 Zones
+###############################################################################
 
 # Apex zone in prod
 resource "aws_route53_zone" "apex" {
@@ -56,14 +70,41 @@ resource "aws_route53_record" "delegate_qa" {
   records  = aws_route53_zone.qa.name_servers
 }
 
+###############################################################################
+# Outputs
+###############################################################################
 output "prod_apex_zone_id" {
-  value = aws_route53_zone.apex.zone_id
+  description = "Hosted Zone ID for cluckn-bell.com in prod"
+  value       = aws_route53_zone.apex.zone_id
 }
 
 output "dev_zone_id" {
-  value = aws_route53_zone.dev.zone_id
+  description = "Hosted Zone ID for dev.cluckn-bell.com in dev/qa"
+  value       = aws_route53_zone.dev.zone_id
 }
 
 output "qa_zone_id" {
-  value = aws_route53_zone.qa.zone_id
+  description = "Hosted Zone ID for qa.cluckn-bell.com in dev/qa"
+  value       = aws_route53_zone.qa.zone_id
+}
+
+###############################################################################
+# Variables
+###############################################################################
+variable "region" {
+  description = "AWS Region for Route53 operations"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "prod_profile" {
+  description = "AWS CLI profile for cluckin-bell-prod account (346746763840)"
+  type        = string
+  default     = "cluckin-bell-prod"
+}
+
+variable "devqa_profile" {
+  description = "AWS CLI profile for cluckin-bell-qa account (264765154707)"
+  type        = string
+  default     = "cluckin-bell-qa"
 }
