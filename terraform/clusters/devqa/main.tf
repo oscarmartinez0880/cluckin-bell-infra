@@ -104,8 +104,8 @@ module "eks_devqa" {
   vpc_id     = module.vpc_devqa.vpc_id
   subnet_ids = module.vpc_devqa.private_subnets
 
-  enable_irsa                                = true
-  enable_cluster_creator_admin_permissions   = true
+  enable_irsa                              = true
+  enable_cluster_creator_admin_permissions = true
 
   eks_managed_node_group_defaults = {
     ami_type       = "AL2_x86_64"
