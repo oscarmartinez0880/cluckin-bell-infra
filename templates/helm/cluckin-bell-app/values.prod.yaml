@@ -1,0 +1,41 @@
+# Production environment values for cluckin-bell-app
+
+image:
+  repository: 346746763840.dkr.ecr.us-east-1.amazonaws.com/cluckin-bell-app
+  tag: "prod"
+
+replicaCount: 3
+
+ingress:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: cluckn-bell.com
+  hosts:
+    - host: cluckn-bell.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: cluckin-bell-app-prod-tls
+      hosts:
+        - cluckn-bell.com
+
+environment: prod
+
+env:
+  NODE_ENV: production
+  PORT: "3000"
+  LOG_LEVEL: warn
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70

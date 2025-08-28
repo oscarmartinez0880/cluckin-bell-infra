@@ -425,7 +425,7 @@ module "argocd" {
   cluster_name                = module.eks.cluster_name
   namespace                   = local.namespace
   environment                 = local.environment
-  git_repository              = "codecommit::us-east-1://cluckin-bell"
+  git_repository              = "https://github.com/oscarmartinez0880/cluckin-bell.git"
   git_path                    = "k8s/prod"
   argocd_repo_server_role_arn = module.argocd_repo_server_irsa.iam_role_arn
 

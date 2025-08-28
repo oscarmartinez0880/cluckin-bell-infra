@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cluckin-bell-app
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: cluckn-bell.com
+spec:
+  tls:
+  - hosts:
+    - cluckn-bell.com
+    secretName: cluckin-bell-app-prod-tls
+  rules:
+  - host: cluckn-bell.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: cluckin-bell-app
+            port:
+              number: 80

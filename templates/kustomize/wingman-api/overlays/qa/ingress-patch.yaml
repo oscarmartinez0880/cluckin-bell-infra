@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wingman-api
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: api.qa.cluckn-bell.com
+spec:
+  tls:
+  - hosts:
+    - api.qa.cluckn-bell.com
+    secretName: wingman-api-qa-tls
+  rules:
+  - host: api.qa.cluckn-bell.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: wingman-api
+            port:
+              number: 80

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cluckin-bell
+
+resources:
+- ../../base
+
+patchesStrategicMerge:
+- deployment-patch.yaml
+- ingress-patch.yaml
+
+images:
+- name: 264765154707.dkr.ecr.us-east-1.amazonaws.com/cluckin-bell-app
+  newTag: qa
+
+commonLabels:
+  environment: qa
