@@ -395,7 +395,7 @@ module "k8s_controllers" {
   enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
   enable_cert_manager                 = var.enable_cert_manager
   enable_external_dns                 = var.enable_external_dns
-  enable_argocd                       = false  # We use separate argocd module
+  enable_argocd                       = false # We use separate argocd module
 
   # IRSA role ARNs
   aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa.iam_role_arn

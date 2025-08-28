@@ -61,9 +61,9 @@ module "eks" {
   version   = "~> 20.8"
   providers = { aws = aws.prod }
 
-  cluster_name                   = "cb-use1-prod"
-  cluster_version                = "1.30"
-  cluster_endpoint_public_access = true
+  cluster_name                         = "cb-use1-prod"
+  cluster_version                      = "1.30"
+  cluster_endpoint_public_access       = true
   cluster_endpoint_public_access_cidrs = var.api_public_cidrs_prod
 
   vpc_id     = module.vpc.vpc_id
@@ -223,5 +223,5 @@ variable "prod_apex_zone_id" {
 variable "api_public_cidrs_prod" {
   description = "List of CIDR blocks that can access the EKS public API endpoint (empty = allow all)"
   type        = list(string)
-  default     = []  # Empty by default to allow all (current behavior)
+  default     = [] # Empty by default to allow all (current behavior)
 }

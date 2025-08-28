@@ -31,11 +31,11 @@ resource "aws_security_group" "vpc_endpoints_prod" {
 
 # S3 Gateway endpoint
 resource "aws_vpc_endpoint" "s3_prod" {
-  provider    = aws.prod
-  vpc_id      = module.vpc.vpc_id
-  service_name = "com.amazonaws.us-east-1.s3"
+  provider          = aws.prod
+  vpc_id            = module.vpc.vpc_id
+  service_name      = "com.amazonaws.us-east-1.s3"
   vpc_endpoint_type = "Gateway"
-  
+
   route_table_ids = module.vpc.private_route_table_ids
 
   tags = {
@@ -88,7 +88,7 @@ resource "aws_vpc_endpoint" "ssm_prod" {
   vpc_id              = module.vpc.vpc_id
   service_name        = "com.amazonaws.us-east-1.ssm"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [module.vpc.private_subnets[0]]  # Single AZ to minimize cost
+  subnet_ids          = [module.vpc.private_subnets[0]] # Single AZ to minimize cost
   security_group_ids  = [aws_security_group.vpc_endpoints_prod.id]
   private_dns_enabled = true
 
@@ -106,7 +106,7 @@ resource "aws_vpc_endpoint" "ssmmessages_prod" {
   vpc_id              = module.vpc.vpc_id
   service_name        = "com.amazonaws.us-east-1.ssmmessages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [module.vpc.private_subnets[0]]  # Single AZ to minimize cost
+  subnet_ids          = [module.vpc.private_subnets[0]] # Single AZ to minimize cost
   security_group_ids  = [aws_security_group.vpc_endpoints_prod.id]
   private_dns_enabled = true
 
@@ -124,7 +124,7 @@ resource "aws_vpc_endpoint" "ec2messages_prod" {
   vpc_id              = module.vpc.vpc_id
   service_name        = "com.amazonaws.us-east-1.ec2messages"
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [module.vpc.private_subnets[0]]  # Single AZ to minimize cost
+  subnet_ids          = [module.vpc.private_subnets[0]] # Single AZ to minimize cost
   security_group_ids  = [aws_security_group.vpc_endpoints_prod.id]
   private_dns_enabled = true
 

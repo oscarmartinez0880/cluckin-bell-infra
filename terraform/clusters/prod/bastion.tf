@@ -4,13 +4,13 @@
 data "aws_ami" "al2023_prod" {
   provider    = aws.prod
   most_recent = true
-  owners      = ["137112412989"]  # Amazon
-  
+  owners      = ["137112412989"] # Amazon
+
   filter {
     name   = "name"
     values = ["al2023-ami-*-x86_64"]
   }
-  
+
   filter {
     name   = "state"
     values = ["available"]
@@ -96,7 +96,7 @@ resource "aws_instance" "bastion_prod" {
   vpc_security_group_ids      = [aws_security_group.bastion_prod.id]
 
   metadata_options {
-    http_tokens = "required"  # Enforce IMDSv2
+    http_tokens = "required" # Enforce IMDSv2
   }
 
   root_block_device {

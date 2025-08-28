@@ -11,8 +11,8 @@ resource "helm_release" "external_dns_devqa_hardened" {
     podDisruptionBudget = {
       minAvailable = 1
     }
-    provider = "aws"
-    policy   = "upsert-only"
+    provider   = "aws"
+    policy     = "upsert-only"
     txtOwnerId = "cb-devqa-external-dns"
     domainFilters = [
       "dev.cluckn-bell.com",
@@ -26,14 +26,14 @@ resource "helm_release" "external_dns_devqa_hardened" {
       create = true
       name   = "external-dns"
     }
-    
+
     # Additional hardening
     securityContext = {
       runAsNonRoot = true
       runAsUser    = 65534
       fsGroup      = 65534
     }
-    
+
     resources = {
       limits = {
         cpu    = "100m"
@@ -44,7 +44,7 @@ resource "helm_release" "external_dns_devqa_hardened" {
         memory = "64Mi"
       }
     }
-    
+
     # Anti-affinity to spread replicas across nodes
     affinity = {
       podAntiAffinity = {
@@ -79,8 +79,8 @@ resource "aws_iam_policy" "external_dns_devqa_with_internal" {
     Version = "2012-10-17",
     Statement = [
       {
-        Effect   = "Allow",
-        Action   = ["route53:ChangeResourceRecordSets"],
+        Effect = "Allow",
+        Action = ["route53:ChangeResourceRecordSets"],
         Resource = [
           "arn:aws:route53:::hostedzone/${var.dev_zone_id}",
           "arn:aws:route53:::hostedzone/${var.qa_zone_id}",

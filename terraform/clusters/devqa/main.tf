@@ -97,9 +97,9 @@ module "eks_devqa" {
   version   = "~> 20.8"
   providers = { aws = aws.devqa }
 
-  cluster_name                   = "cb-use1-shared"
-  cluster_version                = "1.30"
-  cluster_endpoint_public_access = true
+  cluster_name                         = "cb-use1-shared"
+  cluster_version                      = "1.30"
+  cluster_endpoint_public_access       = true
   cluster_endpoint_public_access_cidrs = var.api_public_cidrs_devqa
 
   vpc_id     = module.vpc_devqa.vpc_id
@@ -111,7 +111,7 @@ module "eks_devqa" {
   # KMS encryption disabled by default for dev/qa (can be enabled later)
   cluster_encryption_config = var.enable_cluster_encryption_devqa ? [
     {
-      provider_key_arn = var.kms_key_arn_devqa  # Would need to be created if enabled
+      provider_key_arn = var.kms_key_arn_devqa # Would need to be created if enabled
       resources        = ["secrets"]
     }
   ] : []
@@ -358,7 +358,7 @@ variable "qa_zone_id" {
 variable "api_public_cidrs_devqa" {
   description = "List of CIDR blocks that can access the EKS public API endpoint (empty = allow all)"
   type        = list(string)
-  default     = []  # Empty by default to allow all (current behavior)
+  default     = [] # Empty by default to allow all (current behavior)
 }
 
 # KMS encryption variables (disabled by default for dev/qa)

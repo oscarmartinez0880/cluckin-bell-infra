@@ -1,13 +1,13 @@
 # Private Route53 hosted zone for internal services in Dev/QA
 resource "aws_route53_zone" "internal_dev" {
   name = "internal.dev.cluckn-bell.com"
-  
+
   vpc {
     vpc_id = module.vpc_devqa.vpc_id
   }
-  
+
   comment = "Private hosted zone for internal services in Dev/QA"
-  
+
   tags = {
     Name        = "internal.dev.cluckn-bell.com"
     Environment = "dev-qa"

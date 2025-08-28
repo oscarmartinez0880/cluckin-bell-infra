@@ -1,13 +1,13 @@
 # Private Route53 hosted zone for internal services in Prod
 resource "aws_route53_zone" "internal_prod" {
   name = "internal.cluckn-bell.com"
-  
+
   vpc {
     vpc_id = module.vpc.vpc_id
   }
-  
+
   comment = "Private hosted zone for internal services in Prod"
-  
+
   tags = {
     Name        = "internal.cluckn-bell.com"
     Environment = "prod"
