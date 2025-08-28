@@ -1,15 +1,45 @@
-provider "aws" {
-  alias  = "prod"
-  region = "us-east-1"
+###############################################################################
+# Terraform and Provider Configuration
+###############################################################################
+terraform {
+  required_version = "~> 1.13.1"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.60"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.12"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.33"
+    }
+  }
 }
 
+###############################################################################
+# AWS Provider (prod account 346746763840)
+###############################################################################
+provider "aws" {
+  alias   = "prod"
+  region  = var.region
+  profile = var.prod_profile
+}
+
+###############################################################################
+# Networking - VPC (Prod)
+###############################################################################
 module "vpc" {
   source    = "terraform-aws-modules/vpc/aws"
   version   = "~> 5.8"
   providers = { aws = aws.prod }
 
-  name            = "cb-prod-use1"
-  cidr            = "10.61.0.0/16"
+  name = "cb-prod-use1"
+  cidr = "10.61.0.0/16"
+
   azs             = ["us-east-1a", "us-east-1b", "us-east-1c"]
   private_subnets = ["10.61.1.0/24", "10.61.2.0/24", "10.61.3.0/24"]
   public_subnets  = ["10.61.101.0/24", "10.61.102.0/24", "10.61.103.0/24"]
@@ -17,9 +47,15 @@ module "vpc" {
   enable_nat_gateway = true
   single_nat_gateway = true
 
-  tags = { Project = "cluckn-bell", Env = "prod" }
+  tags = {
+    Project = "cluckn-bell"
+    Env     = "prod"
+  }
 }
 
+###############################################################################
+# EKS Cluster (Prod)
+###############################################################################
 module "eks" {
   source    = "terraform-aws-modules/eks/aws"
   version   = "~> 20.8"
@@ -32,6 +68,7 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
+  enable_irsa                              = true
   enable_cluster_creator_admin_permissions = true
 
   eks_managed_node_group_defaults = {
@@ -44,43 +81,62 @@ module "eks" {
     default = { min_size = 3, max_size = 6, desired_size = 3 }
   }
 
-  tags = { Project = "cluckn-bell", Env = "prod" }
+  tags = {
+    Project = "cluckn-bell"
+    Env     = "prod"
+  }
 }
 
-data "aws_eks_cluster" "this" {
+###############################################################################
+# Kubernetes/Helm Providers (from EKS outputs)
+###############################################################################
+data "aws_eks_cluster" "prod" {
   provider = aws.prod
   name     = module.eks.cluster_name
 }
 
-data "aws_eks_cluster_auth" "this" {
+data "aws_eks_cluster_auth" "prod" {
   provider = aws.prod
   name     = module.eks.cluster_name
 }
 
 provider "kubernetes" {
-  host                   = data.aws_eks_cluster.this.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.this.token
+  alias                  = "prod"
+  host                   = data.aws_eks_cluster.prod.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.prod.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.prod.token
 }
 
 provider "helm" {
+  alias = "prod"
   kubernetes {
-    host                   = data.aws_eks_cluster.this.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.this.token
+    host                   = data.aws_eks_cluster.prod.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.prod.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.prod.token
   }
 }
 
+###############################################################################
+# AWS Load Balancer Controller (ALB Controller) - Prod
+###############################################################################
 module "aws_load_balancer_controller" {
-  source    = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
-  version   = "~> 20.8"
-  providers = { aws = aws.prod }
+  source  = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
+  version = "~> 20.8"
+
+  providers = {
+    aws        = aws.prod
+    helm       = helm.prod
+    kubernetes = kubernetes.prod
+  }
 
   cluster_name              = module.eks.cluster_name
   cluster_oidc_provider_arn = module.eks.oidc_provider_arn
   create_policy             = true
 }
 
+###############################################################################
+# ExternalDNS - Prod (scoped to apex zone)
+###############################################################################
 resource "aws_iam_role" "external_dns" {
   provider           = aws.prod
   name               = "cb-external-dns-prod"
@@ -97,7 +153,7 @@ data "aws_iam_policy_document" "external_dns_assume" {
     }
     condition {
       test     = "StringEquals"
-      variable = replace(module.eks.cluster_oidc_issuer_url, "https://", "") + ":sub"
+      variable = "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub"
       values   = ["system:serviceaccount:default:external-dns"]
     }
   }
@@ -130,6 +186,7 @@ resource "aws_iam_role_policy_attachment" "external_dns_attach" {
 }
 
 resource "helm_release" "external_dns" {
+  provider   = helm.prod
   name       = "external-dns"
   repository = "https://kubernetes-sigs.github.io/external-dns/"
   chart      = "external-dns"
@@ -146,6 +203,28 @@ resource "helm_release" "external_dns" {
       name        = "external-dns"
     }
   })]
+
+  depends_on = [
+    module.eks
+  ]
 }
 
-variable "prod_apex_zone_id" { type = string }
+###############################################################################
+# Variables
+###############################################################################
+variable "region" {
+  description = "AWS Region for the prod EKS cluster"
+  type        = string
+  default     = "us-east-1"
+}
+
+variable "prod_profile" {
+  description = "AWS CLI profile for cluckin-bell-prod account (346746763840)"
+  type        = string
+  default     = "cluckin-bell-prod"
+}
+
+variable "prod_apex_zone_id" {
+  description = "Route53 Hosted Zone ID for cluckn-bell.com"
+  type        = string
+}
