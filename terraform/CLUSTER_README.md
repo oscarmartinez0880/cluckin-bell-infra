@@ -22,12 +22,17 @@ This directory contains Terraform configurations for EKS clusters and DNS manage
 Both clusters include:
 - EKS 1.30 with managed node groups (m5.large instances)
 - AWS Load Balancer Controller for ALB/NLB management
-- ExternalDNS for automatic DNS record management
+- ExternalDNS for automatic DNS record management (public and internal zones)
 - Private subnets with single NAT gateway for cost optimization
+- SSM bastion hosts for secure private access
+- KMS secrets encryption (enabled in production)
+- VPC endpoints for cost optimization and security
 
 ### DNS Strategy
 - **Apex Zone**: `cluckn-bell.com` hosted in production account
 - **Sub-zones**: `dev.cluckn-bell.com` and `qa.cluckn-bell.com` hosted in dev/qa account
+- **Delegation**: NS records in apex zone delegate sub-zones to dev/qa account
+- **Internal Zones**: `internal.dev.cluckn-bell.com` (dev/qa) and `internal.cluckn-bell.com` (prod) for private services
 - **Delegation**: NS records in apex zone delegate sub-zones to dev/qa account
 
 ## Deployment Order
@@ -57,8 +62,51 @@ Both clusters include:
 
 - **IRSA (IAM Roles for Service Accounts)**: Each controller uses minimal permissions
 - **Network Isolation**: Private subnets for worker nodes
-- **Domain Filtering**: ExternalDNS limited to specific hosted zones
+- **Domain Filtering**: ExternalDNS limited to specific hosted zones (public and internal)
 - **Resource Tagging**: Consistent tagging for cost tracking and governance
+- **KMS Encryption**: EKS secrets envelope encryption enabled in production
+- **SSM Bastion Access**: Secure access to private resources without inbound SSH
+- **VPC Endpoints**: Reduce NAT gateway costs and improve security for AWS services
+- **EKS API Security**: Prepared for future CIDR allowlisting to restrict API access
+
+### Bastion Host Access
+
+**Dev/QA Shared Bastion** (account: 264765154707):
+```bash
+# Get instance ID
+DEV_BASTION_ID=$(cd clusters/devqa && terraform output -raw bastion_devqa_instance_id)
+
+# Connect via SSM
+aws ssm start-session --target $DEV_BASTION_ID
+```
+
+**Production Dedicated Bastion** (account: 346746763840):
+```bash
+# Get instance ID  
+PROD_BASTION_ID=$(cd clusters/prod && terraform output -raw bastion_prod_instance_id)
+
+# Connect via SSM
+aws ssm start-session --target $PROD_BASTION_ID
+```
+
+### Internal CMS Access
+
+Use internal ALB with private DNS zones for CMS access:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: cms-internal
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internal
+    external-dns.alpha.kubernetes.io/hostname: cms.internal.cluckn-bell.com
+spec:
+  rules:
+  - host: cms.internal.cluckn-bell.com
+    # ... rest of ingress configuration
+```
 
 ## Version Requirements
 
