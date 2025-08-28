@@ -9,6 +9,17 @@ variable "kubernetes_version" {
   default     = "1.28"
 }
 
+variable "cluster_version" {
+  description = "Kubernetes/EKS control plane version"
+  type        = string
+  default     = "1.30"
+
+  validation {
+    condition     = can(regex("^1\\.(3[0-9]|[4-9][0-9])$", var.cluster_version)) || can(regex("^[2-9]\\.", var.cluster_version))
+    error_message = "cluster_version must be >= 1.30."
+  }
+}
+
 variable "subnet_ids" {
   description = "List of subnet IDs for the EKS cluster"
   type        = list(string)
