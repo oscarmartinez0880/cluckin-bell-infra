@@ -1,6 +1,13 @@
-# Account-Level AWS Infrastructure
+# Cluckin Bell Infrastructure
 
-This Terraform configuration manages account-level AWS resources for CI/CD without long-lived credentials across two AWS accounts.
+This Terraform configuration manages AWS infrastructure for the Cluckin Bell application across two AWS accounts.
+
+## Requirements
+
+- **Terraform**: Version ~> 1.13.1
+- **AWS Provider**: Version ~> 5.60  
+- **Helm Provider**: Version ~> 2.12
+- **Kubernetes Provider**: Version ~> 2.33
 
 ## Account Structure
 
@@ -9,129 +16,116 @@ This Terraform configuration manages account-level AWS resources for CI/CD witho
 
 All resources are deployed in the `us-east-1` region.
 
-## Resources Managed
+## Infrastructure Stacks
 
-### 1. GitHub OIDC Providers
-- One per account for GitHub Actions authentication
-- Uses `data.tls_certificate` to derive thumbprints dynamically
-- URL: `https://token.actions.githubusercontent.com`
+### 1. DNS Stack (`dns/`)
+Creates Route53 hosted zones with apex in prod and NS delegation to dev and qa.
 
-### 2. IAM Roles for GitHub Actions
+**Apply first** - other stacks depend on zone IDs from this stack.
 
-#### EKS Deploy Roles
-- `GH_EKS_Deploy_cb_dev_use1` (Dev/QA account)
-- `GH_EKS_Deploy_cb_qa_use1` (Dev/QA account)  
-- `GH_EKS_Deploy_cb_prod_use1` (Prod account)
+```bash
+cd dns
+terraform init
+terraform plan  
+terraform apply
+```
 
-**Trust Policy**: Restricted to `oscarmartinez0880/cluckin-bell` repository with environment-specific conditions
+**Outputs**: `prod_apex_zone_id`, `dev_zone_id`, `qa_zone_id`
 
-**Permissions**: `eks:DescribeCluster` and other minimal EKS describe permissions
+### 2. Cluster Stacks
 
-#### ECR Push Roles
-Per account and repository combination:
+#### Dev/QA Cluster (`clusters/devqa/`)
+Creates shared EKS cluster for dev and qa environments with VPC, node groups, AWS Load Balancer Controller, and ExternalDNS.
 
-**Dev/QA Account (264765154707)**:
-- `GH_ECR_Push_cluckin_bell_app_dev`
-- `GH_ECR_Push_wingman_api_dev`
-- `GH_ECR_Push_cluckin_bell_app_qa`
-- `GH_ECR_Push_wingman_api_qa`
+**Variables required**:
+- `dev_zone_id`: Output from DNS stack
+- `qa_zone_id`: Output from DNS stack
 
-**Prod Account (346746763840)**:
-- `GH_ECR_Push_cluckin_bell_app_prod`
-- `GH_ECR_Push_wingman_api_prod`
+```bash
+cd clusters/devqa
+terraform init
+terraform plan -var="dev_zone_id=<dev_zone_id>" -var="qa_zone_id=<qa_zone_id>"
+terraform apply -var="dev_zone_id=<dev_zone_id>" -var="qa_zone_id=<qa_zone_id>"
+```
 
-**Trust Policy**: Restricted to specific repository (`oscarmartinez0880/cluckin-bell-app` or `oscarmartinez0880/wingman-api`) and environment
+**Resources**: VPC (10.60.0.0/16), EKS 1.30 cluster (cb-use1-shared), managed node groups, ALB controller, ExternalDNS
 
-**Permissions**: ECR push/pull actions for the specific repository only
+#### Production Cluster (`clusters/prod/`)
+Creates production EKS cluster with VPC, node groups, AWS Load Balancer Controller, and ExternalDNS.
 
-### 3. ECR Repositories
-- `cluckin-bell-app` in both accounts
-- `wingman-api` in both accounts
+**Variables required**:
+- `prod_apex_zone_id`: Output from DNS stack
 
-**Configuration**:
-- `image_scanning_configuration.scanOnPush = true`
-- `image_tag_mutability = IMMUTABLE`
-- Lifecycle policy to keep last 50 images
+```bash
+cd clusters/prod
+terraform init
+terraform plan -var="prod_apex_zone_id=<prod_apex_zone_id>"
+terraform apply -var="prod_apex_zone_id=<prod_apex_zone_id>"
+```
+
+**Resources**: VPC (10.61.0.0/16), EKS 1.30 cluster (cb-use1-prod), managed node groups, ALB controller, ExternalDNS
+
+### 3. Account-Level Resources (`accounts/`)
+Contains existing account-level IAM roles, OIDC providers, and ECR repositories for CI/CD. These remain unchanged.
 
 ## Usage
 
 ### Prerequisites
 
-1. AWS CLI configured with appropriate permissions
-2. Terraform >= 1.0 installed
-3. IAM permissions to create OIDC providers, IAM roles, and ECR repositories
+1. AWS CLI configured with appropriate permissions for both accounts
+2. Terraform ~> 1.13.1 installed  
+3. IAM permissions to create VPC, EKS, Route53, OIDC providers, IAM roles, and ECR repositories
 
-### Variables
+### Deployment Order
 
-Each account configuration accepts the following variables:
+**Important**: Deploy stacks in this order due to dependencies:
 
-- `region`: AWS region (default: "us-east-1")
-- `account_id`: AWS account ID
-- `github_repository_owner`: GitHub repository owner (default: "oscarmartinez0880")
-- `app_repositories`: List of application repositories (default: ["cluckin-bell-app", "wingman-api"])
-- `environments`: List of environments for the account (default varies by account)
+1. **DNS stack first** (creates zone IDs needed by cluster stacks)
+2. **Cluster stacks** (can be deployed in parallel, using zone IDs from DNS stack)
 
-### Deployment
-
-#### Dev/QA Account (264765154707)
+#### Complete Deployment Example
 
 ```bash
-cd accounts/devqa
+# 1. Deploy DNS stack first
+cd dns
 terraform init
-terraform plan
 terraform apply
-```
 
-#### Production Account (346746763840)
+# Get zone IDs from outputs
+PROD_APEX_ZONE_ID=$(terraform output -raw prod_apex_zone_id)
+DEV_ZONE_ID=$(terraform output -raw dev_zone_id) 
+QA_ZONE_ID=$(terraform output -raw qa_zone_id)
 
-```bash
-cd accounts/prod
+# 2. Deploy Dev/QA cluster
+cd ../clusters/devqa
 terraform init
-terraform plan
-terraform apply
-```
+terraform apply -var="dev_zone_id=${DEV_ZONE_ID}" -var="qa_zone_id=${QA_ZONE_ID}"
 
-### Cross-Account Deployment
-
-To deploy to both accounts:
-
-```bash
-# Deploy Dev/QA account first
-cd accounts/devqa
-terraform init && terraform apply -auto-approve
-
-# Deploy Prod account
+# 3. Deploy Prod cluster  
 cd ../prod
-terraform init && terraform apply -auto-approve
+terraform init
+terraform apply -var="prod_apex_zone_id=${PROD_APEX_ZONE_ID}"
 ```
 
-## Outputs
+### Account-Level Resources
 
-Each account configuration outputs:
+Account-level IAM roles, OIDC providers, and ECR repositories are managed separately in the `accounts/` directory and remain unchanged. See existing documentation for those resources.
 
-### GitHub OIDC Provider
-- `github_oidc_provider_arn`: ARN of the GitHub OIDC provider
+## Cluster Access
 
-### EKS Deploy Roles
-- `eks_deploy_role_arns`: Map of environment to EKS deploy role ARN
+Once EKS clusters are deployed, you can access them using:
 
-### ECR Push Roles
-- `ecr_push_role_arns`: Map of repository and environment to ECR push role ARN
+```bash
+# Dev/QA cluster
+aws eks update-kubeconfig --name cb-use1-shared --region us-east-1
 
-### ECR Repositories
-- `ecr_repository_urls`: Map of repository name to ECR repository URL
-
-## Security Considerations
-
-1. **Least Privilege**: All IAM roles have minimal required permissions
-2. **Repository Restrictions**: Trust policies are restricted to specific GitHub repositories
-3. **Environment Restrictions**: Each role is restricted to specific GitHub environments
-4. **Audience Validation**: All trust policies require `aud = sts.amazonaws.com`
-5. **ECR Permissions**: ECR permissions are scoped to specific repository ARNs
+# Prod cluster  
+aws eks update-kubeconfig --name cb-use1-prod --region us-east-1
+```
 
 ## GitHub Actions Integration
 
-To use these roles in GitHub Actions workflows:
+Account-level IAM roles for GitHub Actions CI/CD are configured separately in the `accounts/` directories. To use these roles in GitHub Actions workflows:
 
 ```yaml
 jobs:
@@ -150,43 +144,41 @@ jobs:
 ```
 
 Set the following repository variables:
-- `AWS_ROLE_ARN`: The appropriate role ARN from the terraform outputs
+- `AWS_ROLE_ARN`: The appropriate role ARN from the account terraform outputs
 
-## Naming Convention
+## Resource Naming Conventions
 
-Resources follow the naming convention:
-- **EKS Deploy Roles**: `GH_EKS_Deploy_cb_{environment}_use1`
-- **ECR Push Roles**: `GH_ECR_Push_{repository}_{environment}`
-- **ECR Repositories**: `{repository-name}` (e.g., `cluckin-bell-app`, `wingman-api`)
+- **EKS Clusters**: `cb-use1-shared` (Dev/QA), `cb-use1-prod` (Production)
+- **VPCs**: `cb-devqa-use1` (Dev/QA), `cb-prod-use1` (Production)  
+- **DNS Zones**: `cluckn-bell.com` (apex), `dev.cluckn-bell.com`, `qa.cluckn-bell.com`
+- **IAM Roles**: `cb-external-dns-devqa`, `cb-external-dns-prod`
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **OIDC Provider Already Exists**: If you get an error that the OIDC provider already exists, you can import it:
-   ```bash
-   terraform import aws_iam_openid_connect_provider.github arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com
-   ```
+1. **Missing Zone IDs**: Ensure DNS stack is deployed first and zone ID variables are passed to cluster stacks
 
-2. **Permission Denied**: Ensure your AWS credentials have permissions to create IAM roles and ECR repositories
+2. **EKS Access Denied**: The cluster creator has admin permissions by default. Ensure proper AWS credentials/role when accessing clusters
 
-3. **Role Name Conflicts**: If role names conflict with existing roles, they can be imported or the existing roles can be renamed
+3. **ExternalDNS Issues**: Verify IAM permissions for Route53 zones and correct zone IDs in variables
 
 ### Validation
 
-To validate the setup:
+To validate the cluster setup:
 
-1. Check OIDC provider exists:
+1. Check EKS clusters exist:
    ```bash
-   aws iam list-open-id-connect-providers
+   aws eks list-clusters --region us-east-1
    ```
 
-2. Check roles exist:
+2. Check Route53 zones:
    ```bash
-   aws iam list-roles --query 'Roles[?starts_with(RoleName, `GH_`)]'
+   aws route53 list-hosted-zones
    ```
 
-3. Check ECR repositories:
+3. Verify kubectl access:
    ```bash
-   aws ecr describe-repositories
+   kubectl get nodes
+   kubectl get pods -A
    ```
