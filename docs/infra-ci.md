@@ -47,3 +47,4 @@ permissions:
 - Start with AdministratorAccess for bootstrap and reduce privileges once your Terraform scope is stable.
 - Trust policies are environment-scoped to align with `environment:` in the job, e.g.,
   - `repo:oscarmartinez0880/cluckin-bell-infra:environment:dev|qa|prod`.
+- The github-workflow module is located at repo-root/modules/github-workflow and is optional (controlled by the `manage_github_workflow` variable).
