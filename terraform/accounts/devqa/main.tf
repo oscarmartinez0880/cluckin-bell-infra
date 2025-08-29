@@ -399,7 +399,7 @@ data "aws_caller_identity" "current" {
 # Optional GitHub workflow management
 module "github_workflow" {
   count  = var.manage_github_workflow ? 1 : 0
-  source = "../../modules/github-workflow"
+  source = "../../../modules/github-workflow"
 
   manage_github_workflow     = var.manage_github_workflow
   repository_name            = var.github_repository_name
