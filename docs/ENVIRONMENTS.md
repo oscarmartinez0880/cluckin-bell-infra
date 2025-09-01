@@ -2,6 +2,31 @@
 
 This document describes the organizational structure, account layout, and environment-specific configurations for the Cluckin Bell infrastructure.
 
+## Running Terraform (SSO)
+
+- Dev/QA (shared cluster in account 264765154707)
+  - aws sso login --profile cluckin-bell-qa
+  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod init
+  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod plan  -var-file=devqa.tfvars
+  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod apply -var-file=devqa.tfvars
+
+- Prod (account 346746763840)
+  - aws sso login --profile cluckin-bell-prod
+  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod init
+  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod plan  -var-file=prod.tfvars
+  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod apply -var-file=prod.tfvars
+
+First-time bootstrap for a new cluster (two-phase apply):
+```bash
+terraform -chdir=envs/nonprod apply -target=module.eks -var-file=devqa.tfvars
+```
+
+Note: The top-level tfvars/ directory has been removed. Each environment now has a single tfvars file in its folder:
+- envs/nonprod/devqa.tfvars
+- envs/prod/prod.tfvars
+
+**Requirements**: Terraform >= 1.13.1 and Kubernetes 1.30
+
 ## Account Structure
 
 The infrastructure is organized across two AWS accounts following a clear separation of concerns:
