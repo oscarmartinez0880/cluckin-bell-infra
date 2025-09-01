@@ -184,9 +184,13 @@ resource "helm_release" "external_dns" {
     value = var.aws_region
   }
 
-  set {
-    name  = "domainFilters[0]"
-    value = var.domain_filter
+  # Only set domainFilters when non-empty (so devqa can omit and rely on zoneIdFilters)
+  dynamic "set" {
+    for_each = var.domain_filter == "" ? [] : [var.domain_filter]
+    content {
+      name  = "domainFilters[0]"
+      value = set.value
+    }
   }
 
   # Zone ID filters for managing both public and private zones
