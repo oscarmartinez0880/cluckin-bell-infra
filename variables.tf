@@ -125,3 +125,10 @@ variable "argocd_auto_sync" {
   type        = bool
   default     = false
 }
+
+# Route53 management variables
+variable "manage_route53" {
+  description = "Whether the root stack should create Route53 hosted zones. Leave false when using terraform/dns."
+  type        = bool
+  default     = false
+}

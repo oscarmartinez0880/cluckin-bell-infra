@@ -2,7 +2,8 @@
 
 # Public hosted zone for cluckn-bell.com (for ACME challenges and public records)
 resource "aws_route53_zone" "public" {
-  name = "cluckn-bell.com"
+  count = var.manage_route53 ? 1 : 0
+  name  = "cluckn-bell.com"
 
   tags = {
     Name        = "cluckn-bell.com-public"
@@ -15,7 +16,8 @@ resource "aws_route53_zone" "public" {
 
 # Private hosted zone for cluckn-bell.com (for internal services per environment)
 resource "aws_route53_zone" "private" {
-  name = "cluckn-bell.com"
+  count = var.manage_route53 ? 1 : 0
+  name  = "cluckn-bell.com"
 
   vpc {
     vpc_id = local.vpc_id
@@ -33,15 +35,15 @@ resource "aws_route53_zone" "private" {
 # Output the hosted zone information for external-dns and cert-manager
 output "public_zone_id" {
   description = "Route53 public hosted zone ID for cluckn-bell.com"
-  value       = aws_route53_zone.public.zone_id
+  value       = var.manage_route53 ? aws_route53_zone.public[0].zone_id : null
 }
 
 output "public_zone_name_servers" {
   description = "Name servers for the public hosted zone"
-  value       = aws_route53_zone.public.name_servers
+  value       = var.manage_route53 ? aws_route53_zone.public[0].name_servers : null
 }
 
 output "private_zone_id" {
   description = "Route53 private hosted zone ID for cluckn-bell.com"
-  value       = aws_route53_zone.private.zone_id
+  value       = var.manage_route53 ? aws_route53_zone.private[0].zone_id : null
 }

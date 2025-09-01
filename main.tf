@@ -399,9 +399,11 @@ module "cert_manager_irsa" {
   }
 }
 
+# IAM policy for cert-manager to manage Route53 records (when Route53 is managed by root stack)
 resource "aws_iam_role_policy" "cert_manager_route53" {
-  name = "${var.environment}-cert-manager-route53"
-  role = module.cert_manager_irsa.iam_role_name
+  count = var.manage_route53 ? 1 : 0
+  name  = "${var.environment}-cert-manager-route53"
+  role  = module.cert_manager_irsa.iam_role_name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -420,8 +422,8 @@ resource "aws_iam_role_policy" "cert_manager_route53" {
           "route53:ListResourceRecordSets"
         ]
         Resource = [
-          aws_route53_zone.public.arn,
-          aws_route53_zone.private.arn
+          aws_route53_zone.public[0].arn,
+          aws_route53_zone.private[0].arn
         ]
       },
       {
@@ -455,9 +457,11 @@ module "external_dns_irsa" {
   }
 }
 
+# IAM policy for external-dns to manage Route53 records (when Route53 is managed by root stack)
 resource "aws_iam_role_policy" "external_dns_route53" {
-  name = "${var.environment}-external-dns-route53"
-  role = module.external_dns_irsa.iam_role_name
+  count = var.manage_route53 ? 1 : 0
+  name  = "${var.environment}-external-dns-route53"
+  role  = module.external_dns_irsa.iam_role_name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -468,8 +472,8 @@ resource "aws_iam_role_policy" "external_dns_route53" {
           "route53:ChangeResourceRecordSets"
         ]
         Resource = [
-          aws_route53_zone.public.arn,
-          aws_route53_zone.private.arn
+          aws_route53_zone.public[0].arn,
+          aws_route53_zone.private[0].arn
         ]
       },
       {
@@ -507,7 +511,7 @@ module "k8s_controllers" {
   # Configuration
   letsencrypt_email = var.letsencrypt_email
   domain_filter     = var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"
-  zone_id_filters   = [aws_route53_zone.public.zone_id, aws_route53_zone.private.zone_id]
+  zone_id_filters   = var.manage_route53 ? [aws_route53_zone.public[0].zone_id, aws_route53_zone.private[0].zone_id] : []
 
   # Argo CD configuration
   argocd_version              = var.argocd_version
@@ -519,14 +523,12 @@ module "k8s_controllers" {
   # Dependencies
   node_groups = module.eks.eks_managed_node_groups
 
-  depends_on = [
+  depends_on = concat([
     module.eks,
     module.aws_load_balancer_controller_irsa,
     module.cert_manager_irsa,
     module.external_dns_irsa,
-    aws_route53_zone.public,
-    aws_route53_zone.private
-  ]
+  ], var.manage_route53 ? [aws_route53_zone.public[0], aws_route53_zone.private[0]] : [])
 }
 
 # AWS CodeCommit repository for GitOps
