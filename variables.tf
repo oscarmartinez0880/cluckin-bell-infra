@@ -125,3 +125,28 @@ variable "argocd_auto_sync" {
   type        = bool
   default     = false
 }
+
+# VPC creation variables
+variable "vpc_cidr" {
+  description = "CIDR block for VPC when creating new VPC"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "public_subnet_cidrs" {
+  description = "CIDR blocks for public subnets when creating new VPC"
+  type        = list(string)
+  default     = []
+}
+
+variable "private_subnet_cidrs" {
+  description = "CIDR blocks for private subnets when creating new VPC"
+  type        = list(string)
+  default     = []
+}
+
+variable "create_vpc_if_missing" {
+  description = "Create VPC and subnets if not found by tag lookup"
+  type        = bool
+  default     = true
+}
