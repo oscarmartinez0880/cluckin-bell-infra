@@ -244,9 +244,8 @@ module "aws_load_balancer_controller_devqa" {
     kubernetes = kubernetes.devqa
   }
 
-  cluster_name              = module.eks_devqa.cluster_name
-  cluster_oidc_provider_arn = module.eks_devqa.oidc_provider_arn
-  create_policy             = true
+  cluster_name      = module.eks_devqa.cluster_name
+  oidc_provider_arn = module.eks_devqa.oidc_provider_arn
 }
 
 module "aws_load_balancer_controller_prod" {
@@ -259,9 +258,8 @@ module "aws_load_balancer_controller_prod" {
     kubernetes = kubernetes.prod
   }
 
-  cluster_name              = module.eks_prod.cluster_name
-  cluster_oidc_provider_arn = module.eks_prod.oidc_provider_arn
-  create_policy             = true
+  cluster_name      = module.eks_prod.cluster_name
+  oidc_provider_arn = module.eks_prod.oidc_provider_arn
 }
 
 ###############################################################################
