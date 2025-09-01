@@ -125,7 +125,16 @@ output "letsencrypt_cluster_issuers" {
 
 output "domains" {
   description = "Configured domains for the environment"
-  value = {
+  value = var.environment == "devqa" ? {
+    frontend = {
+      dev = local.domains.frontend.dev
+      qa  = local.domains.frontend.qa
+    }
+    api = {
+      dev = local.domains.api.dev
+      qa  = local.domains.api.qa
+    }
+    } : {
     frontend = local.domains.frontend[var.environment]
     api      = local.domains.api[var.environment]
   }
@@ -149,7 +158,15 @@ output "private_hosted_zone_id" {
 # Argo CD outputs
 output "argocd_url" {
   description = "Argo CD server URL"
-  value       = "https://argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"
+  value       = var.environment == "devqa" ? null : "https://argocd.${var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"}"
+}
+
+output "argocd_urls_nonprod" {
+  description = "Argo CD URLs for nonprod environments (only populated when environment=devqa)"
+  value = var.environment == "devqa" ? {
+    dev = "https://argocd.dev.cluckn-bell.com"
+    qa  = "https://argocd.qa.cluckn-bell.com"
+  } : null
 }
 
 output "argocd_kubectl_port_forward_command" {

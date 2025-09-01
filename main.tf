@@ -556,6 +556,10 @@ resource "aws_iam_role_policy" "external_dns_route53" {
   })
 }
 
+# external-dns configuration
+# For devqa, leave domain_filter empty and rely on zone_id_filters to target both dev and qa zones
+locals { is_devqa = var.environment == "devqa" }
+
 # Deploy Kubernetes controllers
 module "k8s_controllers" {
   source = "./modules/k8s-controllers"
@@ -578,7 +582,7 @@ module "k8s_controllers" {
 
   # Configuration
   letsencrypt_email = var.letsencrypt_email
-  domain_filter     = var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"
+  domain_filter     = var.environment == "prod" ? "cluckn-bell.com" : (local.is_devqa ? "" : "${var.environment}.cluckn-bell.com")
   zone_id_filters   = var.manage_route53 && length(aws_route53_zone.public) > 0 && length(aws_route53_zone.private) > 0 ? [aws_route53_zone.public[0].zone_id, aws_route53_zone.private[0].zone_id] : []
 
   # Argo CD configuration
