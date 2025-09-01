@@ -36,15 +36,6 @@ output "cluster_oidc_issuer_url" {
 }
 
 # DNS and Certificate Outputs
-output "public_zone_id" {
-  description = "Public Route53 zone ID"
-  value       = module.dns_certs.public_zone_id
-}
-
-output "public_zone_name_servers" {
-  description = "Public zone name servers"
-  value       = module.dns_certs.public_zone_name_servers
-}
 
 # ECR Outputs
 output "ecr_repository_urls" {
@@ -125,6 +116,10 @@ output "secret_names" {
   description = "Names of the created secrets"
   value       = module.secrets.secret_names
 }
+# DNS and Certificate Outputs - Split by Environment
+# dns_certs_dev: creates private zone (create=true), manages dev.cluckn-bell.com
+# dns_certs_qa: reuses private zone (create=false), manages qa.cluckn-bell.com
+
 # Public zones (per subdomain)
 output "public_zone_ids" {
   description = "Public Route53 zone IDs for dev and qa"
@@ -134,7 +129,15 @@ output "public_zone_ids" {
   }
 }
 
-# Private zone (single)
+output "public_zone_name_servers" {
+  description = "Public zone name servers for dev and qa"
+  value = {
+    dev = module.dns_certs_dev.public_zone_name_servers
+    qa  = module.dns_certs_qa.public_zone_name_servers
+  }
+}
+
+# Private zone (single) - created by dns_certs_dev, reused by dns_certs_qa
 output "private_zone_id" {
   description = "Private Route53 zone ID"
   value       = coalesce(try(module.dns_certs_dev.private_zone_id, null), try(module.dns_certs_qa.private_zone_id, null))
@@ -143,7 +146,7 @@ output "private_zone_id" {
 # Certificates (merged)
 output "certificate_arns" {
   description = "Map of certificate ARNs"
-  value       = merge(
+  value = merge(
     module.dns_certs_dev.certificate_arns,
     module.dns_certs_qa.certificate_arns
   )
