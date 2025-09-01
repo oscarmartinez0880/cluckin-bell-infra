@@ -1,4 +1,7 @@
 # Route53 Hosted Zones for cluckn-bell.com
+locals {
+  vpc_id = data.aws_vpc.main.id
+}
 
 # Public hosted zone for cluckn-bell.com (for ACME challenges and public records)
 resource "aws_route53_zone" "public" {
