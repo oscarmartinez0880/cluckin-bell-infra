@@ -35,19 +35,19 @@ When running **Actions → Terraform Deploy → Run workflow**, use these parame
 #### For Development Environment
 - **Target environment**: `dev`
 - **Working directory**: `.` (repository root)
-- **Optional -var-file path**: `examples/tfvars/dev.us-east-1.tfvars`
+- **Optional -var-file path**: `tfvars/devqa.tfvars`
 - **Apply**: `false` for plan, `true` to apply
 
 #### For QA Environment
 - **Target environment**: `qa`
 - **Working directory**: `.` (repository root)
-- **Optional -var-file path**: `examples/tfvars/qa.us-east-1.tfvars`
+- **Optional -var-file path**: `tfvars/devqa.tfvars`
 - **Apply**: `false` for plan, `true` to apply
 
 #### For Production Environment
 - **Target environment**: `prod`
 - **Working directory**: `.` (repository root)
-- **Optional -var-file path**: `examples/tfvars/prod.us-east-1.tfvars`
+- **Optional -var-file path**: `tfvars/prod.tfvars`
 - **Apply**: `false` for plan, `true` to apply
 
 ### Environment Separation
@@ -66,7 +66,7 @@ When running **Actions → Terraform Deploy → Run workflow**, use these parame
    ```
    Target environment: dev
    Working directory: .
-   Optional -var-file path: examples/tfvars/dev.us-east-1.tfvars
+   Optional -var-file path: tfvars/devqa.tfvars
    Apply: false
    ```
 
@@ -76,7 +76,7 @@ When running **Actions → Terraform Deploy → Run workflow**, use these parame
    ```
    Target environment: dev
    Working directory: .
-   Optional -var-file path: examples/tfvars/dev.us-east-1.tfvars
+   Optional -var-file path: tfvars/devqa.tfvars
    Apply: true
    ```
 

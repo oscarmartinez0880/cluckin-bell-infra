@@ -39,6 +39,8 @@ permissions:
 4. Run the workflow: Actions → Terraform Deploy → Run workflow.
    - Choose environment (dev/qa/prod)
    - Optionally set `working_directory` and `var_file`
+     - For dev/qa environments: `var_file=tfvars/devqa.tfvars`
+     - For prod environment: `var_file=tfvars/prod.tfvars`
    - Toggle `apply` to run `terraform apply`
 
 ## Notes
