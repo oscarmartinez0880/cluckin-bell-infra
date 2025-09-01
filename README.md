@@ -4,15 +4,14 @@ This repository contains Terraform infrastructure as code for the Cluckin Bell a
 
 ## Architecture Overview
 
-### Multi-Environment Setup
+### Two-Cluster Environment Model
 
-The infrastructure is organized around environment-specific EKS clusters:
+The infrastructure supports a two-cluster environment model:
 
-| Environment | Cluster Name | VPC CIDR | ArgoCD Git Path | Domain |
-|-------------|--------------|----------|------------------|--------|
-| **dev** | cb-dev-use1 | 10.0.0.0/16 | k8s/dev | dev.cluckin-bell.com |
-| **qa** | cb-qa-use1 | 10.1.0.0/16 | k8s/qa | qa.cluckin-bell.com |
-| **prod** | cb-prod-use1 | 10.2.0.0/16 | k8s/prod | cluckin-bell.com |
+| Environment | Account | Cluster Name | Namespaces | Domain |
+|-------------|---------|--------------|------------|--------|
+| **Nonprod** | 264765154707 | cluckn-bell-nonprod | dev, qa | dev/qa.cluckn-bell.com |
+| **Prod** | 346746763840 | cluckn-bell-prod | prod | cluckn-bell.com |
 
 ### GitOps Architecture
 
@@ -23,20 +22,24 @@ The infrastructure is organized around environment-specific EKS clusters:
 ## Repository Structure
 
 ```
-├── stacks/environments/          # Environment-specific infrastructure
-│   ├── dev/                     # Development EKS cluster
-│   ├── qa/                      # QA EKS cluster  
-│   ├── prod/                    # Production EKS cluster
-│   └── README.md                # Environment deployment guide
-├── modules/                     # Reusable Terraform modules
-│   ├── vpc/                     # VPC with subnets, NAT gateways
-│   ├── k8s-controllers/         # Platform controllers (ALB, cert-manager, external-dns)
-│   ├── argocd/                  # ArgoCD GitOps setup
+├── envs/                      # Environment-specific infrastructure  
+│   ├── nonprod/              # Nonprod resources (account 264765154707)
+│   │                         # Single cluster: cluckn-bell-nonprod (dev+qa namespaces)
+│   └── prod/                 # Prod resources (account 346746763840)
+│                             # Single cluster: cluckn-bell-prod (prod namespace)
+├── modules/                   # Consolidated Terraform modules
+│   ├── vpc/                  # VPC with subnets, NAT gateways (single or multi)
+│   ├── eks/                  # EKS cluster with node groups and add-ons
+│   ├── dns-certs/            # Combined Route53 zones and ACM certificates
+│   ├── k8s-controllers/      # Platform controllers (ALB, cert-manager, external-dns)
+│   ├── monitoring/           # CloudWatch logs, metrics, and Container Insights
+│   ├── argocd/               # ArgoCD GitOps setup
 │   └── ...
-├── terraform/accounts/          # Account-level resources (IAM, ECR)
-│   ├── devqa/                   # Dev/QA account resources
-│   └── prod/                    # Production account resources
-└── deploy-environments.sh       # Multi-environment deployment script
+├── terraform/accounts/       # Account-level resources (IAM, ECR)
+│   ├── devqa/               # Dev/QA account resources
+│   └── prod/                # Production account resources
+└── docs/                    # Documentation
+    └── modules-matrix.md    # Complete modules reference
 ```
 
 ## Infrastructure Architecture

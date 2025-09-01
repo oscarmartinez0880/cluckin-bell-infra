@@ -325,7 +325,7 @@ data "aws_iam_policy_document" "external_dns_assume_devqa" {
 # WAF v2 - Dev/QA Security Baseline
 ###############################################################################
 module "waf_devqa" {
-  source = "../../../modules_new/wafv2"
+  source = "../../../modules/wafv2"
 
   providers = { aws = aws.devqa }
 
@@ -396,7 +396,7 @@ module "fluent_bit_irsa_devqa" {
 
 # Container Insights configuration (DevQA)
 module "container_insights_devqa" {
-  source = "../../../modules_new/container_insights"
+  source = "../../../modules/monitoring"
 
   providers = {
     aws        = aws.devqa

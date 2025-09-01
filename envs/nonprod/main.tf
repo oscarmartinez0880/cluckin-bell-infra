@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.13.1"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -36,105 +36,99 @@ locals {
 
 # VPC
 module "vpc" {
-  source = "../../modules_new/vpc"
+  source = "../../modules/vpc"
 
   name                 = "cluckn-bell-nonprod"
   vpc_cidr             = "10.0.0.0/16"
   public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
   private_subnet_cidrs = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+  single_nat_gateway   = true # Cost optimization for nonprod
 
   tags = local.common_tags
 }
 
 # EKS Cluster
 module "eks" {
-  source = "../../modules_new/eks"
+  source = "../../modules/eks"
 
   cluster_name       = "cluckn-bell-nonprod"
-  kubernetes_version = "1.29"
+  cluster_version    = "1.30"
+  subnet_ids         = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
   private_subnet_ids = module.vpc.private_subnet_ids
-  public_subnet_ids  = module.vpc.public_subnet_ids
 
-  node_groups = {
-    ng-dev = {
-      instance_type = "t3.small"
-      desired_size  = 1
-      min_size      = 1
-      max_size      = 2
-      labels = {
-        env = "dev"
-      }
+  tags = local.common_tags
+}
+
+# DNS and Certificates
+module "dns_certs" {
+  source = "../../modules/dns-certs"
+
+  public_zone = {
+    name   = "cluckn-bell.com"
+    create = false # Assuming it exists in prod account
+  }
+
+  private_zone = {
+    name   = "cluckn-bell.com"
+    create = true
+    vpc_id = module.vpc.vpc_id
+  }
+
+  certificates = {
+    dev_wildcard = {
+      domain_name               = "*.dev.cluckn-bell.com"
+      subject_alternative_names = ["dev.cluckn-bell.com"]
+      use_private_zone          = false
     }
-    ng-qa = {
-      instance_type = "t3.small"
-      desired_size  = 1
-      min_size      = 1
-      max_size      = 2
-      labels = {
-        env = "qa"
-      }
+    qa_wildcard = {
+      domain_name               = "*.qa.cluckn-bell.com"
+      subject_alternative_names = ["qa.cluckn-bell.com"]
+      use_private_zone          = false
     }
   }
 
   tags = local.common_tags
 }
 
-# Route53 Hosted Zones
-module "dev_zone" {
-  source = "../../modules_new/route53_zone"
-
-  zone_name = "dev.cluckn-bell.com"
-  tags      = local.common_tags
-}
-
-module "qa_zone" {
-  source = "../../modules_new/route53_zone"
-
-  zone_name = "qa.cluckn-bell.com"
-  tags      = local.common_tags
-}
-
-# ACM Certificates
-module "dev_cert" {
-  source = "../../modules_new/acm"
-
-  domain_name = "*.dev.cluckn-bell.com"
-  zone_id     = module.dev_zone.zone_id
-  tags        = local.common_tags
-}
-
-module "qa_cert" {
-  source = "../../modules_new/acm"
-
-  domain_name = "*.qa.cluckn-bell.com"
-  zone_id     = module.qa_zone.zone_id
-  tags        = local.common_tags
-}
-
 # ECR Repository
 module "ecr" {
-  source = "../../modules_new/ecr"
+  source = "../../modules/ecr"
 
-  repository_name = "cluckin-bell-app"
-  max_image_count = 10
-  tags            = local.common_tags
+  repository_names = ["cluckin-bell-app"]
+  max_image_count  = 10
+  tags             = local.common_tags
 }
 
-# CloudWatch Log Groups
-module "cloudwatch" {
-  source = "../../modules_new/cloudwatch"
+# Monitoring with CloudWatch and Container Insights
+module "monitoring" {
+  source = "../../modules/monitoring"
 
   log_groups = {
-    "/eks/nonprod/cluster" = "EKS cluster logs"
-    "/eks/nonprod/apps"    = "Application logs"
+    "/eks/nonprod/cluster" = {
+      retention_in_days = 1
+    }
+    "/eks/nonprod/apps" = {
+      retention_in_days = 1
+    }
   }
-  retention_in_days = 1
-  tags              = local.common_tags
+
+  container_insights = {
+    enabled                   = true
+    cluster_name              = "cluckn-bell-nonprod"
+    aws_region                = var.aws_region
+    log_retention_days        = 1
+    enable_cloudwatch_agent   = true
+    enable_fluent_bit         = true
+    cloudwatch_agent_role_arn = module.irsa_cloudwatch_agent.role_arn
+    fluent_bit_role_arn       = module.irsa_aws_for_fluent_bit.role_arn
+  }
+
+  tags = local.common_tags
 }
 
 # IRSA Roles
 module "irsa_aws_load_balancer_controller" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-aws-load-balancer-controller"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -358,7 +352,7 @@ module "irsa_aws_load_balancer_controller" {
 }
 
 module "irsa_external_dns_dev" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-dns-dev"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -374,7 +368,7 @@ module "irsa_external_dns_dev" {
           "route53:ChangeResourceRecordSets"
         ]
         Resource = [
-          "arn:aws:route53:::hostedzone/${module.dev_zone.zone_id}"
+          "arn:aws:route53:::hostedzone/${module.dns_certs.private_zone_id}"
         ]
       },
       {
@@ -392,7 +386,7 @@ module "irsa_external_dns_dev" {
 }
 
 module "irsa_external_dns_qa" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-dns-qa"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -408,7 +402,7 @@ module "irsa_external_dns_qa" {
           "route53:ChangeResourceRecordSets"
         ]
         Resource = [
-          "arn:aws:route53:::hostedzone/${module.qa_zone.zone_id}"
+          "arn:aws:route53:::hostedzone/${module.dns_certs.private_zone_id}"
         ]
       },
       {
@@ -426,7 +420,7 @@ module "irsa_external_dns_qa" {
 }
 
 module "irsa_cluster_autoscaler" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-cluster-autoscaler"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -456,7 +450,7 @@ module "irsa_cluster_autoscaler" {
 }
 
 module "irsa_aws_for_fluent_bit" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-aws-for-fluent-bit"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -485,8 +479,37 @@ module "irsa_aws_for_fluent_bit" {
   tags = local.common_tags
 }
 
+module "irsa_cloudwatch_agent" {
+  source = "../../modules/irsa"
+
+  role_name         = "cluckn-bell-nonprod-cloudwatch-agent"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  namespace         = "amazon-cloudwatch"
+  service_account   = "cloudwatch-agent"
+
+  custom_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData",
+          "ec2:DescribeVolumes",
+          "ec2:DescribeTags",
+          "logs:PutLogEvents",
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
 module "irsa_external_secrets" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-secrets"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -514,7 +537,7 @@ module "irsa_external_secrets" {
 
 # Cognito User Pool
 module "cognito" {
-  source = "../../modules_new/cognito"
+  source = "../../modules/cognito"
 
   user_pool_name = "cluckn-bell-nonprod"
   domain_name    = "cluckn-bell-nonprod"
@@ -541,7 +564,7 @@ module "cognito" {
 
 # GitHub OIDC Role for ECR Push
 module "github_oidc" {
-  source = "../../modules_new/github_oidc"
+  source = "../../modules/github-oidc"
 
   role_name             = "cluckn-bell-nonprod-github-ecr-push"
   github_repo_condition = "repo:oscarmartinez0880/cluckin-bell-app:ref:refs/heads/develop"
@@ -568,7 +591,7 @@ module "github_oidc" {
           "ecr:PutImage"
         ]
         Resource = [
-          module.ecr.repository_arn
+          module.ecr.repository_arns["cluckin-bell-app"]
         ]
       }
     ]
@@ -579,7 +602,7 @@ module "github_oidc" {
 
 # Secrets Manager
 module "secrets" {
-  source = "../../modules_new/secrets"
+  source = "../../modules/secrets"
 
   secrets = {
     "/cluckn-bell/nonprod/wordpress/dev/database" = {

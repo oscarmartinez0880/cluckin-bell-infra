@@ -106,6 +106,25 @@ variable "application_insights" {
   default = {}
 }
 
+variable "container_insights" {
+  description = "Container Insights configuration for EKS clusters"
+  type = object({
+    enabled                   = bool
+    cluster_name              = optional(string, "")
+    aws_region                = optional(string, "")
+    log_retention_days        = optional(number, 7)
+    enable_cloudwatch_agent   = optional(bool, true)
+    enable_fluent_bit         = optional(bool, true)
+    cloudwatch_agent_version  = optional(string, "0.0.11")
+    fluent_bit_version        = optional(string, "0.1.32")
+    cloudwatch_agent_role_arn = optional(string, "")
+    fluent_bit_role_arn       = optional(string, "")
+  })
+  default = {
+    enabled = false
+  }
+}
+
 variable "tags" {
   description = "A mapping of tags to assign to the resources"
   type        = map(string)

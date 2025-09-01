@@ -200,7 +200,7 @@ data "aws_iam_policy_document" "external_dns_assume" {
 # WAF v2 - Production Security Baseline
 ###############################################################################
 module "waf_prod" {
-  source = "../../../modules_new/wafv2"
+  source = "../../../modules/wafv2"
 
   providers = { aws = aws.prod }
 
@@ -271,7 +271,7 @@ module "fluent_bit_irsa_prod" {
 
 # Container Insights configuration
 module "container_insights_prod" {
-  source = "../../../modules_new/container_insights"
+  source = "../../../modules/monitoring"
 
   providers = {
     aws        = aws.prod
