@@ -466,6 +466,45 @@ aws ssm start-session --target INSTANCE_ID
 aws ec2 describe-vpc-endpoints --filters "Name=vpc-id,Values=VPC_ID"
 ```
 
+## Environments and Deployment
+
+For comprehensive information about environment management and deployment procedures:
+
+- **[Environment Guide](docs/ENVIRONMENTS.md)**: Detailed overview of account structure, environment configurations, technology versions, and resource scaling strategies
+- **[Deployment Guide](docs/DEPLOYMENT.md)**: Step-by-step deployment instructions, SSO configuration, troubleshooting, and operational procedures
+- **[k8s-controllers DevQA Guide](modules/k8s-controllers/README-devqa.md)**: Specific guidance for using the k8s-controllers module in DevQA shared cluster environments
+
+### Quick Reference
+
+| Environment | Account | Cluster | Domain | Deployment Command |
+|-------------|---------|---------|--------|--------------------|
+| **dev** | DevQA | cb-dev-use1 | dev.cluckin-bell.com | `./deploy-environments.sh dev` |
+| **qa** | DevQA | cb-qa-use1 | qa.cluckin-bell.com | `./deploy-environments.sh qa` |
+| **prod** | Production | cb-prod-use1 | cluckin-bell.com | `./deploy-environments.sh prod` |
+
+### SSO Authentication
+
+```bash
+# DevQA account (dev/qa environments)
+aws sso login --profile cluckin-bell-devqa
+export AWS_PROFILE=cluckin-bell-devqa
+
+# Production account
+aws sso login --profile cluckin-bell-prod
+export AWS_PROFILE=cluckin-bell-prod
+```
+
+### Provider Configuration Troubleshooting
+
+If you encounter "Failed to construct REST client: no client config" errors:
+
+1. **Verify AWS authentication**: `aws sts get-caller-identity`
+2. **Configure providers in your calling module**: The k8s-controllers module requires properly configured kubernetes and helm providers (see [Provider Configuration](#providers) section above)
+3. **Use two-phase deployment**: First deploy EKS cluster, then k8s-controllers
+4. **Check provider configuration**: See [examples/providers/providers.tf.example](examples/providers/providers.tf.example)
+
+See the [k8s-controllers README](modules/k8s-controllers/README.md#troubleshooting) for detailed troubleshooting steps.
+
 ## Support
 
 For issues and questions:

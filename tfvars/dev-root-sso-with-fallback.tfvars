@@ -9,10 +9,10 @@ aws_profile = "cluckin-bell-qa-admin"
 
 # VPC configuration
 create_vpc_if_missing = true
-existing_vpc_name     = ""  # Will default to "dev-cluckin-bell-vpc"
+existing_vpc_name     = "" # Will default to "dev-cluckin-bell-vpc"
 vpc_cidr              = "10.0.0.0/16"
-public_subnet_cidrs   = []  # Will auto-calculate to 10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24
-private_subnet_cidrs  = []  # Will auto-calculate to 10.0.101.0/24, 10.0.102.0/24, 10.0.103.0/24
+public_subnet_cidrs   = [] # Will auto-calculate to 10.0.1.0/24, 10.0.2.0/24, 10.0.3.0/24
+private_subnet_cidrs  = [] # Will auto-calculate to 10.0.101.0/24, 10.0.102.0/24, 10.0.103.0/24
 
 # Route53 management
 manage_route53 = true

@@ -184,6 +184,199 @@ kubectl get certificates -A
 kubectl describe certificate <cert-name> -n <namespace>
 ```
 
+## Providers
+
+This module requires properly configured **kubernetes** and **helm** providers to connect to your EKS cluster. The module does not include provider configurations, allowing you full control over authentication and connection parameters.
+
+### Provider Configuration in Calling Module
+
+Configure the providers in your calling module (root module or environment stack) before using this module:
+
+```hcl
+# Data sources to get EKS cluster connection information
+data "aws_eks_cluster" "this" {
+  name = var.cluster_name
+}
+
+data "aws_eks_cluster_auth" "this" {
+  name = var.cluster_name
+}
+
+# Configure kubernetes provider
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+# Configure helm provider
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.this.token
+  }
+}
+
+# Use the k8s-controllers module (providers are automatically inherited)
+module "k8s_controllers" {
+  source = "./modules/k8s-controllers"
+
+  cluster_name = var.cluster_name
+  aws_region   = var.aws_region
+  vpc_id       = var.vpc_id
+
+  # Enable controllers
+  enable_aws_load_balancer_controller = true
+  enable_cert_manager                 = true
+  enable_external_dns                 = true
+
+  # IRSA role ARNs (created separately)
+  aws_load_balancer_controller_role_arn = var.aws_load_balancer_controller_role_arn
+  cert_manager_role_arn                 = var.cert_manager_role_arn
+  external_dns_role_arn                 = var.external_dns_role_arn
+
+  # Configuration
+  letsencrypt_email = var.letsencrypt_email
+  domain_filter     = var.domain_filter
+}
+```
+
+### Alternative: Aliased Providers for Multi-Cluster Deployments
+
+For managing multiple clusters in the same Terraform configuration, use aliased providers:
+
+```hcl
+# Configure providers for different clusters
+provider "kubernetes" {
+  alias = "devqa"
+  
+  host                   = data.aws_eks_cluster.devqa.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.devqa.token
+}
+
+provider "helm" {
+  alias = "devqa"
+  
+  kubernetes {
+    host                   = data.aws_eks_cluster.devqa.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.devqa.token
+  }
+}
+
+# Use the module with explicit provider mapping
+module "k8s_controllers_devqa" {
+  source = "./modules/k8s-controllers"
+  
+  providers = {
+    kubernetes = kubernetes.devqa
+    helm       = helm.devqa
+  }
+
+  # ... module variables
+}
+```
+
+See [examples/providers/providers.tf.example](../../examples/providers/providers.tf.example) for comprehensive examples of provider configuration patterns.
+
+## Troubleshooting
+
+### Error: "Failed to construct REST client: no client config"
+
+This error occurs when the kubernetes or helm providers cannot connect to your EKS cluster. Here are the steps to resolve it:
+
+#### 1. Verify AWS Authentication
+
+Ensure you're authenticated with AWS and have access to the EKS cluster:
+
+```bash
+# Check AWS authentication
+aws sts get-caller-identity
+
+# Update kubeconfig for the cluster
+aws eks update-kubeconfig --region <region> --name <cluster-name>
+
+# Test kubectl access
+kubectl get nodes
+```
+
+#### 2. SSO Authentication
+
+If using AWS SSO, ensure you're logged in:
+
+```bash
+# Login to AWS SSO
+aws sso login --profile <your-sso-profile>
+
+# Set the profile environment variable
+export AWS_PROFILE=<your-sso-profile>
+
+# Verify authentication
+aws sts get-caller-identity
+```
+
+#### 3. Two-Phase Apply for New Clusters
+
+If you're creating the EKS cluster and k8s-controllers in the same Terraform plan, apply in two phases:
+
+```bash
+# Phase 1: Create the EKS cluster first
+terraform apply -target="module.eks"
+
+# Phase 2: Apply the k8s-controllers module
+terraform apply
+```
+
+This ensures the EKS cluster exists before the providers try to connect to it.
+
+#### 4. Check Provider Configuration
+
+If using explicit provider mapping, verify your provider configuration:
+
+```bash
+# Check that the cluster exists and is accessible
+aws eks describe-cluster --name <cluster-name> --region <region>
+
+# Verify OIDC provider is configured
+aws eks describe-cluster --name <cluster-name> --region <region> \
+  --query 'cluster.identity.oidc.issuer' --output text
+```
+
+#### 5. Provider Version Compatibility
+
+Ensure you're using compatible provider versions:
+
+- **kubernetes provider**: ~> 2.20
+- **helm provider**: ~> 2.0
+- **aws provider**: ~> 5.0
+
+### Error: "certificate verify failed" or TLS issues
+
+This usually indicates a problem with the cluster certificate authority:
+
+```bash
+# Verify cluster endpoint is accessible
+curl -k <cluster-endpoint>/healthz
+
+# Check certificate authority data
+aws eks describe-cluster --name <cluster-name> --region <region> \
+  --query 'cluster.certificateAuthority.data' --output text | base64 -d
+```
+
+### Error: "Unauthorized" or 403 errors
+
+This indicates an authentication or authorization issue:
+
+```bash
+# Check if your AWS user/role has EKS access
+aws eks describe-cluster --name <cluster-name> --region <region>
+
+# Verify aws-auth ConfigMap (if using IAM authentication)
+kubectl get configmap aws-auth -n kube-system -o yaml
+```
+
 ## Version Compatibility
 
 - **AWS Load Balancer Controller**: v1.8.1
