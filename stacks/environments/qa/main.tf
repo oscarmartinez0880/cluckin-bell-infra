@@ -29,10 +29,9 @@ locals {
   private_subnet_cidrs = ["10.1.101.0/24", "10.1.102.0/24"]
 
   tags = {
-    Environment = local.environment
     Project     = "cluckin-bell"
+    Environment = local.environment
     ManagedBy   = "terraform"
-    Region      = local.region
   }
 }
 
