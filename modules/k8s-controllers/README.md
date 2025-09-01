@@ -186,19 +186,45 @@ kubectl describe certificate <cert-name> -n <namespace>
 
 ## Providers
 
-This module includes provider configurations for both **kubernetes** and **helm** providers that automatically connect to your EKS cluster. You have two options for provider configuration:
+This module requires properly configured **kubernetes** and **helm** providers to connect to your EKS cluster. The module does not include provider configurations, allowing you full control over authentication and connection parameters.
 
-### Option 1: Automatic Provider Configuration (Recommended)
+### Provider Configuration in Calling Module
 
-The module includes a `providers.tf` file that automatically configures the kubernetes and helm providers using your EKS cluster connection data. This works out-of-the-box with no additional configuration required.
+Configure the providers in your calling module (root module or environment stack) before using this module:
 
 ```hcl
+# Data sources to get EKS cluster connection information
+data "aws_eks_cluster" "this" {
+  name = var.cluster_name
+}
+
+data "aws_eks_cluster_auth" "this" {
+  name = var.cluster_name
+}
+
+# Configure kubernetes provider
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.this.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.this.token
+}
+
+# Configure helm provider
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.this.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.this.token
+  }
+}
+
+# Use the k8s-controllers module (providers are automatically inherited)
 module "k8s_controllers" {
   source = "./modules/k8s-controllers"
 
-  cluster_name = "my-eks-cluster"
-  aws_region   = "us-east-1"
-  vpc_id       = "vpc-12345678"
+  cluster_name = var.cluster_name
+  aws_region   = var.aws_region
+  vpc_id       = var.vpc_id
 
   # Enable controllers
   enable_aws_load_balancer_controller = true
@@ -206,22 +232,22 @@ module "k8s_controllers" {
   enable_external_dns                 = true
 
   # IRSA role ARNs (created separately)
-  aws_load_balancer_controller_role_arn = "arn:aws:iam::123456789012:role/alb-controller-role"
-  cert_manager_role_arn                 = "arn:aws:iam::123456789012:role/cert-manager-role"
-  external_dns_role_arn                 = "arn:aws:iam::123456789012:role/external-dns-role"
+  aws_load_balancer_controller_role_arn = var.aws_load_balancer_controller_role_arn
+  cert_manager_role_arn                 = var.cert_manager_role_arn
+  external_dns_role_arn                 = var.external_dns_role_arn
 
   # Configuration
-  letsencrypt_email = "admin@example.com"
-  domain_filter     = "example.com"
+  letsencrypt_email = var.letsencrypt_email
+  domain_filter     = var.domain_filter
 }
 ```
 
-### Option 2: Override with Aliased Providers (Advanced)
+### Alternative: Aliased Providers for Multi-Cluster Deployments
 
-For multi-cluster deployments or when you need explicit control over provider configuration, you can override the module's default providers by mapping aliased providers from your root module:
+For managing multiple clusters in the same Terraform configuration, use aliased providers:
 
 ```hcl
-# In your root module
+# Configure providers for different clusters
 provider "kubernetes" {
   alias = "devqa"
   
@@ -240,7 +266,8 @@ provider "helm" {
   }
 }
 
-module "k8s_controllers" {
+# Use the module with explicit provider mapping
+module "k8s_controllers_devqa" {
   source = "./modules/k8s-controllers"
   
   providers = {
@@ -248,9 +275,11 @@ module "k8s_controllers" {
     helm       = helm.devqa
   }
 
-  # ... other variables
+  # ... module variables
 }
 ```
+
+See [examples/providers/providers.tf.example](../../examples/providers/providers.tf.example) for comprehensive examples of provider configuration patterns.
 
 ## Troubleshooting
 

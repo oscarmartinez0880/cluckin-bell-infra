@@ -499,8 +499,9 @@ export AWS_PROFILE=cluckin-bell-prod
 If you encounter "Failed to construct REST client: no client config" errors:
 
 1. **Verify AWS authentication**: `aws sts get-caller-identity`
-2. **Use two-phase deployment**: First deploy EKS cluster, then k8s-controllers
-3. **Check provider configuration**: See [examples/providers/providers.tf.example](examples/providers/providers.tf.example)
+2. **Configure providers in your calling module**: The k8s-controllers module requires properly configured kubernetes and helm providers (see [Provider Configuration](#providers) section above)
+3. **Use two-phase deployment**: First deploy EKS cluster, then k8s-controllers
+4. **Check provider configuration**: See [examples/providers/providers.tf.example](examples/providers/providers.tf.example)
 
 See the [k8s-controllers README](modules/k8s-controllers/README.md#troubleshooting) for detailed troubleshooting steps.
 
