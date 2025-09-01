@@ -1,9 +1,9 @@
 variable "environment" {
-  description = "Environment name (dev, qa, prod)"
+  description = "Environment name (dev, qa, prod, devqa)"
   type        = string
   validation {
-    condition     = contains(["dev", "qa", "prod"], var.environment)
-    error_message = "Environment must be one of: dev, qa, prod."
+    condition     = contains(["dev", "qa", "prod", "devqa"], var.environment)
+    error_message = "Environment must be one of: dev, qa, prod, devqa."
   }
 }
 
@@ -11,6 +11,12 @@ variable "aws_region" {
   description = "AWS region"
   type        = string
   default     = "us-east-1"
+}
+
+variable "aws_profile" {
+  description = "AWS CLI profile to use for authentication"
+  type        = string
+  default     = ""
 }
 
 variable "kubernetes_version" {
