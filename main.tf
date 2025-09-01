@@ -71,19 +71,50 @@ locals {
       prod = "api.cluckn-bell.com"
     }
   }
+
+  # VPC discovery and configuration
+  vpc_name_or_default = var.vpc_name != null ? var.vpc_name : "${var.environment}-vpc"
+  vpc_exists          = length(data.aws_vpcs.candidate.ids) > 0
+
+  # VPC ID source of truth
+  vpc_id = local.vpc_exists ? data.aws_vpc.selected[0].id : module.vpc[0].vpc_id
+
+  # Subnet IDs source of truth
+  private_subnet_ids = local.vpc_exists ? data.aws_subnets.private[0].ids : module.vpc[0].private_subnet_ids
+  public_subnet_ids  = local.vpc_exists ? data.aws_subnets.public[0].ids : module.vpc[0].public_subnet_ids
+
+  # Calculate subnet CIDRs if not provided
+  calculated_public_subnet_cidrs = length(var.public_subnet_cidrs) > 0 ? var.public_subnet_cidrs : [
+    cidrsubnet(var.vpc_cidr, 8, 0), # 10.0.0.0/24
+    cidrsubnet(var.vpc_cidr, 8, 1), # 10.0.1.0/24
+    cidrsubnet(var.vpc_cidr, 8, 2)  # 10.0.2.0/24
+  ]
+  calculated_private_subnet_cidrs = length(var.private_subnet_cidrs) > 0 ? var.private_subnet_cidrs : [
+    cidrsubnet(var.vpc_cidr, 8, 10), # 10.0.10.0/24
+    cidrsubnet(var.vpc_cidr, 8, 11), # 10.0.11.0/24
+    cidrsubnet(var.vpc_cidr, 8, 12)  # 10.0.12.0/24
+  ]
 }
 
-# Data sources for existing VPC and subnets (assuming they exist)
-data "aws_vpc" "main" {
+# VPC Discovery - check if VPC exists
+data "aws_vpcs" "candidate" {
   tags = {
-    Name = "${var.environment}-vpc"
+    Name = local.vpc_name_or_default
   }
 }
 
+data "aws_vpc" "selected" {
+  count = length(data.aws_vpcs.candidate.ids) > 0 ? 1 : 0
+  id    = data.aws_vpcs.candidate.ids[0]
+}
+
+# Subnet discovery when VPC exists
 data "aws_subnets" "private" {
+  count = local.vpc_exists ? 1 : 0
+
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.main.id]
+    values = [data.aws_vpc.selected[0].id]
   }
 
   tags = {
@@ -92,13 +123,32 @@ data "aws_subnets" "private" {
 }
 
 data "aws_subnets" "public" {
+  count = local.vpc_exists ? 1 : 0
+
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.main.id]
+    values = [data.aws_vpc.selected[0].id]
   }
 
   tags = {
     Type = "public"
+  }
+}
+
+# Create VPC when missing and create_vpc_if_missing is true
+module "vpc" {
+  count  = (!local.vpc_exists && var.create_vpc_if_missing) ? 1 : 0
+  source = "./modules_new/vpc"
+
+  name                 = var.environment
+  vpc_cidr             = var.vpc_cidr
+  public_subnet_cidrs  = local.calculated_public_subnet_cidrs
+  private_subnet_cidrs = local.calculated_private_subnet_cidrs
+
+  tags = {
+    Environment = var.environment
+    Project     = "cluckin-bell"
+    ManagedBy   = "terraform"
   }
 }
 
@@ -110,9 +160,9 @@ module "eks" {
   cluster_name    = "cb-${var.environment}-use1"
   cluster_version = var.kubernetes_version
 
-  vpc_id                   = data.aws_vpc.main.id
-  subnet_ids               = data.aws_subnets.private.ids
-  control_plane_subnet_ids = data.aws_subnets.public.ids
+  vpc_id                   = local.vpc_id
+  subnet_ids               = local.private_subnet_ids
+  control_plane_subnet_ids = local.public_subnet_ids
 
   # Enable Windows support through cluster addons and proper configuration
 
@@ -218,7 +268,7 @@ module "eks" {
       from_port   = 137
       to_port     = 137
       type        = "ingress"
-      cidr_blocks = [data.aws_vpc.main.cidr_block]
+      cidr_blocks = [local.vpc_exists ? data.aws_vpc.selected[0].cidr_block : module.vpc[0].vpc_cidr_block]
     }
     ingress_windows_netbios_session = {
       description = "Windows NetBIOS Session Service"
@@ -226,7 +276,7 @@ module "eks" {
       from_port   = 139
       to_port     = 139
       type        = "ingress"
-      cidr_blocks = [data.aws_vpc.main.cidr_block]
+      cidr_blocks = [local.vpc_exists ? data.aws_vpc.selected[0].cidr_block : module.vpc[0].vpc_cidr_block]
     }
     ingress_windows_smb = {
       description = "Windows SMB"
@@ -234,7 +284,7 @@ module "eks" {
       from_port   = 445
       to_port     = 445
       type        = "ingress"
-      cidr_blocks = [data.aws_vpc.main.cidr_block]
+      cidr_blocks = [local.vpc_exists ? data.aws_vpc.selected[0].cidr_block : module.vpc[0].vpc_cidr_block]
     }
   }
 
@@ -491,7 +541,7 @@ module "k8s_controllers" {
   cluster_name = module.eks.cluster_name
   environment  = var.environment
   aws_region   = var.aws_region
-  vpc_id       = data.aws_vpc.main.id
+  vpc_id       = local.vpc_id
 
   # Enable controllers
   enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
