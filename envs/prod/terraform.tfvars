@@ -1,0 +1,2 @@
+# Optional: grant cluster-admin to the Prod SSO Admin role in prod cluster
+sso_admin_role_arn = "arn:aws:iam::346746763840:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdminAccess-Bootstrap_f10526eb002c08f2"

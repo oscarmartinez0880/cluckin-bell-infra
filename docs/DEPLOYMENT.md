@@ -96,15 +96,15 @@ aws sts get-caller-identity
 
 ```bash
 # Set AWS profile
-export AWS_PROFILE=cluckin-bell-devqa
+export AWS_PROFILE=cluckin-bell-qa
 
-# Navigate to dev environment
-cd stacks/environments/dev
+# Navigate to nonprod environment
+cd envs/nonprod
 
 # Initialize and deploy
 terraform init
-terraform plan -var-file="../../../env/dev.tfvars"
-terraform apply -var-file="../../../env/dev.tfvars"
+terraform plan
+terraform apply
 
 # Get outputs
 terraform output cluster_name
@@ -115,15 +115,15 @@ terraform output argocd_server_url
 
 ```bash
 # Set AWS profile
-export AWS_PROFILE=cluckin-bell-devqa
+export AWS_PROFILE=cluckin-bell-qa
 
-# Navigate to qa environment
-cd stacks/environments/qa
+# Navigate to nonprod environment (shared with dev)
+cd envs/nonprod
 
 # Initialize and deploy
 terraform init
-terraform plan -var-file="../../../env/qa.tfvars"
-terraform apply -var-file="../../../env/qa.tfvars"
+terraform plan
+terraform apply
 
 # Get outputs
 terraform output cluster_name
@@ -137,12 +137,12 @@ terraform output argocd_server_url
 export AWS_PROFILE=cluckin-bell-prod
 
 # Navigate to prod environment
-cd stacks/environments/prod
+cd envs/prod
 
 # Initialize and deploy
 terraform init
-terraform plan -var-file="../../../env/prod.tfvars"
-terraform apply -var-file="../../../env/prod.tfvars"
+terraform plan
+terraform apply
 
 # Get outputs
 terraform output cluster_name
