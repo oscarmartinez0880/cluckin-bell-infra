@@ -132,3 +132,34 @@ variable "manage_route53" {
   type        = bool
   default     = false
 }
+
+# VPC configuration variables
+variable "create_vpc_if_missing" {
+  description = "Create a new VPC if no existing VPC is found with the target name tag"
+  type        = bool
+  default     = true
+}
+
+variable "existing_vpc_name" {
+  description = "Override the VPC Name tag to discover. If empty, defaults to 'environment-cluckin-bell-vpc' pattern"
+  type        = string
+  default     = ""
+}
+
+variable "vpc_cidr" {
+  description = "CIDR block for VPC when creating a new one"
+  type        = string
+  default     = "10.0.0.0/16"
+}
+
+variable "public_subnet_cidrs" {
+  description = "CIDR blocks for public subnets when creating a new VPC. If empty, auto-calculates /24s across 3 AZs"
+  type        = list(string)
+  default     = []
+}
+
+variable "private_subnet_cidrs" {
+  description = "CIDR blocks for private subnets when creating a new VPC. If empty, auto-calculates /24s across 3 AZs"
+  type        = list(string)
+  default     = []
+}

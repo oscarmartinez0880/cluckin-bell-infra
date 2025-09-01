@@ -71,19 +71,60 @@ locals {
       prod = "api.cluckn-bell.com"
     }
   }
+
+  # VPC discovery and creation logic
+  target_vpc_name = var.existing_vpc_name != "" ? var.existing_vpc_name : "${var.environment}-cluckin-bell-vpc"
+
+  # Auto-calculate subnet CIDRs if not provided
+  # Extract the second octet from vpc_cidr (e.g., "10.0.0.0/16" -> "0")
+  vpc_second_octet = split(".", split("/", var.vpc_cidr)[0])[1]
+
+  # Default public subnets: 10.X.1.0/24, 10.X.2.0/24, 10.X.3.0/24
+  default_public_subnet_cidrs = [
+    "10.${local.vpc_second_octet}.1.0/24",
+    "10.${local.vpc_second_octet}.2.0/24",
+    "10.${local.vpc_second_octet}.3.0/24"
+  ]
+
+  # Default private subnets: 10.X.101.0/24, 10.X.102.0/24, 10.X.103.0/24
+  default_private_subnet_cidrs = [
+    "10.${local.vpc_second_octet}.101.0/24",
+    "10.${local.vpc_second_octet}.102.0/24",
+    "10.${local.vpc_second_octet}.103.0/24"
+  ]
+
+  # Use provided CIDRs or fall back to defaults
+  resolved_public_subnet_cidrs  = length(var.public_subnet_cidrs) > 0 ? var.public_subnet_cidrs : local.default_public_subnet_cidrs
+  resolved_private_subnet_cidrs = length(var.private_subnet_cidrs) > 0 ? var.private_subnet_cidrs : local.default_private_subnet_cidrs
+
+  # VPC selection logic - defer evaluation using try()
+  # Selected VPC and subnet IDs 
+  vpc_id             = length(data.aws_vpcs.existing.ids) > 0 ? data.aws_vpcs.existing.ids[0] : try(module.vpc[0].vpc_id, null)
+  private_subnet_ids = length(data.aws_vpcs.existing.ids) > 0 ? data.aws_subnets.existing_private[0].ids : try(module.vpc[0].private_subnet_ids, [])
+  public_subnet_ids  = length(data.aws_vpcs.existing.ids) > 0 ? data.aws_subnets.existing_public[0].ids : try(module.vpc[0].public_subnet_ids, [])
+  vpc_cidr_block     = length(data.aws_vpcs.existing.ids) > 0 ? data.aws_vpc.existing_details[0].cidr_block : try(module.vpc[0].vpc_cidr_block, var.vpc_cidr)
 }
 
-# Data sources for existing VPC and subnets (assuming they exist)
-data "aws_vpc" "main" {
+# Discovery-first: Look for existing VPC by Name tag
+data "aws_vpcs" "existing" {
   tags = {
-    Name = "${var.environment}-vpc"
+    Name = local.target_vpc_name
   }
 }
 
-data "aws_subnets" "private" {
+# Get details of existing VPC if found
+data "aws_vpc" "existing_details" {
+  count = length(data.aws_vpcs.existing.ids) > 0 ? 1 : 0
+  id    = data.aws_vpcs.existing.ids[0]
+}
+
+# If existing VPC found, get its subnets
+data "aws_subnets" "existing_private" {
+  count = length(data.aws_vpcs.existing.ids) > 0 ? 1 : 0
+
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.main.id]
+    values = [data.aws_vpcs.existing.ids[0]]
   }
 
   tags = {
@@ -91,14 +132,35 @@ data "aws_subnets" "private" {
   }
 }
 
-data "aws_subnets" "public" {
+data "aws_subnets" "existing_public" {
+  count = length(data.aws_vpcs.existing.ids) > 0 ? 1 : 0
+
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.main.id]
+    values = [data.aws_vpcs.existing.ids[0]]
   }
 
   tags = {
     Type = "public"
+  }
+}
+
+# Conditional VPC creation: only if create_vpc_if_missing is true
+# The actual creation will be skipped if an existing VPC is found
+module "vpc" {
+  count = var.create_vpc_if_missing ? 1 : 0
+
+  source = "./modules_new/vpc"
+
+  name                 = "${var.environment}-cluckin-bell"
+  vpc_cidr             = var.vpc_cidr
+  public_subnet_cidrs  = local.resolved_public_subnet_cidrs
+  private_subnet_cidrs = local.resolved_private_subnet_cidrs
+
+  tags = {
+    Environment = var.environment
+    Project     = "cluckin-bell"
+    ManagedBy   = "terraform"
   }
 }
 
@@ -110,9 +172,9 @@ module "eks" {
   cluster_name    = "cb-${var.environment}-use1"
   cluster_version = var.kubernetes_version
 
-  vpc_id                   = data.aws_vpc.main.id
-  subnet_ids               = data.aws_subnets.private.ids
-  control_plane_subnet_ids = data.aws_subnets.public.ids
+  vpc_id                   = local.vpc_id
+  subnet_ids               = local.private_subnet_ids
+  control_plane_subnet_ids = local.public_subnet_ids
 
   # Enable Windows support through cluster addons and proper configuration
 
@@ -218,7 +280,7 @@ module "eks" {
       from_port   = 137
       to_port     = 137
       type        = "ingress"
-      cidr_blocks = [data.aws_vpc.main.cidr_block]
+      cidr_blocks = [local.vpc_cidr_block]
     }
     ingress_windows_netbios_session = {
       description = "Windows NetBIOS Session Service"
@@ -226,7 +288,7 @@ module "eks" {
       from_port   = 139
       to_port     = 139
       type        = "ingress"
-      cidr_blocks = [data.aws_vpc.main.cidr_block]
+      cidr_blocks = [local.vpc_cidr_block]
     }
     ingress_windows_smb = {
       description = "Windows SMB"
@@ -234,7 +296,7 @@ module "eks" {
       from_port   = 445
       to_port     = 445
       type        = "ingress"
-      cidr_blocks = [data.aws_vpc.main.cidr_block]
+      cidr_blocks = [local.vpc_cidr_block]
     }
   }
 
@@ -495,7 +557,7 @@ module "k8s_controllers" {
   cluster_name = module.eks.cluster_name
   environment  = var.environment
   aws_region   = var.aws_region
-  vpc_id       = data.aws_vpc.main.id
+  vpc_id       = local.vpc_id
 
   # Enable controllers
   enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
@@ -524,14 +586,14 @@ module "k8s_controllers" {
   node_groups = module.eks.eks_managed_node_groups
 
   depends_on = [
-  module.eks,
-  module.aws_load_balancer_controller_irsa,
-  module.cert_manager_irsa,
-  module.external_dns_irsa,
-  // Optionally add these if you always want to depend on Route53 zones:
-  aws_route53_zone.public[0],
-  aws_route53_zone.private[0]
-]
+    module.eks,
+    module.aws_load_balancer_controller_irsa,
+    module.cert_manager_irsa,
+    module.external_dns_irsa,
+    // Optionally add these if you always want to depend on Route53 zones:
+    aws_route53_zone.public[0],
+    aws_route53_zone.private[0]
+  ]
 }
 
 # AWS CodeCommit repository for GitOps
