@@ -1,9 +1,9 @@
 variable "environment" {
-  description = "Environment name (dev, qa, prod)"
+  description = "Environment name (dev, qa, prod, devqa)"
   type        = string
   validation {
-    condition     = contains(["dev", "qa", "prod"], var.environment)
-    error_message = "Environment must be one of: dev, qa, prod."
+    condition     = contains(["dev", "qa", "prod", "devqa"], var.environment)
+    error_message = "Environment must be one of: dev, qa, prod, devqa."
   }
 }
 
@@ -14,7 +14,7 @@ variable "aws_region" {
 }
 
 variable "aws_profile" {
-  description = "AWS profile to use for authentication (for SSO profiles like cluckin-bell-qa-admin or cluckin-bell-prod-admin)"
+  description = "AWS profile to use for authentication (for SSO profiles like cluckin-bell-qa or cluckin-bell-prod)"
   type        = string
   default     = ""
 }
