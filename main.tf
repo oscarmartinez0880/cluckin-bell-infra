@@ -523,7 +523,12 @@ module "k8s_controllers" {
   # Dependencies
   node_groups = module.eks.eks_managed_node_groups
 
-  depends_on = [module.eks]
+  depends_on = [
+    module.eks,
+    module.aws_load_balancer_controller_irsa,
+    module.cert_manager_irsa,
+    module.external_dns_irsa,
+  ], var.manage_route53 ? [aws_route53_zone.public[0], aws_route53_zone.private[0]] : []
 }
 
 # AWS CodeCommit repository for GitOps
