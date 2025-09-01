@@ -73,56 +73,17 @@ locals {
   }
 }
 
-# VPC discovery and creation logic
-locals {
-  vpc_name = "${var.environment}-vpc"
-
-  # Compute subnet CIDRs if not provided
-  computed_public_subnet_cidrs = length(var.public_subnet_cidrs) > 0 ? var.public_subnet_cidrs : [
-    cidrsubnet(var.vpc_cidr, 8, 0),
-    cidrsubnet(var.vpc_cidr, 8, 1),
-    cidrsubnet(var.vpc_cidr, 8, 2)
-  ]
-
-  computed_private_subnet_cidrs = length(var.private_subnet_cidrs) > 0 ? var.private_subnet_cidrs : [
-    cidrsubnet(var.vpc_cidr, 8, 10),
-    cidrsubnet(var.vpc_cidr, 8, 11),
-    cidrsubnet(var.vpc_cidr, 8, 12)
-  ]
-
-  # Check if VPC exists
-  vpc_exists = length(data.aws_vpcs.candidate.ids) > 0
-
-  # Aggregate networking locals
-  vpc_id             = local.vpc_exists ? data.aws_vpc.selected[0].id : module.vpc[0].vpc_id
-  vpc_cidr_block     = local.vpc_exists ? data.aws_vpc.selected[0].cidr_block : module.vpc[0].vpc_cidr_block
-  public_subnet_ids  = local.vpc_exists ? data.aws_subnets.public[0].ids : module.vpc[0].public_subnet_ids
-  private_subnet_ids = local.vpc_exists ? data.aws_subnets.private[0].ids : module.vpc[0].private_subnet_ids
-}
-
-# Check for existing VPC
-data "aws_vpcs" "candidate" {
-  filter {
-    name   = "tag:Name"
-    values = [local.vpc_name]
-  }
-}
-
-# Conditional data sources for existing VPC and subnets
-data "aws_vpc" "selected" {
-  count = local.vpc_exists ? 1 : 0
-
+# Data sources for existing VPC and subnets (assuming they exist)
+data "aws_vpc" "main" {
   tags = {
-    Name = local.vpc_name
+    Name = "${var.environment}-vpc"
   }
 }
 
 data "aws_subnets" "private" {
-  count = local.vpc_exists ? 1 : 0
-
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.selected[0].id]
+    values = [data.aws_vpc.main.id]
   }
 
   tags = {
@@ -131,32 +92,13 @@ data "aws_subnets" "private" {
 }
 
 data "aws_subnets" "public" {
-  count = local.vpc_exists ? 1 : 0
-
   filter {
     name   = "vpc-id"
-    values = [data.aws_vpc.selected[0].id]
+    values = [data.aws_vpc.main.id]
   }
 
   tags = {
     Type = "public"
-  }
-}
-
-# Create VPC if not found and creation is enabled
-module "vpc" {
-  count  = (!local.vpc_exists && var.create_vpc_if_missing) ? 1 : 0
-  source = "./modules_new/vpc"
-
-  name                 = var.environment
-  vpc_cidr             = var.vpc_cidr
-  public_subnet_cidrs  = local.computed_public_subnet_cidrs
-  private_subnet_cidrs = local.computed_private_subnet_cidrs
-
-  tags = {
-    Environment = var.environment
-    Project     = "cluckin-bell"
-    ManagedBy   = "terraform"
   }
 }
 
@@ -168,9 +110,9 @@ module "eks" {
   cluster_name    = "cb-${var.environment}-use1"
   cluster_version = var.kubernetes_version
 
-  vpc_id                   = local.vpc_id
-  subnet_ids               = local.private_subnet_ids
-  control_plane_subnet_ids = local.public_subnet_ids
+  vpc_id                   = data.aws_vpc.main.id
+  subnet_ids               = data.aws_subnets.private.ids
+  control_plane_subnet_ids = data.aws_subnets.public.ids
 
   # Enable Windows support through cluster addons and proper configuration
 
@@ -276,7 +218,7 @@ module "eks" {
       from_port   = 137
       to_port     = 137
       type        = "ingress"
-      cidr_blocks = [local.vpc_cidr_block]
+      cidr_blocks = [data.aws_vpc.main.cidr_block]
     }
     ingress_windows_netbios_session = {
       description = "Windows NetBIOS Session Service"
@@ -284,7 +226,7 @@ module "eks" {
       from_port   = 139
       to_port     = 139
       type        = "ingress"
-      cidr_blocks = [local.vpc_cidr_block]
+      cidr_blocks = [data.aws_vpc.main.cidr_block]
     }
     ingress_windows_smb = {
       description = "Windows SMB"
@@ -292,7 +234,7 @@ module "eks" {
       from_port   = 445
       to_port     = 445
       type        = "ingress"
-      cidr_blocks = [local.vpc_cidr_block]
+      cidr_blocks = [data.aws_vpc.main.cidr_block]
     }
   }
 
@@ -549,7 +491,7 @@ module "k8s_controllers" {
   cluster_name = module.eks.cluster_name
   environment  = var.environment
   aws_region   = var.aws_region
-  vpc_id       = local.vpc_id
+  vpc_id       = data.aws_vpc.main.id
 
   # Enable controllers
   enable_aws_load_balancer_controller = var.enable_aws_load_balancer_controller
