@@ -392,7 +392,8 @@ module "irsa_external_dns_dev" {
           "route53:ChangeResourceRecordSets"
         ]
         Resource = [
-          "arn:aws:route53:::hostedzone/${module.dns_certs.private_zone_id}"
+          "arn:aws:route53:::hostedzone/${module.dns_certs_dev.public_zone_id}",
+          "arn:aws:route53:::hostedzone/${module.dns_certs_dev.private_zone_id}"
         ]
       },
       {
@@ -426,7 +427,8 @@ module "irsa_external_dns_qa" {
           "route53:ChangeResourceRecordSets"
         ]
         Resource = [
-          "arn:aws:route53:::hostedzone/${module.dns_certs.private_zone_id}"
+          "arn:aws:route53:::hostedzone/${module.dns_certs_qa.public_zone_id}",
+          "arn:aws:route53:::hostedzone/${module.dns_certs_dev.private_zone_id}"
         ]
       },
       {
