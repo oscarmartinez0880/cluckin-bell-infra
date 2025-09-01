@@ -13,10 +13,16 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "aws_profile" {
+  description = "AWS profile to use for authentication (for SSO profiles like cluckin-bell-qa-admin or cluckin-bell-prod-admin)"
+  type        = string
+  default     = ""
+}
+
 variable "kubernetes_version" {
   description = "Kubernetes version for EKS cluster"
   type        = string
-  default     = "1.29"
+  default     = "1.30"
 }
 
 # Linux node group variables

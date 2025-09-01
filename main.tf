@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0.0"
+  required_version = "1.13.1"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -17,7 +17,8 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region  = var.aws_region
+  profile = var.aws_profile
 
   default_tags {
     tags = {
@@ -35,7 +36,10 @@ provider "kubernetes" {
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    args        = concat(
+      ["eks", "get-token", "--cluster-name", module.eks.cluster_name],
+      var.aws_profile != "" ? ["--profile", var.aws_profile] : []
+    )
   }
 }
 
@@ -47,7 +51,10 @@ provider "helm" {
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+      args        = concat(
+        ["eks", "get-token", "--cluster-name", module.eks.cluster_name],
+        var.aws_profile != "" ? ["--profile", var.aws_profile] : []
+      )
     }
   }
 }
@@ -590,9 +597,7 @@ module "k8s_controllers" {
     module.aws_load_balancer_controller_irsa,
     module.cert_manager_irsa,
     module.external_dns_irsa,
-    // Optionally add these if you always want to depend on Route53 zones:
-    aws_route53_zone.public[0],
-    aws_route53_zone.private[0]
+    module.argocd_repo_server_irsa
   ]
 }
 
