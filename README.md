@@ -220,6 +220,58 @@ This creates a GitHub Actions workflow that uses OIDC to assume the CodeCommit m
 
 ---
 
+## VPC Configuration
+
+### Automatic VPC Creation
+
+The infrastructure stack includes automatic VPC discovery and creation functionality:
+
+- **VPC Discovery**: The stack first looks for an existing VPC tagged with `Name = "${var.environment}-vpc"`
+- **Fallback Creation**: If no matching VPC is found, a new VPC is automatically created with:
+  - VPC CIDR: `10.0.0.0/16` (default, configurable)
+  - Public subnets across 3 AZs with automatic public IP assignment
+  - Private subnets across 3 AZs for EKS worker nodes
+  - Single NAT Gateway for cost optimization
+  - Internet Gateway for public subnet routing
+  - Proper subnet tagging: `Type = "public"` and `Type = "private"`
+
+### VPC Configuration Variables
+
+| Variable | Description | Default | Example |
+|----------|-------------|---------|---------|
+| `vpc_cidr` | CIDR block for VPC when creating new VPC | `10.0.0.0/16` | `10.1.0.0/16` |
+| `public_subnet_cidrs` | CIDR blocks for public subnets | `[]` (auto-calculated) | `["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]` |
+| `private_subnet_cidrs` | CIDR blocks for private subnets | `[]` (auto-calculated) | `["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]` |
+| `create_vpc_if_missing` | Create VPC if not found by tag lookup | `true` | `false` (to require existing VPC) |
+
+### Usage Examples
+
+**Default behavior** (auto-create VPC if missing):
+```bash
+terraform apply -var="environment=dev"
+```
+
+**Custom VPC CIDR**:
+```bash
+terraform apply -var="environment=qa" -var="vpc_cidr=10.1.0.0/16"
+```
+
+**Disable VPC creation** (require existing VPC):
+```bash
+terraform apply -var="environment=prod" -var="create_vpc_if_missing=false"
+```
+
+**Custom subnet CIDRs**:
+```bash
+terraform apply \
+  -var="environment=dev" \
+  -var="vpc_cidr=10.0.0.0/16" \
+  -var="public_subnet_cidrs=[\"10.0.1.0/24\",\"10.0.2.0/24\",\"10.0.3.0/24\"]" \
+  -var="private_subnet_cidrs=[\"10.0.11.0/24\",\"10.0.12.0/24\",\"10.0.13.0/24\"]"
+```
+
+---
+
 ## Deployment Guide
 
 ### Prerequisites
