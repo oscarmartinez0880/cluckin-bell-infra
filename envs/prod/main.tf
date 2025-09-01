@@ -83,53 +83,48 @@ module "eks" {
   source = "../../modules/eks"
 
   cluster_name       = "cluckn-bell-prod"
-  kubernetes_version = "1.30"
+  cluster_version    = "1.30"
+  subnet_ids         = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
   private_subnet_ids = module.vpc.private_subnet_ids
-  public_subnet_ids  = module.vpc.public_subnet_ids
-
-  node_groups = {
-    ng-prod = {
-      instance_type = "t3.small"
-      desired_size  = 2
-      min_size      = 2
-      max_size      = 3
-      labels = {
-        env = "prod"
-      }
-    }
-  }
 
   tags = local.common_tags
 }
 
-# ACM Certificate
-module "prod_cert" {
-  source = "../../modules/dns-certs"
-
-  domain_name = "*.cluckn-bell.com"
-  zone_id     = module.apex_zone.zone_id
-  tags        = local.common_tags
-}
 
 # ECR Repository (shared)
 module "ecr" {
   source = "../../modules/ecr"
 
-  repository_name = "cluckin-bell-app"
-  max_image_count = 10
-  tags            = local.common_tags
+  repository_names = ["cluckin-bell-app"]
+  max_image_count  = 10
+  tags             = local.common_tags
 }
 
-# CloudWatch Log Groups
-module "cloudwatch" {
+# Monitoring with CloudWatch and Container Insights
+module "monitoring" {
   source = "../../modules/monitoring"
 
   log_groups = {
-    "/eks/prod/cluster" = "EKS cluster logs"
-    "/eks/prod/apps"    = "Application logs"
+    "/eks/prod/cluster" = {
+      retention_in_days = 7 # Longer retention for prod
+    }
+    "/eks/prod/apps" = {
+      retention_in_days = 7
+    }
   }
-  retention_in_days = 1
-  tags              = local.common_tags
+
+  container_insights = {
+    enabled                   = true
+    cluster_name              = "cluckn-bell-prod"
+    aws_region                = var.aws_region
+    log_retention_days        = 7
+    enable_cloudwatch_agent   = true
+    enable_fluent_bit         = true
+    cloudwatch_agent_role_arn = module.irsa_cloudwatch_agent.role_arn
+    fluent_bit_role_arn       = module.irsa_aws_for_fluent_bit.role_arn
+  }
+
+  tags = local.common_tags
 }
 
 # IRSA Roles
@@ -374,7 +369,7 @@ module "irsa_external_dns" {
           "route53:ChangeResourceRecordSets"
         ]
         Resource = [
-          "arn:aws:route53:::hostedzone/${module.apex_zone.zone_id}"
+          "arn:aws:route53:::hostedzone/${module.dns_certs.public_zone_id}"
         ]
       },
       {
@@ -444,6 +439,35 @@ module "irsa_aws_for_fluent_bit" {
         Resource = [
           "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/eks/prod/*"
         ]
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+module "irsa_cloudwatch_agent" {
+  source = "../../modules/irsa"
+
+  role_name         = "cluckn-bell-prod-cloudwatch-agent"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  namespace         = "amazon-cloudwatch"
+  service_account   = "cloudwatch-agent"
+
+  custom_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData",
+          "ec2:DescribeVolumes",
+          "ec2:DescribeTags",
+          "logs:PutLogEvents",
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -530,7 +554,7 @@ module "github_oidc" {
           "ecr:PutImage"
         ]
         Resource = [
-          module.ecr.repository_arn
+          module.ecr.repository_arns["cluckin-bell-app"]
         ]
       }
     ]

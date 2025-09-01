@@ -32,50 +32,39 @@ output "cluster_endpoint" {
 
 output "cluster_oidc_issuer_url" {
   description = "The URL on the EKS cluster OIDC Issuer"
-  value       = module.eks.cluster_oidc_issuer_url
+  value       = module.eks.oidc_issuer_url
 }
 
-# Route53 Outputs
-output "dev_zone_id" {
-  description = "Route53 zone ID for dev.cluckn-bell.com"
-  value       = module.dev_zone.zone_id
+# DNS and Certificate Outputs
+output "public_zone_id" {
+  description = "Public Route53 zone ID"
+  value       = module.dns_certs.public_zone_id
 }
 
-output "dev_zone_name_servers" {
-  description = "Name servers for dev.cluckn-bell.com"
-  value       = module.dev_zone.name_servers
+output "private_zone_id" {
+  description = "Private Route53 zone ID"
+  value       = module.dns_certs.private_zone_id
 }
 
-output "qa_zone_id" {
-  description = "Route53 zone ID for qa.cluckn-bell.com"
-  value       = module.qa_zone.zone_id
+output "public_zone_name_servers" {
+  description = "Public zone name servers"
+  value       = module.dns_certs.public_zone_name_servers
 }
 
-output "qa_zone_name_servers" {
-  description = "Name servers for qa.cluckn-bell.com"
-  value       = module.qa_zone.name_servers
-}
-
-# ACM Outputs
-output "dev_certificate_arn" {
-  description = "ARN of the dev wildcard certificate"
-  value       = module.dev_cert.certificate_arn
-}
-
-output "qa_certificate_arn" {
-  description = "ARN of the qa wildcard certificate"
-  value       = module.qa_cert.certificate_arn
+output "certificate_arns" {
+  description = "Map of certificate ARNs"
+  value       = module.dns_certs.certificate_arns
 }
 
 # ECR Outputs
-output "ecr_repository_url" {
-  description = "URL of the ECR repository"
-  value       = module.ecr.repository_url
+output "ecr_repository_urls" {
+  description = "Map of ECR repository URLs"
+  value       = module.ecr.repository_urls
 }
 
-output "ecr_repository_arn" {
-  description = "ARN of the ECR repository"
-  value       = module.ecr.repository_arn
+output "ecr_repository_arns" {
+  description = "Map of ECR repository ARNs"
+  value       = module.ecr.repository_arns
 }
 
 # IRSA Role ARNs

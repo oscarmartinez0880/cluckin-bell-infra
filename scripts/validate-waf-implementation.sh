@@ -41,17 +41,17 @@ print_status $? "Main configuration validation"
 
 # Check WAF module
 print_info "Validating WAF module..."
-cd modules_new/wafv2
+cd modules/wafv2
 terraform init -backend=false &>/dev/null
 terraform validate
 print_status $? "WAF module validation"
 
-# Check Container Insights module
-print_info "Validating Container Insights module..."
-cd ../container_insights
+# Check Monitoring module (includes Container Insights)
+print_info "Validating Monitoring module with Container Insights..."
+cd ../monitoring
 terraform init -backend=false &>/dev/null
 terraform validate
-print_status $? "Container Insights module validation"
+print_status $? "Monitoring module validation"
 
 # Return to root
 cd /home/runner/work/cluckin-bell-infra/cluckin-bell-infra
@@ -80,12 +80,12 @@ print_info "Checking for required documentation and examples..."
 files_to_check=(
     "docs/waf-security-baseline.md"
     "examples/ingress-waf-integration.md"
-    "modules_new/wafv2/main.tf"
-    "modules_new/wafv2/variables.tf"
-    "modules_new/wafv2/outputs.tf"
-    "modules_new/container_insights/main.tf"
-    "modules_new/container_insights/variables.tf"
-    "modules_new/container_insights/outputs.tf"
+    "modules/wafv2/main.tf"
+    "modules/wafv2/variables.tf"
+    "modules/wafv2/outputs.tf"
+    "modules/monitoring/main.tf"
+    "modules/monitoring/variables.tf"
+    "modules/monitoring/outputs.tf"
     "terraform/clusters/prod/outputs.tf"
     "terraform/clusters/devqa/outputs.tf"
 )
