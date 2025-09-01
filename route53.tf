@@ -18,7 +18,7 @@ resource "aws_route53_zone" "private" {
   name = "cluckn-bell.com"
 
   vpc {
-    vpc_id = data.aws_vpc.main.id
+    vpc_id = local.vpc_id
   }
 
   tags = {
