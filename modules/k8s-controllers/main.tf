@@ -54,8 +54,6 @@ resource "helm_release" "aws_load_balancer_controller" {
     name  = "vpcId"
     value = var.vpc_id
   }
-
-  depends_on = [var.node_groups]
 }
 
 # cert-manager
@@ -98,8 +96,6 @@ resource "helm_release" "cert_manager" {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
     value = var.cert_manager_role_arn
   }
-
-  depends_on = [var.node_groups]
 }
 
 # ClusterIssuer for Let's Encrypt staging
@@ -226,8 +222,6 @@ resource "helm_release" "external_dns" {
     name  = "txtOwnerId"
     value = var.cluster_name
   }
-
-  depends_on = [var.node_groups]
 }
 
 # Create namespace for Argo CD

@@ -140,9 +140,8 @@ module "aws_load_balancer_controller" {
     kubernetes = kubernetes.prod
   }
 
-  cluster_name              = module.eks.cluster_name
-  cluster_oidc_provider_arn = module.eks.oidc_provider_arn
-  create_policy             = true
+  cluster_name      = module.eks.cluster_name
+  oidc_provider_arn = module.eks.oidc_provider_arn
 }
 
 ###############################################################################

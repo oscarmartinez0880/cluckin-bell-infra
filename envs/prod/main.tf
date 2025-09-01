@@ -66,7 +66,7 @@ module "eks" {
   source = "../../modules_new/eks"
 
   cluster_name       = "cluckn-bell-prod"
-  kubernetes_version = "1.29"
+  kubernetes_version = "1.30"
   private_subnet_ids = module.vpc.private_subnet_ids
   public_subnet_ids  = module.vpc.public_subnet_ids
 

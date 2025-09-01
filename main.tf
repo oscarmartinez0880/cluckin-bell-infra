@@ -523,7 +523,7 @@ module "k8s_controllers" {
   # Dependencies
   node_groups = module.eks.eks_managed_node_groups
 
-  depends_on = concat[
+  depends_on = [
     module.eks,
     module.aws_load_balancer_controller_irsa,
     module.cert_manager_irsa,
