@@ -146,7 +146,6 @@ output "private_hosted_zone_id" {
   description = "Route53 private hosted zone ID for cluckn-bell.com"
   value       = aws_route53_zone.private[0].zone_id
 }
-
 # Argo CD outputs
 output "argocd_url" {
   description = "Argo CD server URL"
