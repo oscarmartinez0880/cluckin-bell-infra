@@ -41,14 +41,12 @@ resource "aws_s3_bucket_versioning" "tfstate" {
   }
 }
 
-resource "aws_s3_bucket_encryption" "tfstate" {
+resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
-      }
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
     }
   }
 }
