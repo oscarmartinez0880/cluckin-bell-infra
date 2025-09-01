@@ -32,41 +32,37 @@ This is different from the account-level stacks (`terraform/accounts/devqa` and 
 
 When running **Actions → Terraform Deploy → Run workflow**, use these parameters:
 
-#### For Development Environment
+#### For Development Environment (NonProd)
 - **Target environment**: `dev`
-- **Working directory**: `.` (repository root)
-- **Optional -var-file path**: `tfvars/devqa.tfvars`
+- **Working directory**: `envs/nonprod`
 - **Apply**: `false` for plan, `true` to apply
 
-#### For QA Environment
+#### For QA Environment (NonProd)
 - **Target environment**: `qa`
-- **Working directory**: `.` (repository root)
-- **Optional -var-file path**: `tfvars/devqa.tfvars`
+- **Working directory**: `envs/nonprod`
 - **Apply**: `false` for plan, `true` to apply
 
 #### For Production Environment
 - **Target environment**: `prod`
-- **Working directory**: `.` (repository root)
-- **Optional -var-file path**: `tfvars/prod.tfvars`
+- **Working directory**: `envs/prod`
 - **Apply**: `false` for plan, `true` to apply
 
 ### Environment Separation
 
-- **Dev and QA**: Share the same nonprod account (`264765154707`) but can be planned/applied separately by switching var-files
-- **Production**: Uses its own dedicated account (`346746763840`) with separate IAM roles
+- **Dev and QA**: Share the same nonprod account (`264765154707`) and use the same environment stack (`envs/nonprod`)
+- **Production**: Uses its own dedicated account (`346746763840`) with its own environment stack (`envs/prod`)
 
 ## Version Requirements
 
 - **Terraform**: 1.13.1 (pinned in workflow)
-- **Kubernetes**: Minimum 1.30 (as configured in example tfvars)
+- **Kubernetes**: Minimum 1.30 (as configured in environment terraform.tfvars)
 
 ## Deployment Steps
 
 1. **Plan First**: Always run with `apply: false` to review changes
    ```
    Target environment: dev
-   Working directory: .
-   Optional -var-file path: tfvars/devqa.tfvars
+   Working directory: envs/nonprod
    Apply: false
    ```
 
@@ -75,12 +71,11 @@ When running **Actions → Terraform Deploy → Run workflow**, use these parame
 3. **Apply Changes**: Run again with `apply: true` if the plan looks correct
    ```
    Target environment: dev
-   Working directory: .
-   Optional -var-file path: tfvars/devqa.tfvars
+   Working directory: envs/nonprod
    Apply: true
    ```
 
-4. **Repeat for Other Environments**: Use the appropriate var-file for each environment
+4. **Repeat for Other Environments**: Use the appropriate working directory for each environment
 
 ## What Gets Deployed
 
@@ -99,7 +94,7 @@ Each environment deployment creates:
 ### Common Issues
 - **VPC not found**: Ensure VPCs exist with correct naming convention
 - **IAM role assumption failed**: Verify GitHub environment variables and account-level Terraform deployment
-- **Kubernetes version errors**: Ensure version ≥ 1.30 in tfvars files
+- **Kubernetes version errors**: Ensure version ≥ 1.30 in environment terraform.tfvars files
 
 ### Validation
 - Check GitHub environment variables are correctly configured

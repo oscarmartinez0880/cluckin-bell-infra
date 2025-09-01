@@ -241,3 +241,25 @@ All resources include consistent tags:
 - **Infrastructure Scanning**: Terraform security scanning in CI/CD
 - **Secrets Management**: AWS Secrets Manager for sensitive data
 - **Network Security**: Security groups with least privilege access
+
+## Running Terraform (SSO)
+
+- Dev/QA (shared cluster in account 264765154707)
+  - aws sso login --profile cluckin-bell-qa
+  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod init
+  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod plan
+  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod apply
+
+- Prod (account 346746763840)
+  - aws sso login --profile cluckin-bell-prod
+  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod init
+  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod plan
+  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod apply
+
+First-time bootstrap for a new cluster (two-phase apply):
+```bash
+terraform -chdir=envs/nonprod apply -target=module.eks
+terraform -chdir=envs/prod apply -target=module.eks
+```
+
+Note: Top-level tfvars/ has been removed. Each environment stack now has a single terraform.tfvars in its folder to keep configuration in one place and avoid duplication.
