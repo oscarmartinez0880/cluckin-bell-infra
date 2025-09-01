@@ -20,7 +20,7 @@ data "aws_iam_policy_document" "tf_deploy_trust_prod" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values = ["repo:${var.github_repository_owner}/cluckin-bell-infra:environment:prod"]
+      values   = ["repo:${var.github_repository_owner}/cluckin-bell-infra:environment:prod"]
     }
   }
 }
