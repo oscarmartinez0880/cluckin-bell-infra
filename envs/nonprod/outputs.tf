@@ -135,3 +135,26 @@ output "secret_names" {
   description = "Names of the created secrets"
   value       = module.secrets.secret_names
 }
+# Public zones (per subdomain)
+output "public_zone_ids" {
+  description = "Public Route53 zone IDs for dev and qa"
+  value = {
+    dev = module.dns_certs_dev.public_zone_id
+    qa  = module.dns_certs_qa.public_zone_id
+  }
+}
+
+# Private zone (single)
+output "private_zone_id" {
+  description = "Private Route53 zone ID"
+  value       = coalesce(try(module.dns_certs_dev.private_zone_id, null), try(module.dns_certs_qa.private_zone_id, null))
+}
+
+# Certificates (merged)
+output "certificate_arns" {
+  description = "Map of certificate ARNs"
+  value       = merge(
+    module.dns_certs_dev.certificate_arns,
+    module.dns_certs_qa.certificate_arns
+  )
+}

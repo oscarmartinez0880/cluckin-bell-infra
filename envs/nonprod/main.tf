@@ -58,15 +58,17 @@ module "eks" {
   tags = local.common_tags
 }
 
-# DNS and Certificates
-module "dns_certs" {
+# DNS and Certificates - Dev subdomain in QA account
+module "dns_certs_dev" {
   source = "../../modules/dns-certs"
 
+  # Use existing public zone dev.cluckn-bell.com in QA
   public_zone = {
-    name   = "cluckn-bell.com"
-    create = false # Assuming it exists in prod account
+    name   = "dev.cluckn-bell.com"
+    create = false
   }
 
+  # Create a single private zone for the cluster in QA
   private_zone = {
     name   = "cluckn-bell.com"
     create = true
@@ -79,6 +81,29 @@ module "dns_certs" {
       subject_alternative_names = ["dev.cluckn-bell.com"]
       use_private_zone          = false
     }
+  }
+
+  tags = local.common_tags
+}
+
+# DNS and Certificates - QA subdomain in QA account
+module "dns_certs_qa" {
+  source = "../../modules/dns-certs"
+
+  # Use existing public zone qa.cluckn-bell.com in QA
+  public_zone = {
+    name   = "qa.cluckn-bell.com"
+    create = false
+  }
+
+  # Reuse the same private zone created above
+  private_zone = {
+    name   = "cluckn-bell.com"
+    create = false
+    vpc_id = module.vpc.vpc_id
+  }
+
+  certificates = {
     qa_wildcard = {
       domain_name               = "*.qa.cluckn-bell.com"
       subject_alternative_names = ["qa.cluckn-bell.com"]
