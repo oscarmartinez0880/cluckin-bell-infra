@@ -10,7 +10,7 @@ aws_profile = "cluckin-bell-prod-admin"
 # VPC configuration
 create_vpc_if_missing = false
 existing_vpc_name     = "prod-cluckin-bell-vpc"
-vpc_cidr              = "10.1.0.0/16"  # Only used if VPC creation was enabled
+vpc_cidr              = "10.1.0.0/16" # Only used if VPC creation was enabled
 
 # Route53 management
 manage_route53 = true

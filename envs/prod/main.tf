@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.0"
+  required_version = ">= 1.13.1"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -34,16 +34,33 @@ locals {
   }
 }
 
-# Apex Route53 Hosted Zone
-module "apex_zone" {
-  source = "../../modules_new/route53_zone"
+# DNS and Certificates - Production
+module "dns_certs" {
+  source = "../../modules/dns-certs"
 
-  zone_name = "cluckn-bell.com"
+  public_zone = {
+    name   = "cluckn-bell.com"
+    create = true
+  }
 
-  # Add NS delegations for dev and qa subdomains
+  private_zone = {
+    name   = "cluckn-bell.com"
+    create = true
+    vpc_id = module.vpc.vpc_id
+  }
+
+  # Add NS delegations for dev and qa subdomains from nonprod account
   subdomain_zones = {
     "dev.cluckn-bell.com" = var.dev_zone_name_servers
     "qa.cluckn-bell.com"  = var.qa_zone_name_servers
+  }
+
+  certificates = {
+    prod_wildcard = {
+      domain_name               = "*.cluckn-bell.com"
+      subject_alternative_names = ["cluckn-bell.com"]
+      use_private_zone          = false
+    }
   }
 
   tags = local.common_tags
@@ -51,7 +68,7 @@ module "apex_zone" {
 
 # VPC
 module "vpc" {
-  source = "../../modules_new/vpc"
+  source = "../../modules/vpc"
 
   name                 = "cluckn-bell-prod"
   vpc_cidr             = "10.1.0.0/16"
@@ -63,7 +80,7 @@ module "vpc" {
 
 # EKS Cluster
 module "eks" {
-  source = "../../modules_new/eks"
+  source = "../../modules/eks"
 
   cluster_name       = "cluckn-bell-prod"
   kubernetes_version = "1.30"
@@ -87,7 +104,7 @@ module "eks" {
 
 # ACM Certificate
 module "prod_cert" {
-  source = "../../modules_new/acm"
+  source = "../../modules/dns-certs"
 
   domain_name = "*.cluckn-bell.com"
   zone_id     = module.apex_zone.zone_id
@@ -96,7 +113,7 @@ module "prod_cert" {
 
 # ECR Repository (shared)
 module "ecr" {
-  source = "../../modules_new/ecr"
+  source = "../../modules/ecr"
 
   repository_name = "cluckin-bell-app"
   max_image_count = 10
@@ -105,7 +122,7 @@ module "ecr" {
 
 # CloudWatch Log Groups
 module "cloudwatch" {
-  source = "../../modules_new/cloudwatch"
+  source = "../../modules/monitoring"
 
   log_groups = {
     "/eks/prod/cluster" = "EKS cluster logs"
@@ -117,7 +134,7 @@ module "cloudwatch" {
 
 # IRSA Roles
 module "irsa_aws_load_balancer_controller" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-aws-load-balancer-controller"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -341,7 +358,7 @@ module "irsa_aws_load_balancer_controller" {
 }
 
 module "irsa_external_dns" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-external-dns"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -375,7 +392,7 @@ module "irsa_external_dns" {
 }
 
 module "irsa_cluster_autoscaler" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-cluster-autoscaler"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -405,7 +422,7 @@ module "irsa_cluster_autoscaler" {
 }
 
 module "irsa_aws_for_fluent_bit" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-aws-for-fluent-bit"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -435,7 +452,7 @@ module "irsa_aws_for_fluent_bit" {
 }
 
 module "irsa_external_secrets" {
-  source = "../../modules_new/irsa"
+  source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-external-secrets"
   oidc_provider_arn = module.eks.oidc_provider_arn
@@ -463,7 +480,7 @@ module "irsa_external_secrets" {
 
 # Cognito User Pool (no users initially)
 module "cognito" {
-  source = "../../modules_new/cognito"
+  source = "../../modules/cognito"
 
   user_pool_name = "cluckn-bell-prod"
   domain_name    = "cluckn-bell-prod"
@@ -486,7 +503,7 @@ module "cognito" {
 
 # GitHub OIDC Role for ECR Push
 module "github_oidc" {
-  source = "../../modules_new/github_oidc"
+  source = "../../modules/github-oidc"
 
   role_name             = "cluckn-bell-prod-github-ecr-push"
   github_repo_condition = "repo:oscarmartinez0880/cluckin-bell-app:ref:refs/heads/develop"
@@ -524,7 +541,7 @@ module "github_oidc" {
 
 # Secrets Manager
 module "secrets" {
-  source = "../../modules_new/secrets"
+  source = "../../modules/secrets"
 
   secrets = {
     "/cluckn-bell/prod/wordpress/prod/database" = {

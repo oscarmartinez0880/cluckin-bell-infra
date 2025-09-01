@@ -156,7 +156,7 @@ data "aws_subnets" "existing_public" {
 module "vpc" {
   count = var.create_vpc_if_missing && length(data.aws_vpcs.existing.ids) == 0 ? 1 : 0
 
-  source = "./modules_new/vpc"
+  source = "./modules/vpc"
 
   name                 = "${var.environment}-cluckin-bell"
   vpc_cidr             = var.vpc_cidr

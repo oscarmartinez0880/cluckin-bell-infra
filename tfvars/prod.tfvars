@@ -8,10 +8,10 @@ aws_profile = "cluckin-bell-prod-admin"
 
 # VPC configuration - create VPC if missing to avoid discovery failures
 create_vpc_if_missing = true
-existing_vpc_name     = ""  # fallback to create
+existing_vpc_name     = "" # fallback to create
 vpc_cidr              = "10.2.0.0/16"
-public_subnet_cidrs   = []  # auto-calc 3 AZs
-private_subnet_cidrs  = []  # auto-calc 3 AZs
+public_subnet_cidrs   = [] # auto-calc 3 AZs
+private_subnet_cidrs  = [] # auto-calc 3 AZs
 
 # Route53 management
 manage_route53 = true

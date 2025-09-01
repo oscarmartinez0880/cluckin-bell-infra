@@ -61,13 +61,20 @@ This repository contains Terraform infrastructure as code for Cluckin Bell Phase
 ├── envs/                     # Environment-specific infrastructure  
 │   ├── nonprod/              # All nonprod resources (account 264765154707)
 │   └── prod/                 # Prod resources (account 346746763840)
-├── modules_new/              # Reusable Terraform modules
-│   ├── vpc/                  # VPC with 3-AZ subnets, single NAT
+├── modules/                     # Reusable Terraform modules
+│   ├── vpc/                  # VPC with 3-AZ subnets, NAT gateways (single or multi)
 │   ├── eks/                  # EKS cluster with configurable node groups
-│   ├── route53_zone/         # Hosted zones with delegation support
-│   ├── acm/                  # ACM certificates with DNS validation
-│   ├── ecr/                  # ECR repository with lifecycle policy
+│   ├── dns-certs/            # Combined Route53 zones and ACM certificates
+│   ├── ecr/                  # ECR repositories with lifecycle policies
 │   ├── irsa/                 # IRSA roles for service accounts
+│   ├── cognito/              # Cognito user pools and clients
+│   ├── secrets/              # AWS Secrets Manager with generated passwords
+│   ├── wafv2/                # WAF WebACL with managed and custom rules
+│   ├── github-oidc/          # GitHub Actions OIDC provider and roles
+│   ├── monitoring/           # CloudWatch logs, metrics, alarms, and Container Insights
+│   ├── k8s-controllers/      # Kubernetes controllers (ALB, external-dns, etc.)
+│   ├── argocd/               # ArgoCD GitOps setup
+│   └── ...
 │   ├── cognito/              # Cognito user pools and clients
 │   ├── github_oidc/          # GitHub OIDC provider and roles
 │   ├── cloudwatch/           # CloudWatch log groups

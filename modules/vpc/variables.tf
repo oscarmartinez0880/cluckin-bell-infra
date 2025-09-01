@@ -27,6 +27,12 @@ variable "enable_nat_gateway" {
   default     = true
 }
 
+variable "single_nat_gateway" {
+  description = "Should be true to provision a single shared NAT Gateway across all private networks (cost optimization)"
+  type        = bool
+  default     = false
+}
+
 variable "enable_vpc_endpoints" {
   description = "Should be true if you want to provision VPC endpoints"
   type        = bool
