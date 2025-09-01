@@ -36,7 +36,7 @@ provider "kubernetes" {
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = concat(
+    args = concat(
       ["eks", "get-token", "--cluster-name", module.eks.cluster_name],
       var.aws_profile != "" ? ["--profile", var.aws_profile] : []
     )
@@ -51,7 +51,7 @@ provider "helm" {
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
-      args        = concat(
+      args = concat(
         ["eks", "get-token", "--cluster-name", module.eks.cluster_name],
         var.aws_profile != "" ? ["--profile", var.aws_profile] : []
       )
@@ -152,10 +152,9 @@ data "aws_subnets" "existing_public" {
   }
 }
 
-# Conditional VPC creation: only if create_vpc_if_missing is true
-# The actual creation will be skipped if an existing VPC is found
+# Conditional VPC creation: only if create_vpc_if_missing is true AND no existing VPC is found
 module "vpc" {
-  count = var.create_vpc_if_missing ? 1 : 0
+  count = var.create_vpc_if_missing && length(data.aws_vpcs.existing.ids) == 0 ? 1 : 0
 
   source = "./modules_new/vpc"
 
@@ -580,7 +579,7 @@ module "k8s_controllers" {
   # Configuration
   letsencrypt_email = var.letsencrypt_email
   domain_filter     = var.environment == "prod" ? "cluckn-bell.com" : "${var.environment}.cluckn-bell.com"
-  zone_id_filters   = var.manage_route53 ? [aws_route53_zone.public[0].zone_id, aws_route53_zone.private[0].zone_id] : []
+  zone_id_filters   = var.manage_route53 && length(aws_route53_zone.public) > 0 && length(aws_route53_zone.private) > 0 ? [aws_route53_zone.public[0].zone_id, aws_route53_zone.private[0].zone_id] : []
 
   # Argo CD configuration
   argocd_version              = var.argocd_version
