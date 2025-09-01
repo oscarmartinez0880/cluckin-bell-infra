@@ -1,0 +1,214 @@
+# Example: Explicit Provider Configuration for k8s-controllers Module
+#
+# This example demonstrates how to explicitly configure kubernetes and helm providers
+# and map them into the k8s-controllers module for advanced use cases like:
+# - Multi-cluster deployments
+# - Custom provider configurations  
+# - Cross-account cluster access
+# - Different authentication methods
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.20"
+    }
+  }
+}
+
+# Data sources to get EKS cluster connection information
+data "aws_eks_cluster" "devqa" {
+  name = "cb-devqa-use1"
+}
+
+data "aws_eks_cluster_auth" "devqa" {
+  name = "cb-devqa-use1"
+}
+
+data "aws_eks_cluster" "prod" {
+  name = "cb-prod-use1"
+}
+
+data "aws_eks_cluster_auth" "prod" {
+  name = "cb-prod-use1"
+}
+
+# Provider configurations for different clusters
+
+# DevQA cluster providers
+provider "kubernetes" {
+  alias = "devqa"
+  
+  host                   = data.aws_eks_cluster.devqa.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.devqa.token
+}
+
+provider "helm" {
+  alias = "devqa"
+  
+  kubernetes {
+    host                   = data.aws_eks_cluster.devqa.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.devqa.token
+  }
+}
+
+# Production cluster providers (different account)
+provider "kubernetes" {
+  alias = "prod"
+  
+  host                   = data.aws_eks_cluster.prod.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.prod.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.prod.token
+}
+
+provider "helm" {
+  alias = "prod"
+  
+  kubernetes {
+    host                   = data.aws_eks_cluster.prod.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.prod.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.prod.token
+  }
+}
+
+# Example: DevQA cluster k8s-controllers with explicit provider mapping
+module "k8s_controllers_devqa" {
+  source = "../../modules/k8s-controllers"
+  
+  # Map the aliased providers to override the module's default providers
+  providers = {
+    kubernetes = kubernetes.devqa
+    helm       = helm.devqa
+  }
+
+  cluster_name = "cb-devqa-use1"
+  environment  = "devqa"
+  aws_region   = "us-east-1"
+  vpc_id       = "vpc-12345678"
+
+  # Enable controllers
+  enable_aws_load_balancer_controller = true
+  enable_cert_manager                 = true
+  enable_external_dns                 = true
+
+  # IRSA role ARNs (DevQA account)
+  aws_load_balancer_controller_role_arn = "arn:aws:iam::123456789012:role/cb-devqa-alb-controller"
+  cert_manager_role_arn                 = "arn:aws:iam::123456789012:role/cb-devqa-cert-manager"
+  external_dns_role_arn                 = "arn:aws:iam::123456789012:role/cb-devqa-external-dns"
+
+  # DevQA-specific configuration: empty domain filter, use zone ID filters
+  letsencrypt_email = "devops@cluckin-bell.com"
+  domain_filter     = ""
+  zone_id_filters = [
+    "Z2FDTNDATAQYW2",  # dev.cluckin-bell.com
+    "Z3G5CAV3H4YUZ3"   # qa.cluckin-bell.com
+  ]
+}
+
+# Example: Production cluster k8s-controllers with explicit provider mapping
+module "k8s_controllers_prod" {
+  source = "../../modules/k8s-controllers"
+  
+  # Map the aliased providers to override the module's default providers
+  providers = {
+    kubernetes = kubernetes.prod
+    helm       = helm.prod
+  }
+
+  cluster_name = "cb-prod-use1"
+  environment  = "prod"
+  aws_region   = "us-east-1"
+  vpc_id       = "vpc-87654321"
+
+  # Enable controllers
+  enable_aws_load_balancer_controller = true
+  enable_cert_manager                 = true
+  enable_external_dns                 = true
+
+  # IRSA role ARNs (Production account)
+  aws_load_balancer_controller_role_arn = "arn:aws:iam::987654321098:role/cb-prod-alb-controller"
+  cert_manager_role_arn                 = "arn:aws:iam::987654321098:role/cb-prod-cert-manager"
+  external_dns_role_arn                 = "arn:aws:iam::987654321098:role/cb-prod-external-dns"
+
+  # Production configuration: specific domain filter
+  letsencrypt_email = "devops@cluckin-bell.com"
+  domain_filter     = "cluckin-bell.com"
+  zone_id_filters   = ["Z1D633PJN98FT9"]  # cluckin-bell.com zone
+}
+
+# Alternative provider configuration examples
+
+# Example: Using exec plugin for AWS authentication
+provider "kubernetes" {
+  alias = "exec_auth"
+  
+  host                   = data.aws_eks_cluster.devqa.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
+  
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args = ["eks", "get-token", "--cluster-name", data.aws_eks_cluster.devqa.name]
+  }
+}
+
+# Example: Cross-region cluster access
+data "aws_eks_cluster" "west" {
+  provider = aws.west
+  name     = "cb-prod-usw2"
+}
+
+data "aws_eks_cluster_auth" "west" {
+  provider = aws.west
+  name     = "cb-prod-usw2"
+}
+
+provider "kubernetes" {
+  alias = "west"
+  
+  host                   = data.aws_eks_cluster.west.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.west.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.west.token
+}
+
+# Example: Using assume role for cross-account access
+provider "aws" {
+  alias  = "prod_account"
+  region = "us-east-1"
+  
+  assume_role {
+    role_arn = "arn:aws:iam::987654321098:role/CrossAccountTerraformRole"
+  }
+}
+
+# Usage Notes:
+#
+# 1. When to use explicit provider configuration:
+#    - Multi-cluster deployments in the same Terraform state
+#    - Cross-account cluster management
+#    - Custom authentication methods (exec plugin, assume role)
+#    - Different AWS regions or endpoints
+#
+# 2. Benefits of explicit provider mapping:
+#    - Full control over authentication and connection parameters
+#    - Ability to manage multiple clusters simultaneously
+#    - Support for complex authentication scenarios
+#    - Clear separation of concerns between clusters
+#
+# 3. Deployment workflow with explicit providers:
+#    terraform init
+#    terraform plan
+#    terraform apply
+#
+# 4. The module's default providers (from providers.tf) will be ignored
+#    when explicit provider mapping is used via the "providers" argument.

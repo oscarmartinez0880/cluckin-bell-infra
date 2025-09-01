@@ -10,8 +10,8 @@ aws_profile = "cluckin-bell-qa-admin"
 create_vpc_if_missing = true
 existing_vpc_name     = ""
 vpc_cidr              = "10.0.0.0/16"
-public_subnet_cidrs   = []  # auto-calc 3 AZs
-private_subnet_cidrs  = []  # auto-calc 3 AZs
+public_subnet_cidrs   = [] # auto-calc 3 AZs
+private_subnet_cidrs  = [] # auto-calc 3 AZs
 
 # Route53 management
 manage_route53 = true
