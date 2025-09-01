@@ -1,4 +1,4 @@
-# Variables used by envs/nonprod when loading devqa.tfvars via -var-file
+# Additional variables used by envs/prod when loading prod.tfvars via -var-file
 variable "environment" {
   description = "Environment name"
   type        = string
@@ -28,7 +28,7 @@ variable "existing_vpc_name" {
 
 variable "vpc_cidr" {
   type    = string
-  default = "10.0.0.0/16"
+  default = "10.2.0.0/16"
 }
 
 variable "public_subnet_cidrs" {
@@ -71,7 +71,7 @@ variable "enable_argocd" {
   default = true
 }
 
-# Node groups (declared for completeness; wire into modules as needed)
+# Node/ECR knobs in prod if you choose to use them later
 variable "linux_node_instance_types" {
   type    = list(string)
   default = ["m5.large", "m5.xlarge"]
@@ -112,7 +112,6 @@ variable "windows_node_desired_size" {
   default = 2
 }
 
-# ECR
 variable "ecr_retain_untagged_days" {
   type    = number
   default = 10
@@ -127,4 +126,14 @@ variable "ecr_repositories" {
     "sauce-gateway",
     "clucker-notify"
   ]
+}
+
+variable "dev_zone_name_servers" {
+  description = "Name servers for dev.cluckn-bell.com zone (from nonprod account)"
+  type        = list(string)
+}
+
+variable "qa_zone_name_servers" {
+  description = "Name servers for qa.cluckn-bell.com zone (from nonprod account)"
+  type        = list(string)
 }
