@@ -27,9 +27,8 @@ data "aws_region" "current" {}
 
 locals {
   common_tags = {
-    Application = "cluckn-bell"
+    Project     = "cluckin-bell"
     Environment = "nonprod"
-    Owner       = "oscarmartinez0880"
     ManagedBy   = "terraform"
   }
 }

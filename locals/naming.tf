@@ -86,14 +86,11 @@ locals {
 
   # Standard tags to be applied to all resources
   common_tags = {
-    Project   = local.project
-    Env       = var.environment
-    ManagedBy = "terraform"
-    Region    = local.region
+    Project     = local.project
+    Environment = var.environment
+    ManagedBy   = "terraform"
   }
 
-  # Environment-specific tags
-  tags = merge(local.common_tags, {
-    Environment = var.environment
-  })
+  # Environment-specific tags (same as common_tags for consistency)
+  tags = local.common_tags
 }

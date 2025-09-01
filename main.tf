@@ -266,12 +266,9 @@ module "eks" {
       most_recent              = true
       before_compute           = true
       service_account_role_arn = module.vpc_cni_irsa.iam_role_arn
-      configuration_values = jsonencode({
-        env = {
-          # Enable Windows support in VPC CNI
-          ENABLE_WINDOWS_IPAM = "true"
-        }
-      })
+      # TODO: For Windows support, implement Windows CNI/IPAM via Helm/manifests
+      # instead of managed add-on env vars as ENABLE_WINDOWS_IPAM is not supported
+      # in the EKS CreateAddon API schema
     }
     eks-pod-identity-agent = {
       most_recent = true

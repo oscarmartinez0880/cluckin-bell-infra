@@ -508,6 +508,47 @@ terraform force-unlock <lock-id>
 
 3. Check DNS01 challenge permissions for Route 53
 
+### Issue: EKS VPC CNI Addon Invalid Configuration
+
+**Symptoms**: Terraform apply fails with "InvalidParameterException" when creating vpc-cni addon
+
+**Cause**: Using unsupported `configuration_values` with env keys like `ENABLE_WINDOWS_IPAM`
+
+**Solution**:
+```bash
+# Remove invalid configuration_values from vpc-cni addon configuration
+# For Windows support, use Helm charts or DaemonSets instead of managed addon env vars
+```
+
+**Note**: The EKS CreateAddon API only supports specific configuration schema. Environment variables like `ENABLE_WINDOWS_IPAM` are not part of the supported vpc-cni addon configuration.
+
+### Issue: IAM Role Creation Duplicate Tag Keys
+
+**Symptoms**: Terraform fails with duplicate tag key errors during IAM role creation
+
+**Cause**: AWS treats tag keys as case-insensitive (e.g., "Project" and "project" are considered duplicates)
+
+**Solutions**:
+1. **Standardize tag keys**: Use consistent TitleCase for all tag keys:
+   ```hcl
+   tags = {
+     Project     = "cluckin-bell"
+     Environment = "prod"
+     ManagedBy   = "terraform"
+   }
+   ```
+
+2. **Avoid Name in common tags**: Don't include `Name` in shared tag maps as many modules add it automatically
+
+3. **Use terraform plan without -target**: Always run full plan/apply to avoid drift:
+   ```bash
+   # Don't use -target for routine deployments
+   terraform plan  # Not: terraform plan -target=module.eks
+   terraform apply
+   ```
+
+**Prevention**: Use the standardized tag structure from `locals/naming.tf` across all environments.
+
 ## Monitoring and Alerting
 
 ### CloudWatch Integration
