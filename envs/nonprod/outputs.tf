@@ -41,19 +41,9 @@ output "public_zone_id" {
   value       = module.dns_certs.public_zone_id
 }
 
-output "private_zone_id" {
-  description = "Private Route53 zone ID"
-  value       = module.dns_certs.private_zone_id
-}
-
 output "public_zone_name_servers" {
   description = "Public zone name servers"
   value       = module.dns_certs.public_zone_name_servers
-}
-
-output "certificate_arns" {
-  description = "Map of certificate ARNs"
-  value       = module.dns_certs.certificate_arns
 }
 
 # ECR Outputs
