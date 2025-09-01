@@ -35,15 +35,15 @@ resource "aws_route53_zone" "private" {
 # Output the hosted zone information for external-dns and cert-manager
 output "public_zone_id" {
   description = "Route53 public hosted zone ID for cluckn-bell.com"
-  value       = var.manage_route53 ? aws_route53_zone.public[0].zone_id : null
+  value       = var.manage_route53 && length(aws_route53_zone.public) > 0 ? aws_route53_zone.public[0].zone_id : null
 }
 
 output "public_zone_name_servers" {
   description = "Name servers for the public hosted zone"
-  value       = var.manage_route53 ? aws_route53_zone.public[0].name_servers : null
+  value       = var.manage_route53 && length(aws_route53_zone.public) > 0 ? aws_route53_zone.public[0].name_servers : null
 }
 
 output "private_zone_id" {
   description = "Route53 private hosted zone ID for cluckn-bell.com"
-  value       = var.manage_route53 ? aws_route53_zone.private[0].zone_id : null
+  value       = var.manage_route53 && length(aws_route53_zone.private) > 0 ? aws_route53_zone.private[0].zone_id : null
 }

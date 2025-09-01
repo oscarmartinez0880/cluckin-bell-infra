@@ -14,7 +14,7 @@ variable "aws_region" {
 }
 
 variable "aws_profile" {
-  description = "AWS CLI profile to use for authentication"
+  description = "AWS profile to use for authentication (for SSO profiles like cluckin-bell-qa or cluckin-bell-prod)"
   type        = string
   default     = ""
 }
@@ -22,7 +22,7 @@ variable "aws_profile" {
 variable "kubernetes_version" {
   description = "Kubernetes version for EKS cluster"
   type        = string
-  default     = "1.29"
+  default     = "1.30"
 }
 
 # Linux node group variables
