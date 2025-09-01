@@ -131,6 +131,21 @@ output "domains" {
   }
 }
 
+# Route53 outputs
+output "public_hosted_zone_id" {
+  description = "Route53 public hosted zone ID for cluckn-bell.com"
+  value       = aws_route53_zone.public[0].zone_id
+}
+
+output "public_hosted_zone_name_servers" {
+  description = "Name servers for the public hosted zone"
+  value       = aws_route53_zone.public[0].name_servers
+}
+
+output "private_hosted_zone_id" {
+  description = "Route53 private hosted zone ID for cluckn-bell.com"
+  value       = aws_route53_zone.private[0].zone_id
+}
 # Argo CD outputs
 output "argocd_url" {
   description = "Argo CD server URL"
@@ -167,7 +182,6 @@ output "argocd_repo_server_role_arn" {
   description = "ARN of the Argo CD repo-server IRSA role"
   value       = module.argocd_repo_server_irsa.iam_role_arn
 }
-
 # TODO: Add outputs for your infrastructure resources
 # Examples:
 
