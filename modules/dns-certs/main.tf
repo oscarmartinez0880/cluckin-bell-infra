@@ -14,8 +14,8 @@ data "aws_route53_zone" "existing_public" {
 }
 
 data "aws_route53_zone" "existing_private" {
-  count   = var.private_zone.create ? 0 : (var.private_zone.zone_id != null ? 0 : 1)
-  name    = var.private_zone.name
+  count = var.private_zone.create ? 0 : (var.private_zone.zone_id != null ? 0 : 1)
+  name  = var.private_zone.name
 }
 
 # Public Route53 Zone (create or reference existing)
