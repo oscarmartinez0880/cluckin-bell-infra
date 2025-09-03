@@ -19,7 +19,11 @@ terraform {
     }
   }
 
-  backend "s3" {}
+  backend "s3" {
+    bucket = "cluckn-bell-tfstate-nonprod"
+    key    = "nonprod/terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 provider "aws" {

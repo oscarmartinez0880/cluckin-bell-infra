@@ -4,26 +4,95 @@ This document describes the organizational structure, account layout, and enviro
 
 ## Running Terraform (SSO)
 
-- Dev/QA (shared cluster in account 264765154707)
-  - aws sso login --profile cluckin-bell-qa
-  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod init
-  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod plan  -var-file=devqa.tfvars
-  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod apply -var-file=devqa.tfvars
+### Simplified Workflow
 
-- Prod (account 346746763840)
-  - aws sso login --profile cluckin-bell-prod
-  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod init
-  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod plan  -var-file=prod.tfvars
-  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod apply -var-file=prod.tfvars
+Each environment now supports running `terraform` commands directly in the environment directory without extra flags:
+
+- **Nonprod** (shared cluster in account 264765154707)
+  ```bash
+  aws sso login --profile cluckin-bell-qa
+  cd envs/nonprod
+  AWS_PROFILE=cluckin-bell-qa terraform init -upgrade
+  AWS_PROFILE=cluckin-bell-qa terraform apply
+  ```
+
+- **Prod** (account 346746763840)
+  ```bash
+  aws sso login --profile cluckin-bell-prod
+  cd envs/prod
+  AWS_PROFILE=cluckin-bell-prod terraform init -upgrade
+  AWS_PROFILE=cluckin-bell-prod terraform apply
+  ```
+
+### direnv Convenience (Linux/macOS)
+
+For even simpler workflows, install and configure [direnv](https://direnv.net/):
+
+```bash
+# Install direnv (Ubuntu/Debian)
+sudo apt install direnv
+
+# Install direnv (macOS)
+brew install direnv
+
+# Add to your shell profile (~/.bashrc, ~/.zshrc, etc.)
+eval "$(direnv hook bash)"  # for bash
+eval "$(direnv hook zsh)"   # for zsh
+```
+
+With direnv enabled, simply `cd` into an environment directory and run terraform directly:
+
+```bash
+# Nonprod
+cd envs/nonprod   # direnv automatically sets AWS_PROFILE=cluckin-bell-qa
+terraform init -upgrade
+terraform apply
+
+# Prod  
+cd envs/prod      # direnv automatically sets AWS_PROFILE=cluckin-bell-prod
+terraform init -upgrade
+terraform apply
+```
+
+### Windows Users
+
+Windows users can set the environment variable in PowerShell:
+
+```powershell
+# Nonprod
+$env:AWS_PROFILE='cluckin-bell-qa'
+cd envs/nonprod
+terraform init -upgrade
+terraform apply
+
+# Prod
+$env:AWS_PROFILE='cluckin-bell-prod'
+cd envs/prod
+terraform init -upgrade
+terraform apply
+```
+
+Alternatively, enable direnv in WSL (Windows Subsystem for Linux) for the same convenience as Linux/macOS.
+
+### How It Works
+
+- **Backend configuration**: S3 backend settings are now embedded in each environment's `main.tf`
+- **Auto-loaded variables**: Each environment has a `.auto.tfvars` file that loads automatically
+- **AWS Profile**: Backend honors `AWS_PROFILE` environment variable (no need to set `profile` in backend config)
 
 First-time bootstrap for a new cluster (two-phase apply):
 ```bash
-terraform -chdir=envs/nonprod apply -target=module.eks -var-file=devqa.tfvars
+cd envs/nonprod && terraform apply -target=module.eks
+cd envs/prod && terraform apply -target=module.eks
 ```
 
-Note: The top-level tfvars/ directory has been removed. Each environment now has a single tfvars file in its folder:
-- envs/nonprod/devqa.tfvars
-- envs/prod/prod.tfvars
+### File Structure
+
+Each environment maintains both original and auto-loaded variable files:
+- envs/nonprod/devqa.tfvars (original, kept for reference)
+- envs/nonprod/nonprod.auto.tfvars (auto-loaded copy)
+- envs/prod/prod.tfvars (original, kept for reference)  
+- envs/prod/prod.auto.tfvars (auto-loaded copy)
 
 **Requirements**: Terraform >= 1.13.1 and Kubernetes 1.30
 
@@ -269,22 +338,28 @@ All resources include consistent tags:
 
 ## Running Terraform (SSO)
 
-- Dev/QA (shared cluster in account 264765154707)
-  - aws sso login --profile cluckin-bell-qa
-  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod init
-  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod plan
-  - AWS_PROFILE=cluckin-bell-qa terraform -chdir=envs/nonprod apply
+### Simplified Commands
 
-- Prod (account 346746763840)
-  - aws sso login --profile cluckin-bell-prod
-  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod init
-  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod plan
-  - AWS_PROFILE=cluckin-bell-prod terraform -chdir=envs/prod apply
+- **Nonprod** (shared cluster in account 264765154707)
+  ```bash
+  aws sso login --profile cluckin-bell-qa
+  cd envs/nonprod
+  AWS_PROFILE=cluckin-bell-qa terraform init -upgrade
+  AWS_PROFILE=cluckin-bell-qa terraform apply
+  ```
+
+- **Prod** (account 346746763840)
+  ```bash
+  aws sso login --profile cluckin-bell-prod
+  cd envs/prod  
+  AWS_PROFILE=cluckin-bell-prod terraform init -upgrade
+  AWS_PROFILE=cluckin-bell-prod terraform apply
+  ```
 
 First-time bootstrap for a new cluster (two-phase apply):
 ```bash
-terraform -chdir=envs/nonprod apply -target=module.eks
-terraform -chdir=envs/prod apply -target=module.eks
+cd envs/nonprod && terraform apply -target=module.eks
+cd envs/prod && terraform apply -target=module.eks
 ```
 
-Note: Top-level tfvars/ has been removed. Each environment stack now has a single terraform.tfvars in its folder to keep configuration in one place and avoid duplication.
+**Note**: Backend configuration and variable files are now embedded in each environment, making commands OS-agnostic. The `.envrc` files provide optional direnv convenience for Linux/macOS users.
