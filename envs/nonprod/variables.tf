@@ -1,4 +1,4 @@
-# Variables used by envs/nonprod when loading devqa.tfvars via -var-file
+# Variables used by envs/nonprod when loading nonprod.tfvars via -var-file
 variable "environment" {
   description = "Environment name"
   type        = string

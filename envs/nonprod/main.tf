@@ -110,8 +110,11 @@ module "dns_certs_qa" {
     name    = "cluckn-bell.com"
     create  = false
     vpc_id  = module.vpc.vpc_id
-    zone_id = module.dns_certs_dev.private_zone_id
+    zone_id = null
   }
+
+  # Use the private zone ID from dns_certs_dev
+  existing_private_zone_id = module.dns_certs_dev.private_zone_id
 
   certificates = {
     qa_wildcard = {
@@ -122,6 +125,8 @@ module "dns_certs_qa" {
   }
 
   tags = local.common_tags
+  
+  depends_on = [module.dns_certs_dev]
 }
 
 # ECR Repository

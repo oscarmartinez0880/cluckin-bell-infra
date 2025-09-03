@@ -1,26 +1,32 @@
 output "public_zone_id" {
   description = "Public Route53 zone ID"
-  value       = var.public_zone.create ? aws_route53_zone.public[0].zone_id : data.aws_route53_zone.existing_public[0].zone_id
+  value       = local.public_zone_id
 }
 
 output "private_zone_id" {
   description = "Private Route53 zone ID"
-  value       = var.private_zone.create ? aws_route53_zone.private[0].zone_id : (var.private_zone.zone_id != null ? var.private_zone.zone_id : data.aws_route53_zone.existing_private[0].zone_id)
+  value       = local.private_zone_id
 }
 
 output "public_zone_name_servers" {
   description = "Public zone name servers"
-  value       = var.public_zone.create ? aws_route53_zone.public[0].name_servers : data.aws_route53_zone.existing_public[0].name_servers
+  value       = var.public_zone.create ? aws_route53_zone.public[0].name_servers : (
+    length(data.aws_route53_zone.existing_public) > 0 ? data.aws_route53_zone.existing_public[0].name_servers : []
+  )
 }
 
 output "public_zone_name" {
   description = "Public zone name"
-  value       = var.public_zone.create ? aws_route53_zone.public[0].name : data.aws_route53_zone.existing_public[0].name
+  value       = var.public_zone.create ? aws_route53_zone.public[0].name : (
+    length(data.aws_route53_zone.existing_public) > 0 ? data.aws_route53_zone.existing_public[0].name : var.public_zone.name
+  )
 }
 
 output "private_zone_name" {
   description = "Private zone name"
-  value       = var.private_zone.create ? aws_route53_zone.private[0].name : data.aws_route53_zone.existing_private[0].name
+  value       = var.private_zone.create ? aws_route53_zone.private[0].name : (
+    length(data.aws_route53_zone.existing_private) > 0 ? data.aws_route53_zone.existing_private[0].name : var.private_zone.name
+  )
 }
 
 output "certificate_arns" {
