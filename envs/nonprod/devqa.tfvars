@@ -15,12 +15,9 @@ manage_route53 = true
 # Public and Private Route53 zones for devqa
 public_zone = {
   create = false
-  name   = "dev.cluckn-bell.com."
+  name   = ["dev.cluckn-bell.com.", "qa.cluckn-bell.com."]
 }
-public_zone = {
-  create = false
-  name   = "qa.cluckn-bell.com."
-}
+
 
 private_zone = {
   create = false
