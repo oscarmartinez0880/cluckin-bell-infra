@@ -30,6 +30,12 @@ resource "aws_eks_cluster" "main" {
     public_access_cidrs     = var.public_access_cidrs
   }
 
+  # Enable EKS Access Management API so aws_eks_access_entry works
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
   enabled_cluster_log_types = var.cluster_log_types
 
   encryption_config {

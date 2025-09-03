@@ -96,8 +96,9 @@ resource "aws_acm_certificate" "main" {
     create_before_destroy = true
   }
 
+  # Sanitize Name tag to avoid invalid '*' in wildcard domains
   tags = merge(var.tags, {
-    Name = each.value.domain_name
+    Name = replace(each.value.domain_name, "*.", "wildcard-")
   })
 }
 
