@@ -14,8 +14,8 @@ data "aws_route53_zone" "existing_public" {
 }
 
 data "aws_route53_zone" "existing_private" {
-  count = var.private_zone.create ? 0 : 1
-  name  = var.private_zone.name
+  count   = var.private_zone.create ? 0 : (var.private_zone.zone_id != null ? 0 : 1)
+  name    = var.private_zone.name
 }
 
 # Public Route53 Zone (create or reference existing)
@@ -84,7 +84,7 @@ locals {
         name     = dvo.resource_record_name
         record   = dvo.resource_record_value
         type     = dvo.resource_record_type
-        zone_id  = cert.use_private_zone ? (var.private_zone.create ? aws_route53_zone.private[0].zone_id : data.aws_route53_zone.existing_private[0].zone_id) : (var.public_zone.create ? aws_route53_zone.public[0].zone_id : data.aws_route53_zone.existing_public[0].zone_id)
+        zone_id  = cert.use_private_zone ? (var.private_zone.create ? aws_route53_zone.private[0].zone_id : (var.private_zone.zone_id != null ? var.private_zone.zone_id : data.aws_route53_zone.existing_private[0].zone_id)) : (var.public_zone.create ? aws_route53_zone.public[0].zone_id : data.aws_route53_zone.existing_public[0].zone_id)
       }
     }
   ]...)
