@@ -1,2 +1,0 @@
-# Optional: grant cluster-admin to the Dev/QA SSO Admin role in shared dev/qa cluster
-sso_admin_role_arn = "arn:aws:iam::264765154707:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdminAccess-Bootstrap_f590cd8336ea48d9"

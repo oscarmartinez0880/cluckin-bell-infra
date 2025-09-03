@@ -78,9 +78,10 @@ module "dns_certs_dev" {
 
   # Create a single private zone for the cluster in QA
   private_zone = {
-    name   = "cluckn-bell.com"
-    create = true
-    vpc_id = module.vpc.vpc_id
+    name    = "cluckn-bell.com"
+    create  = true
+    vpc_id  = module.vpc.vpc_id
+    zone_id = null
   }
 
   certificates = {

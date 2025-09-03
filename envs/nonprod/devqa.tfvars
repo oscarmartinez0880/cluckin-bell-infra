@@ -18,12 +18,12 @@ public_zone = {
   name   = ["dev.cluckn-bell.com.", "qa.cluckn-bell.com."]
 }
 
-
 private_zone = {
   create = false
   name   = "cluckn-bell.com."
   vpc_id = "vpc-0749517f2c92924a5" # Set this to your VPC ID if needed, or leave empty if handled elsewhere
 }
+
 # EKS configuration
 kubernetes_version = "1.30"
 
@@ -54,5 +54,5 @@ ecr_repositories = [
   "clucker-notify"
 ]
 
-# Optional: grant cluster-admin to the Dev/QA SSO Admin role
+# SSO Admin role - grant cluster-admin to the Dev/QA SSO Admin role in shared dev/qa cluster
 sso_admin_role_arn = "arn:aws:iam::264765154707:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdminAccess-Bootstrap_f590cd8336ea48d9"
