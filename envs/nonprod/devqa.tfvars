@@ -12,7 +12,21 @@ private_subnet_cidrs  = [] # auto-calc 3 AZs
 
 # Route53 management
 manage_route53 = true
+# Public and Private Route53 zones for devqa
+public_zone = {
+  create = false
+  name   = "dev.cluckn-bell.com."
+}
+public_zone = {
+  create = false
+  name   = "qa.cluckn-bell.com."
+}
 
+private_zone = {
+  create = false
+  name   = "cluckn-bell.com."
+  vpc_id = "vpc-0749517f2c92924a5" # Set this to your VPC ID if needed, or leave empty if handled elsewhere
+}
 # EKS configuration
 kubernetes_version = "1.30"
 
