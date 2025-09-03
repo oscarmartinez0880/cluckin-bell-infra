@@ -9,7 +9,7 @@ This document provides an overview of all available Terraform modules in the `mo
 | Module | Purpose | Key Variables | Provider Requirements |
 |--------|---------|---------------|----------------------|
 | `vpc` | Creates VPC with public/private subnets, NAT gateways, and VPC endpoints | `name`, `vpc_cidr`, `public_subnet_cidrs`, `private_subnet_cidrs`, `single_nat_gateway` | AWS ~> 5.0 |
-| `eks` | Creates EKS cluster with node groups, add-ons, and OIDC provider | `cluster_name`, `kubernetes_version`, `subnet_ids`, `node_groups` | AWS ~> 5.0 |
+| `eks` | Creates EKS cluster with node groups, add-ons, and OIDC provider | `cluster_name`, `cluster_version`, `subnet_ids`, `node_groups` | AWS ~> 5.0 |
 | `ecr` | Creates ECR repositories with lifecycle policies and cross-account access | `repository_names`, `image_tag_mutability`, `enable_lifecycle_policy` | AWS ~> 5.0 |
 | `rds` | Creates RDS instances with encryption and backup configuration | `db_name`, `engine`, `instance_class`, `allocated_storage` | AWS ~> 5.0 |
 | `elasticache` | Creates ElastiCache clusters for Redis/Memcached | `cluster_id`, `engine`, `node_type`, `num_cache_nodes` | AWS ~> 5.0 |
@@ -105,7 +105,7 @@ module "eks" {
   source = "./modules/eks"
   
   cluster_name       = "cluckn-bell-nonprod"
-  kubernetes_version = "1.30"
+  cluster_version    = "1.30"
   subnet_ids         = module.vpc.private_subnet_ids
   
   node_groups = {

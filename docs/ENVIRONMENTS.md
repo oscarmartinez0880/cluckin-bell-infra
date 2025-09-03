@@ -336,6 +336,72 @@ All resources include consistent tags:
 - **Secrets Management**: AWS Secrets Manager for sensitive data
 - **Network Security**: Security groups with least privilege access
 
+## EKS Cluster Version Management
+
+### Important Note: Fixed kubernetes_version Issue
+As of this update, the EKS module now properly honors the `cluster_version` variable (default 1.30) instead of the deprecated `kubernetes_version` variable (which defaulted to 1.28). This ensures the cluster is created with the intended Kubernetes version.
+
+### Upgrading Existing Clusters
+
+If you have an existing EKS cluster running Kubernetes 1.28, you have two options:
+
+#### Option 1: In-Place Sequential Upgrade (Recommended for Production)
+
+Kubernetes requires sequential upgrades between minor versions. To upgrade from 1.28 to 1.30:
+
+```bash
+# Step 1: Upgrade to 1.29
+cd envs/nonprod
+# Temporarily modify main.tf: cluster_version = "1.29"
+AWS_PROFILE=cluckin-bell-qa terraform apply
+
+# Wait for upgrade to complete (5-10 minutes)
+kubectl get nodes  # Verify cluster is healthy
+
+# Step 2: Upgrade to 1.30
+# Modify main.tf: cluster_version = "1.30"
+AWS_PROFILE=cluckin-bell-qa terraform apply
+```
+
+#### Option 2: Full Cluster Recreate (Nonprod Only)
+
+For nonprod environments where downtime is acceptable:
+
+```bash
+# WARNING: This will destroy and recreate the cluster
+cd envs/nonprod
+AWS_PROFILE=cluckin-bell-qa terraform destroy -target=module.eks
+AWS_PROFILE=cluckin-bell-qa terraform apply -target=module.eks
+
+# Then apply the full configuration
+AWS_PROFILE=cluckin-bell-qa terraform apply
+```
+
+### Dev/QA Environment Separation in Shared Cluster
+
+The nonprod environment uses a single EKS cluster with the following separation strategies:
+
+#### Namespace Isolation
+- **Dev applications**: Deploy to `cluckin-bell-dev` namespace
+- **QA applications**: Deploy to `cluckin-bell-qa` namespace
+- **Platform components**: Shared in `kube-system`, `cluckin-bell`, etc.
+
+#### DNS and Certificate Separation
+- **Dev**: `*.dev.cluckn-bell.com` domain with dedicated Route53 zone
+- **QA**: `*.qa.cluckn-bell.com` domain with dedicated Route53 zone
+- **Internal**: Shared private zone `cluckn-bell.com` for cluster-internal services
+
+#### IRSA and Secrets Separation
+- **IRSA roles**: Environment-specific roles (e.g., `external-dns-dev`, `external-dns-qa`)
+- **Secrets paths**: `/cluckn-bell/nonprod/*/dev/` and `/cluckn-bell/nonprod/*/qa/`
+
+#### Optional Future Enhancements
+If additional isolation is required, consider implementing:
+- **NetworkPolicies**: Restrict pod-to-pod communication between namespaces
+- **Resource Quotas**: Limit resource consumption per environment
+- **Pod Security Standards**: Environment-specific security policies
+- **Separate node groups**: Dedicated nodes per environment
+
 ## Running Terraform (SSO)
 
 ### Simplified Commands
