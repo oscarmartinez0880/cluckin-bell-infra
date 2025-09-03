@@ -118,7 +118,7 @@ module "dns_certs_qa" {
   }
 
   # Use the private zone ID from dns_certs_dev
-  existing_private_zone_id = module.dns_certs_dev.private_zone_id
+  #existing_private_zone_id = module.dns_certs_dev.private_zone_id
 
   certificates = {
     qa_wildcard = {
