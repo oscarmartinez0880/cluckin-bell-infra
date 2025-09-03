@@ -9,9 +9,10 @@ variable "public_zone" {
 variable "private_zone" {
   description = "Configuration for private Route53 zone"
   type = object({
-    name   = string
-    create = bool
-    vpc_id = string
+    name    = string
+    create  = bool
+    vpc_id  = string
+    zone_id = optional(string, null)
   })
 }
 

@@ -5,7 +5,7 @@ output "public_zone_id" {
 
 output "private_zone_id" {
   description = "Private Route53 zone ID"
-  value       = var.private_zone.create ? aws_route53_zone.private[0].zone_id : data.aws_route53_zone.existing_private[0].zone_id
+  value       = var.private_zone.create ? aws_route53_zone.private[0].zone_id : (var.private_zone.zone_id != null ? var.private_zone.zone_id : data.aws_route53_zone.existing_private[0].zone_id)
 }
 
 output "public_zone_name_servers" {

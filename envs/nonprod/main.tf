@@ -9,6 +9,14 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0"
+    }
   }
 
   backend "s3" {}
@@ -70,9 +78,10 @@ module "dns_certs_dev" {
 
   # Create a single private zone for the cluster in QA
   private_zone = {
-    name   = "cluckn-bell.com"
-    create = true
-    vpc_id = module.vpc.vpc_id
+    name    = "cluckn-bell.com"
+    create  = true
+    vpc_id  = module.vpc.vpc_id
+    zone_id = null
   }
 
   certificates = {
@@ -98,9 +107,10 @@ module "dns_certs_qa" {
 
   # Reuse the same private zone created above
   private_zone = {
-    name   = "cluckn-bell.com"
-    create = false
-    vpc_id = module.vpc.vpc_id
+    name    = "cluckn-bell.com"
+    create  = false
+    vpc_id  = module.vpc.vpc_id
+    zone_id = module.dns_certs_dev.private_zone_id
   }
 
   certificates = {

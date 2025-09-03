@@ -9,6 +9,14 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.0"
+    }
   }
 
   backend "s3" {}
@@ -43,9 +51,10 @@ module "dns_certs" {
   }
 
   private_zone = {
-    name   = "cluckn-bell.com"
-    create = true
-    vpc_id = module.vpc.vpc_id
+    name    = "cluckn-bell.com"
+    create  = true
+    vpc_id  = module.vpc.vpc_id
+    zone_id = null
   }
 
   # Add NS delegations for dev and qa subdomains from nonprod account
