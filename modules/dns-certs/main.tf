@@ -9,13 +9,15 @@ terraform {
 
 # Data sources
 data "aws_route53_zone" "existing_public" {
-  count = var.public_zone.create ? 0 : 1
-  name  = var.public_zone.name
+  count        = var.public_zone.create ? 0 : 1
+  name         = var.public_zone.name
+  private_zone = false
 }
 
 data "aws_route53_zone" "existing_private" {
-  count = var.private_zone.create ? 0 : (var.private_zone.zone_id != null ? 0 : 1)
-  name  = var.private_zone.name
+  count        = var.private_zone.create ? 0 : (var.existing_private_zone_id != "" ? 0 : 1)
+  name         = var.private_zone.name
+  private_zone = true
 }
 
 # Public Route53 Zone (create or reference existing)
@@ -44,11 +46,37 @@ resource "aws_route53_zone" "private" {
   })
 }
 
+# Zone ID locals and certificate validation records
+locals {
+  # Zone ID locals - select IDs in this order: created resource → provided ID (for private) → data lookup
+  public_zone_id = var.public_zone.create ? aws_route53_zone.public[0].zone_id : data.aws_route53_zone.existing_public[0].zone_id
+  
+  private_zone_id = var.private_zone.create ? aws_route53_zone.private[0].zone_id : (
+    var.existing_private_zone_id != "" ? var.existing_private_zone_id : (
+      var.private_zone.zone_id != null ? var.private_zone.zone_id : data.aws_route53_zone.existing_private[0].zone_id
+    )
+  )
+
+  # Flatten certificate validation options
+  certificate_validation_records = merge([
+    for cert_key, cert in var.certificates : {
+      for dvo in aws_acm_certificate.main[cert_key].domain_validation_options :
+      "${cert_key}-${dvo.domain_name}" => {
+        cert_key = cert_key
+        name     = dvo.resource_record_name
+        record   = dvo.resource_record_value
+        type     = dvo.resource_record_type
+        zone_id  = cert.use_private_zone ? local.private_zone_id : local.public_zone_id
+      }
+    }
+  ]...)
+}
+
 # Subdomain delegation records in public zone
 resource "aws_route53_record" "subdomain_ns" {
   for_each = var.subdomain_zones
 
-  zone_id = var.public_zone.create ? aws_route53_zone.public[0].zone_id : data.aws_route53_zone.existing_public[0].zone_id
+  zone_id = local.public_zone_id
   name    = each.key
   type    = "NS"
   ttl     = 300
@@ -71,23 +99,6 @@ resource "aws_acm_certificate" "main" {
   tags = merge(var.tags, {
     Name = each.value.domain_name
   })
-}
-
-# Route53 records for DNS validation  
-locals {
-  # Flatten certificate validation options
-  certificate_validation_records = merge([
-    for cert_key, cert in var.certificates : {
-      for dvo in aws_acm_certificate.main[cert_key].domain_validation_options :
-      "${cert_key}-${dvo.domain_name}" => {
-        cert_key = cert_key
-        name     = dvo.resource_record_name
-        record   = dvo.resource_record_value
-        type     = dvo.resource_record_type
-        zone_id  = cert.use_private_zone ? (var.private_zone.create ? aws_route53_zone.private[0].zone_id : (var.private_zone.zone_id != null ? var.private_zone.zone_id : data.aws_route53_zone.existing_private[0].zone_id)) : (var.public_zone.create ? aws_route53_zone.public[0].zone_id : data.aws_route53_zone.existing_public[0].zone_id)
-      }
-    }
-  ]...)
 }
 
 resource "aws_route53_record" "validation" {

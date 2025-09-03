@@ -16,6 +16,12 @@ variable "private_zone" {
   })
 }
 
+variable "existing_private_zone_id" {
+  description = "Existing private hosted zone ID (preferred over name-based lookup)"
+  type        = string
+  default     = ""
+}
+
 variable "subdomain_zones" {
   description = "Map of subdomain names to their NS records for delegation"
   type        = map(list(string))
