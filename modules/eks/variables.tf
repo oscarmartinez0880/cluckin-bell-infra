@@ -3,11 +3,12 @@ variable "cluster_name" {
   type        = string
 }
 
-variable "kubernetes_version" {
-  description = "Kubernetes version"
-  type        = string
-  default     = "1.28"
-}
+# DEPRECATED: Use cluster_version instead
+# variable "kubernetes_version" {
+#   description = "DEPRECATED: Use cluster_version instead. This variable is no longer used."
+#   type        = string
+#   default     = "1.28"
+# }
 
 variable "cluster_version" {
   description = "Kubernetes/EKS control plane version"
