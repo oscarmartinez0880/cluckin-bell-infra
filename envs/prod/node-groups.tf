@@ -1,35 +1,29 @@
-# EKS Node Groups Configuration - Production Environment
-# This file creates explicit node groups for production environment
-
-# Production Environment Node Group
 resource "aws_eks_node_group" "prod" {
-  cluster_name    = module.eks.cluster_name
+  cluster_name    = module.eks_prod.cluster_name
   node_group_name = "prod"
-  node_role_arn   = module.eks.node_group_role_arn
-  subnet_ids      = local.private_subnet_ids
-
-  capacity_type  = "ON_DEMAND"
-  instance_types = var.prod_node_group_instance_types
+  node_role_arn   = aws_iam_role.eks_node_group.arn
+  subnet_ids      = var.private_subnet_ids
 
   scaling_config {
-    desired_size = var.prod_node_group_desired_size
-    max_size     = var.prod_node_group_max_size
-    min_size     = var.prod_node_group_min_size
+    min_size     = var.prod_node_group_sizes.min
+    desired_size = var.prod_node_group_sizes.desired
+    max_size     = var.prod_node_group_sizes.max
   }
 
-  update_config {
-    max_unavailable = 1
-  }
+  instance_types = var.prod_node_group_instance_types
+  capacity_type  = "ON_DEMAND"
 
-  labels = {
+  labels = { env = "prod" }
+
+  tags = {
+    Name        = "prod-ng"
     Environment = "prod"
-    NodeGroup   = "prod"
+    Project     = "cluckin-bell"
   }
 
-  tags = merge(local.common_tags, {
-    Name        = "${local.cluster_name}-prod-node-group"
-    Environment = "prod"
-  })
+  depends_on = [module.eks_prod, aws_iam_role.eks_node_group]
+}
 
-  depends_on = [module.eks]
+output "prod_node_group" {
+  value = aws_eks_node_group.prod.node_group_name
 }

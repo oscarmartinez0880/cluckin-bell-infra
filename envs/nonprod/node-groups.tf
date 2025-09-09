@@ -1,68 +1,58 @@
-# EKS Node Groups Configuration - Nonprod Environment
-# This file creates explicit node groups for dev and qa environments
-
-# Dev Environment Node Group
 resource "aws_eks_node_group" "dev" {
-  cluster_name    = module.eks.cluster_name
+  cluster_name    = module.eks_nonprod.cluster_name
   node_group_name = "dev"
-  node_role_arn   = module.eks.node_group_role_arn
-  subnet_ids      = local.private_subnet_ids
-
-  capacity_type  = "ON_DEMAND"
-  instance_types = var.dev_node_group_instance_types
+  node_role_arn   = aws_iam_role.eks_node_group.arn
+  subnet_ids      = var.private_subnet_ids
 
   scaling_config {
-    desired_size = var.dev_node_group_desired_size
-    max_size     = var.dev_node_group_max_size
-    min_size     = var.dev_node_group_min_size
+    min_size     = var.dev_node_group_sizes.min
+    desired_size = var.dev_node_group_sizes.desired
+    max_size     = var.dev_node_group_sizes.max
   }
 
-  update_config {
-    max_unavailable = 1
-  }
+  instance_types = var.dev_node_group_instance_types
+  capacity_type  = "ON_DEMAND"
 
-  labels = {
+  labels = { env = "dev" }
+
+  tags = {
+    Name        = "nonprod-dev-ng"
     Environment = "dev"
-    NodeGroup   = "dev"
+    Project     = "cluckin-bell"
   }
 
-  tags = merge(local.common_tags, {
-    Name        = "${local.cluster_name}-dev-node-group"
-    Environment = "dev"
-  })
-
-  depends_on = [module.eks]
+  depends_on = [module.eks_nonprod, aws_iam_role.eks_node_group]
 }
 
-# QA Environment Node Group
 resource "aws_eks_node_group" "qa" {
-  cluster_name    = module.eks.cluster_name
+  cluster_name    = module.eks_nonprod.cluster_name
   node_group_name = "qa"
-  node_role_arn   = module.eks.node_group_role_arn
-  subnet_ids      = local.private_subnet_ids
-
-  capacity_type  = "ON_DEMAND"
-  instance_types = var.qa_node_group_instance_types
+  node_role_arn   = aws_iam_role.eks_node_group.arn
+  subnet_ids      = var.private_subnet_ids
 
   scaling_config {
-    desired_size = var.qa_node_group_desired_size
-    max_size     = var.qa_node_group_max_size
-    min_size     = var.qa_node_group_min_size
+    min_size     = var.qa_node_group_sizes.min
+    desired_size = var.qa_node_group_sizes.desired
+    max_size     = var.qa_node_group_sizes.max
   }
 
-  update_config {
-    max_unavailable = 1
-  }
+  instance_types = var.qa_node_group_instance_types
+  capacity_type  = "ON_DEMAND"
 
-  labels = {
+  labels = { env = "qa" }
+
+  tags = {
+    Name        = "nonprod-qa-ng"
     Environment = "qa"
-    NodeGroup   = "qa"
+    Project     = "cluckin-bell"
   }
 
-  tags = merge(local.common_tags, {
-    Name        = "${local.cluster_name}-qa-node-group"
-    Environment = "qa"
-  })
+  depends_on = [module.eks_nonprod, aws_iam_role.eks_node_group]
+}
 
-  depends_on = [module.eks]
+output "nonprod_node_groups" {
+  value = {
+    dev = aws_eks_node_group.dev.node_group_name
+    qa  = aws_eks_node_group.qa.node_group_name
+  }
 }
