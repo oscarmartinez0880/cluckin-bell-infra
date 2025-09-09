@@ -202,25 +202,13 @@ variable "public_access_cidrs" {
 
 # Node Group Configuration - Production Environment
 variable "prod_node_group_instance_types" {
-  description = "Instance types for prod node group"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.small"]  # was t3.medium
+  description = "Instance types for prod node group (lowest viable for HA)"
 }
 
-variable "prod_node_group_min_size" {
-  description = "Minimum size for prod node group"
-  type        = number
-  default     = 2
-}
-
-variable "prod_node_group_max_size" {
-  description = "Maximum size for prod node group"
-  type        = number
-  default     = 5
-}
-
-variable "prod_node_group_desired_size" {
-  description = "Desired size for prod node group"
-  type        = number
-  default     = 3
+variable "prod_node_group_sizes" {
+  type = object({ min = number, desired = number, max = number })
+  # Keep HA with min=2 desired=2; modest max
+  default = { min = 2, desired = 2, max = 4 }
 }

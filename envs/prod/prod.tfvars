@@ -14,7 +14,7 @@ private_subnet_cidrs  = [] # auto-calc 3 AZs
 manage_route53 = true
 
 # EKS configuration
-kubernetes_version = "1.30"
+kubernetes_version = "1.34"
 
 # Controllers
 enable_aws_load_balancer_controller = true
@@ -58,4 +58,5 @@ cluster_name = "cluckn-bell-prod"
 cluster_log_retention_days = 90
 public_access_cidrs = ["0.0.0.0/0"] # TODO: tighten
 
-prod_node_group_instance_types = ["t3.medium"]
+prod_node_group_instance_types = ["t3.small"]
+prod_node_group_sizes          = { min = 2, desired = 2, max = 4 }

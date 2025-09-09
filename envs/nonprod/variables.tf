@@ -170,48 +170,22 @@ variable "public_access_cidrs" {
 variable "dev_node_group_instance_types" {
   description = "Instance types for dev node group"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.small"]
 }
 
-variable "dev_node_group_min_size" {
-  description = "Minimum size for dev node group"
-  type        = number
-  default     = 1
-}
-
-variable "dev_node_group_max_size" {
-  description = "Maximum size for dev node group"
-  type        = number
-  default     = 3
-}
-
-variable "dev_node_group_desired_size" {
-  description = "Desired size for dev node group"
-  type        = number
-  default     = 2
+variable "dev_node_group_sizes" {
+  type = object({ min = number, desired = number, max = number })
+  default = { min = 1, desired = 1, max = 2 }  # reduced desired/max
 }
 
 # Node Group Configuration - QA Environment
 variable "qa_node_group_instance_types" {
   description = "Instance types for qa node group"
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.small"]
 }
 
-variable "qa_node_group_min_size" {
-  description = "Minimum size for qa node group"
-  type        = number
-  default     = 1
-}
-
-variable "qa_node_group_max_size" {
-  description = "Maximum size for qa node group"
-  type        = number
-  default     = 3
-}
-
-variable "qa_node_group_desired_size" {
-  description = "Desired size for qa node group"
-  type        = number
-  default     = 2
+variable "qa_node_group_sizes" {
+  type = object({ min = number, desired = number, max = number })
+  default = { min = 1, desired = 1, max = 2 }
 }

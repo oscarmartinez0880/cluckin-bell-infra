@@ -14,18 +14,7 @@ private_subnet_cidrs  = [] # auto-calc 3 AZs
 manage_route53 = true
 
 # EKS configuration
-kubernetes_version = "1.30"
-
-# Node groups (nonprod defaults)
-linux_node_instance_types = ["m5.large", "m5.xlarge"]
-linux_node_min_size       = 1
-linux_node_max_size       = 5
-linux_node_desired_size   = 2
-
-windows_node_instance_types = ["m5.2xlarge"]
-windows_node_min_size       = 1
-windows_node_max_size       = 6
-windows_node_desired_size   = 2
+kubernetes_version = "1.34"
 
 # Controllers
 enable_aws_load_balancer_controller = true
@@ -63,5 +52,8 @@ cluster_log_retention_days = 30
 public_access_cidrs = ["0.0.0.0/0"] # TODO: tighten
 
 # Node group overrides (optional)
-dev_node_group_instance_types = ["t3.medium"]
-qa_node_group_instance_types  = ["t3.medium"]
+dev_node_group_instance_types = ["t3.small"]
+qa_node_group_instance_types  = ["t3.small"]
+
+dev_node_group_sizes = { min = 1, desired = 1, max = 2 }
+qa_node_group_sizes  = { min = 1, desired = 1, max = 2 }
