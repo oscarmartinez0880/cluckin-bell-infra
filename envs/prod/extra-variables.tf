@@ -137,3 +137,28 @@ variable "qa_zone_name_servers" {
   description = "Name servers for qa.cluckn-bell.com zone (from nonprod account)"
   type        = list(string)
 }
+
+# Route53 zone configuration variables for production
+variable "create_public_zone" {
+  description = "Whether to create the public Route53 zone for cluckn-bell.com"
+  type        = bool
+  default     = true
+}
+
+variable "create_internal_zone" {
+  description = "Whether to create the internal private Route53 zone for internal.cluckn-bell.com"
+  type        = bool
+  default     = true
+}
+
+variable "internal_zone_name" {
+  description = "Name for the internal private Route53 zone"
+  type        = string
+  default     = "internal.cluckn-bell.com"
+}
+
+variable "public_zone_name" {
+  description = "Name for the public Route53 zone"
+  type        = string
+  default     = "cluckn-bell.com"
+}

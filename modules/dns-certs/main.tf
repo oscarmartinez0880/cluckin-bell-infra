@@ -25,6 +25,8 @@ resource "aws_route53_zone" "public" {
   count = var.public_zone.create ? 1 : 0
   name  = var.public_zone.name
 
+  force_destroy = false # Prevent accidental deletion with records
+
   tags = merge(var.tags, {
     Name = var.public_zone.name
     Type = "public"
@@ -35,6 +37,8 @@ resource "aws_route53_zone" "public" {
 resource "aws_route53_zone" "private" {
   count = var.private_zone.create ? 1 : 0
   name  = var.private_zone.name
+
+  force_destroy = false # Prevent accidental deletion with records
 
   vpc {
     vpc_id = var.private_zone.vpc_id

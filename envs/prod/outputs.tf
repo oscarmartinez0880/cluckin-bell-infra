@@ -37,17 +37,33 @@ output "cluster_oidc_issuer_url" {
 
 # DNS and Certificate Outputs
 output "public_zone_id" {
-  description = "Public Route53 zone ID for cluckn-bell.com"
+  description = "Route53 public hosted zone ID for cluckn-bell.com"
   value       = module.dns_certs.public_zone_id
 }
 
 output "public_zone_name_servers" {
-  description = "Name servers for cluckn-bell.com"
+  description = "Name servers for the public hosted zone cluckn-bell.com"
   value       = module.dns_certs.public_zone_name_servers
 }
 
+output "public_zone_name" {
+  description = "Public Route53 zone name"
+  value       = module.dns_certs.public_zone_name
+}
+
+output "internal_zone_id" {
+  description = "Route53 private hosted zone ID for internal.cluckn-bell.com"
+  value       = module.dns_certs.private_zone_id
+}
+
+output "internal_zone_name" {
+  description = "Internal private Route53 zone name"
+  value       = module.dns_certs.private_zone_name
+}
+
+# Legacy output maintained for backward compatibility
 output "private_zone_id" {
-  description = "Private Route53 zone ID"
+  description = "Private Route53 zone ID (legacy - use internal_zone_id)"
   value       = module.dns_certs.private_zone_id
 }
 
