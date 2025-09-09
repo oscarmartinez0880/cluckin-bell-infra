@@ -1,0 +1,30 @@
+# Example terraform.tfvars for nonprod environment
+# Replace with actual VPC ID and subnet IDs for nonprod account
+
+aws_profile = "cluckin-bell-qa"
+region = "us-east-1"
+cluster_version = "1.30"
+
+# Replace with actual VPC ID
+vpc_id = "vpc-12345678"
+
+# Public subnets (tagged with kubernetes.io/role/elb)
+public_subnet_ids = [
+  "subnet-09a601564fef30599",  # us-east-1a
+  "subnet-0e428ee488b3accac",  # us-east-1b
+  "subnet-00205cdb6865588ac"   # us-east-1c
+]
+
+# Private subnets (tagged with kubernetes.io/role/internal-elb)  
+private_subnet_ids = [
+  "subnet-0d1a90b43e2855061",  # us-east-1a
+  "subnet-0e408dd3b79d3568b",  # us-east-1b
+  "subnet-00d5249fbe0695848"   # us-east-1c
+]
+
+tags = {
+  Project     = "cluckin-bell"
+  ManagedBy   = "Terraform"
+  CostCenter  = "platform"
+  Environment = "nonprod"
+}
