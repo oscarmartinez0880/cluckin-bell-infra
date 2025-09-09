@@ -46,17 +46,27 @@ locals {
 }
 
 # DNS and Certificates - Production
+#
+# Route53 Hosted Zone Configuration:
+# - Public Zone: cluckn-bell.com (internet-resolvable)
+# - Private Zone: internal.cluckn-bell.com (VPC-associated)
+#
+# Migration Plan for Existing Misnamed Private Zone:
+# 1. Apply new internal zone internal.cluckn-bell.com
+# 2. Add required internal records (A, CNAME, TXT) mirroring old private records
+# 3. Update application ingress hostnames to use *.internal.cluckn-bell.com
+# 4. After validation, remove the old private cluckn-bell.com zone in a separate PR
 module "dns_certs" {
   source = "../../modules/dns-certs"
 
   public_zone = {
-    name   = "cluckn-bell.com"
-    create = true
+    name   = var.public_zone_name
+    create = var.create_public_zone
   }
 
   private_zone = {
-    name    = "cluckn-bell.com"
-    create  = true
+    name    = var.internal_zone_name
+    create  = var.create_internal_zone
     vpc_id  = module.vpc.vpc_id
     zone_id = null
   }
@@ -75,7 +85,10 @@ module "dns_certs" {
     }
   }
 
-  tags = local.common_tags
+  tags = merge(local.common_tags, {
+    Managed = "Terraform"
+    Service = "dns"
+  })
 }
 
 # VPC
