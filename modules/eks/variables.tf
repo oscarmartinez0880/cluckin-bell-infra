@@ -127,6 +127,12 @@ variable "enable_github_actions_role" {
   default     = false
 }
 
+variable "create_default_node_group" {
+  description = "Whether to create the built-in default managed node group"
+  type        = bool                                                       
+  default     = true                                                      
+}
+
 variable "github_oidc_provider_arn" {
   description = "ARN of the GitHub OIDC provider"
   type        = string

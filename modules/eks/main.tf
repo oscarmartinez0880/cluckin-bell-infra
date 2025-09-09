@@ -78,11 +78,39 @@ resource "aws_cloudwatch_log_group" "cluster" {
 }
 
 # EKS Node Group
+# IAM Role for default node group (optional)
+resource "aws_iam_role" "node_group" {
+  count = var.create_default_node_group ? 1 : 0
+  name               = "${var.cluster_name}-node-group-role"
+  assume_role_policy = data.aws_iam_policy_document.node_group_assume_role.json
+  tags = merge(var.tags, { Component = "default-ng-role" })
+}
+
+resource "aws_iam_role_policy_attachment" "node_group_AmazonEKSWorkerNodePolicy" {
+  count      = var.create_default_node_group ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.node_group[0].name
+}
+
+resource "aws_iam_role_policy_attachment" "node_group_AmazonEKS_CNI_Policy" {
+  count      = var.create_default_node_group ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.node_group[0].name
+}
+
+resource "aws_iam_role_policy_attachment" "node_group_AmazonEC2ContainerRegistryReadOnly" {
+  count      = var.create_default_node_group ? 1 : 0
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.node_group[0].name
+}
+
+# Default (optional) Node Group
 resource "aws_eks_node_group" "main" {
-  cluster_name    = aws_eks_cluster.main.name
+  count          = var.create_default_node_group ? 1 : 0
+  cluster_name   = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-ng"
-  node_role_arn   = aws_iam_role.node_group.arn
-  subnet_ids      = var.private_subnet_ids
+  node_role_arn  = aws_iam_role.node_group[0].arn
+  subnet_ids     = var.private_subnet_ids
 
   capacity_type  = var.capacity_type
   instance_types = var.instance_types
@@ -97,18 +125,22 @@ resource "aws_eks_node_group" "main" {
     max_unavailable = var.max_unavailable
   }
 
-  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
-  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
     aws_iam_role_policy_attachment.node_group_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.node_group_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.node_group_AmazonEC2ContainerRegistryReadOnly,
+    aws_eks_cluster.main, 
   ]
 
   tags = var.tags
 }
 
-# EKS Add-ons
+# Local to drive addon dependency (cluster alone if default NG disabled)
+locals { # NEW
+  addon_dependency = var.create_default_node_group ? [aws_eks_node_group.main[0]] : [aws_eks_cluster.main] # NEW
+} # NEW
+
+# EKS Add-ons (update depends_on to use local.addon_dependency)
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name                = aws_eks_cluster.main.name
   addon_name                  = "vpc-cni"
@@ -117,9 +149,8 @@ resource "aws_eks_addon" "vpc_cni" {
   resolve_conflicts_on_update = "OVERWRITE"
   service_account_role_arn    = aws_iam_role.vpc_cni.arn
 
-  depends_on = [aws_eks_node_group.main]
-
-  tags = var.tags
+  depends_on = local.addon_dependency                               # CHANGED
+  tags       = var.tags
 }
 
 resource "aws_eks_addon" "coredns" {
@@ -129,9 +160,8 @@ resource "aws_eks_addon" "coredns" {
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
-  depends_on = [aws_eks_node_group.main]
-
-  tags = var.tags
+  depends_on = local.addon_dependency
+  tags       = var.tags
 }
 
 resource "aws_eks_addon" "kube_proxy" {
@@ -141,9 +171,8 @@ resource "aws_eks_addon" "kube_proxy" {
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
-  depends_on = [aws_eks_node_group.main]
-
-  tags = var.tags
+  depends_on = local.addon_dependency
+  tags       = var.tags
 }
 
 resource "aws_eks_addon" "ebs_csi_driver" {
@@ -154,7 +183,6 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   resolve_conflicts_on_update = "OVERWRITE"
   service_account_role_arn    = aws_iam_role.ebs_csi.arn
 
-  depends_on = [aws_eks_node_group.main]
-
-  tags = var.tags
+  depends_on = local.addon_dependency                               
+  tags       = var.tags
 }
