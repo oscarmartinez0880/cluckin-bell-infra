@@ -67,7 +67,7 @@ module "dns_certs" {
   private_zone = {
     name    = var.internal_zone_name
     create  = var.create_internal_zone
-    vpc_id  = module.vpc.vpc_id
+    vpc_id  = local.vpc_id
     zone_id = null
   }
 
@@ -90,31 +90,6 @@ module "dns_certs" {
     Service = "dns"
   })
 }
-
-# VPC
-module "vpc" {
-  source = "../../modules/vpc"
-
-  name                 = "cluckn-bell-prod"
-  vpc_cidr             = "10.1.0.0/16"
-  public_subnet_cidrs  = ["10.1.1.0/24", "10.1.2.0/24", "10.1.3.0/24"]
-  private_subnet_cidrs = ["10.1.101.0/24", "10.1.102.0/24", "10.1.103.0/24"]
-
-  tags = local.common_tags
-}
-
-# EKS Cluster
-module "eks" {
-  source = "../../modules/eks"
-
-  cluster_name       = "cluckn-bell-prod"
-  cluster_version    = "1.30"
-  subnet_ids         = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
-  private_subnet_ids = module.vpc.private_subnet_ids
-
-  tags = local.common_tags
-}
-
 
 # ECR Repository (shared)
 module "ecr" {

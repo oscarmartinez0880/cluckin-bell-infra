@@ -128,3 +128,90 @@ variable "ecr_repositories" {
     "clucker-notify"
   ]
 }
+
+# EKS Cluster Configuration - Existing VPC/Subnet Reuse
+variable "existing_vpc_id" {
+  description = "ID of existing VPC to reuse for EKS cluster"
+  type        = string
+  default     = ""
+}
+
+variable "public_subnet_ids" {
+  description = "List of existing public subnet IDs to reuse"
+  type        = list(string)
+  default     = []
+}
+
+variable "private_subnet_ids" {
+  description = "List of existing private subnet IDs to reuse"
+  type        = list(string)
+  default     = []
+}
+
+variable "cluster_name" {
+  description = "Override for EKS cluster name"
+  type        = string
+  default     = ""
+}
+
+variable "cluster_log_retention_days" {
+  description = "CloudWatch log group retention in days for EKS cluster"
+  type        = number
+  default     = 30
+}
+
+variable "public_access_cidrs" {
+  description = "List of CIDR blocks for public access to the EKS cluster endpoint"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+# Node Group Configuration - Dev Environment
+variable "dev_node_group_instance_types" {
+  description = "Instance types for dev node group"
+  type        = list(string)
+  default     = ["t3.medium"]
+}
+
+variable "dev_node_group_min_size" {
+  description = "Minimum size for dev node group"
+  type        = number
+  default     = 1
+}
+
+variable "dev_node_group_max_size" {
+  description = "Maximum size for dev node group"
+  type        = number
+  default     = 3
+}
+
+variable "dev_node_group_desired_size" {
+  description = "Desired size for dev node group"
+  type        = number
+  default     = 2
+}
+
+# Node Group Configuration - QA Environment
+variable "qa_node_group_instance_types" {
+  description = "Instance types for qa node group"
+  type        = list(string)
+  default     = ["t3.medium"]
+}
+
+variable "qa_node_group_min_size" {
+  description = "Minimum size for qa node group"
+  type        = number
+  default     = 1
+}
+
+variable "qa_node_group_max_size" {
+  description = "Maximum size for qa node group"
+  type        = number
+  default     = 3
+}
+
+variable "qa_node_group_desired_size" {
+  description = "Desired size for qa node group"
+  type        = number
+  default     = 2
+}

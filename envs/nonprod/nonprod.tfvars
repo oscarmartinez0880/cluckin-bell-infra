@@ -45,3 +45,23 @@ ecr_repositories = [
 
 # SSO Admin role - grant cluster-admin to the Dev/QA SSO Admin role in shared dev/qa cluster
 sso_admin_role_arn = "arn:aws:iam::264765154707:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdminAccess-Bootstrap_f590cd8336ea48d9"
+
+# Existing VPC/Subnets reuse
+existing_vpc_id = "vpc-0749517f2c92924a5"
+public_subnet_ids = [
+  "subnet-09a601564fef30599",
+  "subnet-0e428ee488b3accac",
+  "subnet-00205cdb6865588ac"
+]
+private_subnet_ids = [
+  "subnet-0d1a90b43e2855061",
+  "subnet-0e408dd3b79d3568b",
+  "subnet-00d5249fbe0695848"
+]
+cluster_name = "cluckn-bell-nonprod"
+cluster_log_retention_days = 30
+public_access_cidrs = ["0.0.0.0/0"] # TODO: tighten
+
+# Node group overrides (optional)
+dev_node_group_instance_types = ["t3.medium"]
+qa_node_group_instance_types  = ["t3.medium"]

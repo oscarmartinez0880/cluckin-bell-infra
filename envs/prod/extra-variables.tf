@@ -162,3 +162,65 @@ variable "public_zone_name" {
   type        = string
   default     = "cluckn-bell.com"
 }
+
+# EKS Cluster Configuration - Existing VPC/Subnet Reuse
+variable "existing_vpc_id" {
+  description = "ID of existing VPC to reuse for EKS cluster"
+  type        = string
+  default     = ""
+}
+
+variable "public_subnet_ids" {
+  description = "List of existing public subnet IDs to reuse"
+  type        = list(string)
+  default     = []
+}
+
+variable "private_subnet_ids" {
+  description = "List of existing private subnet IDs to reuse"
+  type        = list(string)
+  default     = []
+}
+
+variable "cluster_name" {
+  description = "Override for EKS cluster name"
+  type        = string
+  default     = ""
+}
+
+variable "cluster_log_retention_days" {
+  description = "CloudWatch log group retention in days for EKS cluster"
+  type        = number
+  default     = 90
+}
+
+variable "public_access_cidrs" {
+  description = "List of CIDR blocks for public access to the EKS cluster endpoint"
+  type        = list(string)
+  default     = ["0.0.0.0/0"]
+}
+
+# Node Group Configuration - Production Environment
+variable "prod_node_group_instance_types" {
+  description = "Instance types for prod node group"
+  type        = list(string)
+  default     = ["t3.medium"]
+}
+
+variable "prod_node_group_min_size" {
+  description = "Minimum size for prod node group"
+  type        = number
+  default     = 2
+}
+
+variable "prod_node_group_max_size" {
+  description = "Maximum size for prod node group"
+  type        = number
+  default     = 5
+}
+
+variable "prod_node_group_desired_size" {
+  description = "Desired size for prod node group"
+  type        = number
+  default     = 3
+}
