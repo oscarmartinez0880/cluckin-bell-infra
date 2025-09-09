@@ -72,3 +72,8 @@ output "kms_key_id" {
   description = "ID of the KMS key used for EKS encryption"
   value       = aws_kms_key.eks.key_id
 }
+
+output "node_group_role_arn" {
+  description = "ARN of the EKS node group IAM role"
+  value       = aws_iam_role.node_group.arn
+}

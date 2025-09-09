@@ -45,31 +45,6 @@ locals {
   }
 }
 
-# VPC
-module "vpc" {
-  source = "../../modules/vpc"
-
-  name                 = "cluckn-bell-nonprod"
-  vpc_cidr             = "10.0.0.0/16"
-  public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  private_subnet_cidrs = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
-  //single_nat_gateway   = true # Cost optimization for nonprod
-
-  tags = local.common_tags
-}
-
-# EKS Cluster
-module "eks" {
-  source = "../../modules/eks"
-
-  cluster_name       = "cluckn-bell-nonprod"
-  cluster_version    = "1.30"
-  subnet_ids         = concat(module.vpc.private_subnet_ids, module.vpc.public_subnet_ids)
-  private_subnet_ids = module.vpc.private_subnet_ids
-
-  tags = local.common_tags
-}
-
 # DNS and Certificates - Dev subdomain in QA account
 module "dns_certs_dev" {
   source = "../../modules/dns-certs"
@@ -84,7 +59,7 @@ module "dns_certs_dev" {
   private_zone = {
     name    = "cluckn-bell.com"
     create  = true
-    vpc_id  = module.vpc.vpc_id
+    vpc_id  = local.vpc_id
     zone_id = null
   }
 
@@ -113,7 +88,7 @@ module "dns_certs_qa" {
   private_zone = {
     name    = "cluckn-bell.com"
     create  = false
-    vpc_id  = module.vpc.vpc_id
+    vpc_id  = local.vpc_id
     zone_id = null
   }
 
