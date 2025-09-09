@@ -1,5 +1,6 @@
 # EKS Cluster Configuration
 # This file creates the EKS cluster using the unified network configuration
+# NEW: internal node group disabled so we use explicit node groups defined in node-groups.tf #
 
 module "eks" {
   source = "../../modules/eks"
@@ -13,10 +14,11 @@ module "eks" {
 
   # Node group configuration for default module node group
   # (We'll create additional explicit node groups in node-groups.tf)
-  instance_types = ["t3.medium"]
-  desired_size   = 1  # Minimal size for default node group
-  min_size       = 1
-  max_size       = 2
+  # instance_types removed from effect because sizes set to zero (left for clarity) #
+  instance_types = ["t3.medium"]           # (ignored because desired/min/max now 0) #
+  desired_size   = 0                       # CHANGED from 1 -> 0 #
+  min_size       = 0                       # CHANGED from 1 -> 0 #
+  max_size       = 0                       # CHANGED from 2 -> 0 #
 
   tags = local.common_tags
 

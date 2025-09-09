@@ -1,8 +1,9 @@
+# Explicit managed node group for prod cluster #
 resource "aws_eks_node_group" "prod" {
-  cluster_name    = module.eks_prod.cluster_name
+  cluster_name    = module.eks.cluster_name              # Ensure module name matches eks-cluster.tf #
   node_group_name = "prod"
-  node_role_arn   = aws_iam_role.eks_node_group.arn
-  subnet_ids      = var.private_subnet_ids
+  node_role_arn   = aws_iam_role.eks_node_group.arn      # Uses new IAM role #
+  subnet_ids      = local.private_subnet_ids
 
   scaling_config {
     min_size     = var.prod_node_group_sizes.min
@@ -15,13 +16,15 @@ resource "aws_eks_node_group" "prod" {
 
   labels = { env = "prod" }
 
-  tags = {
+  tags = merge(local.common_tags, {
     Name        = "prod-ng"
     Environment = "prod"
-    Project     = "cluckin-bell"
-  }
+  })
 
-  depends_on = [module.eks_prod, aws_iam_role.eks_node_group]
+  depends_on = [
+    module.eks,
+    aws_iam_role.eks_node_group
+  ]
 }
 
 output "prod_node_group" {
