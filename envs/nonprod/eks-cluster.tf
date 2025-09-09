@@ -8,9 +8,9 @@ module "eks" {
   public_access_cidrs                    = var.public_access_cidrs
   cloudwatch_log_group_retention_in_days = var.cluster_log_retention_days
 
-  create_default_node_group = false      # NEW - disables internal node group #
+  create_default_node_group = false # NEW - disables internal node group #
 
-  instance_types = ["t3.small"]         # (irrelevant now)
+  instance_types = ["t3.small"] # (irrelevant now)
   desired_size   = 0
   min_size       = 0
   max_size       = 0

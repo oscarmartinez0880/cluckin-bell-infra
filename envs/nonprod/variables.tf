@@ -174,8 +174,8 @@ variable "dev_node_group_instance_types" {
 }
 
 variable "dev_node_group_sizes" {
-  type = object({ min = number, desired = number, max = number })
-  default = { min = 1, desired = 1, max = 2 }  # reduced desired/max
+  type    = object({ min = number, desired = number, max = number })
+  default = { min = 1, desired = 1, max = 2 } # reduced desired/max
 }
 
 # Node Group Configuration - QA Environment
@@ -186,6 +186,6 @@ variable "qa_node_group_instance_types" {
 }
 
 variable "qa_node_group_sizes" {
-  type = object({ min = number, desired = number, max = number })
+  type    = object({ min = number, desired = number, max = number })
   default = { min = 1, desired = 1, max = 2 }
 }

@@ -104,7 +104,7 @@ module "dns_certs_qa" {
   }
 
   tags = local.common_tags
-  
+
   depends_on = [module.dns_certs_dev]
 }
 

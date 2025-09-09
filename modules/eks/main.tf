@@ -17,6 +17,19 @@ data "aws_availability_zones" "available" {
 
 data "aws_caller_identity" "current" {}
 
+# Data source for node group assume role policy
+data "aws_iam_policy_document" "node_group_assume_role" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    effect  = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
+
 # EKS Cluster
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
@@ -78,39 +91,14 @@ resource "aws_cloudwatch_log_group" "cluster" {
 }
 
 # EKS Node Group
-# IAM Role for default node group (optional)
-resource "aws_iam_role" "node_group" {
-  count = var.create_default_node_group ? 1 : 0
-  name               = "${var.cluster_name}-node-group-role"
-  assume_role_policy = data.aws_iam_policy_document.node_group_assume_role.json
-  tags = merge(var.tags, { Component = "default-ng-role" })
-}
-
-resource "aws_iam_role_policy_attachment" "node_group_AmazonEKSWorkerNodePolicy" {
-  count      = var.create_default_node_group ? 1 : 0
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.node_group[0].name
-}
-
-resource "aws_iam_role_policy_attachment" "node_group_AmazonEKS_CNI_Policy" {
-  count      = var.create_default_node_group ? 1 : 0
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.node_group[0].name
-}
-
-resource "aws_iam_role_policy_attachment" "node_group_AmazonEC2ContainerRegistryReadOnly" {
-  count      = var.create_default_node_group ? 1 : 0
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.node_group[0].name
-}
 
 # Default (optional) Node Group
 resource "aws_eks_node_group" "main" {
-  count          = var.create_default_node_group ? 1 : 0
-  cluster_name   = aws_eks_cluster.main.name
+  count           = var.create_default_node_group ? 1 : 0
+  cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-ng"
-  node_role_arn  = aws_iam_role.node_group[0].arn
-  subnet_ids     = var.private_subnet_ids
+  node_role_arn   = aws_iam_role.node_group[0].arn
+  subnet_ids      = var.private_subnet_ids
 
   capacity_type  = var.capacity_type
   instance_types = var.instance_types
@@ -129,18 +117,13 @@ resource "aws_eks_node_group" "main" {
     aws_iam_role_policy_attachment.node_group_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.node_group_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.node_group_AmazonEC2ContainerRegistryReadOnly,
-    aws_eks_cluster.main, 
+    aws_eks_cluster.main,
   ]
 
   tags = var.tags
 }
 
-# Local to drive addon dependency (cluster alone if default NG disabled)
-locals { # NEW
-  addon_dependency = var.create_default_node_group ? [aws_eks_node_group.main[0]] : [aws_eks_cluster.main] # NEW
-} # NEW
-
-# EKS Add-ons (update depends_on to use local.addon_dependency)
+# EKS Add-ons
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name                = aws_eks_cluster.main.name
   addon_name                  = "vpc-cni"
@@ -149,7 +132,7 @@ resource "aws_eks_addon" "vpc_cni" {
   resolve_conflicts_on_update = "OVERWRITE"
   service_account_role_arn    = aws_iam_role.vpc_cni.arn
 
-  depends_on = local.addon_dependency                               # CHANGED
+  depends_on = [aws_eks_cluster.main]
   tags       = var.tags
 }
 
@@ -160,7 +143,7 @@ resource "aws_eks_addon" "coredns" {
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
-  depends_on = local.addon_dependency
+  depends_on = [aws_eks_cluster.main]
   tags       = var.tags
 }
 
@@ -171,7 +154,7 @@ resource "aws_eks_addon" "kube_proxy" {
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
-  depends_on = local.addon_dependency
+  depends_on = [aws_eks_cluster.main]
   tags       = var.tags
 }
 
@@ -183,6 +166,6 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   resolve_conflicts_on_update = "OVERWRITE"
   service_account_role_arn    = aws_iam_role.ebs_csi.arn
 
-  depends_on = local.addon_dependency                               
+  depends_on = [aws_eks_cluster.main]
   tags       = var.tags
 }

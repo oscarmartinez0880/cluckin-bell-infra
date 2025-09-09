@@ -54,7 +54,7 @@ resource "aws_route53_zone" "private" {
 locals {
   # Zone ID locals - select IDs in this order: created resource → provided ID (for private) → data lookup
   public_zone_id = var.public_zone.create ? aws_route53_zone.public[0].zone_id : data.aws_route53_zone.existing_public[0].zone_id
-  
+
   private_zone_id = var.private_zone.create ? aws_route53_zone.private[0].zone_id : (
     var.existing_private_zone_id != "" ? var.existing_private_zone_id : (
       var.private_zone.zone_id != null ? var.private_zone.zone_id : data.aws_route53_zone.existing_private[0].zone_id

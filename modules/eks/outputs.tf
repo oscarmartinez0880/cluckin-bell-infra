@@ -35,12 +35,12 @@ output "cluster_security_group_id" {
 
 output "node_group_arn" {
   description = "EKS node group ARN"
-  value       = aws_eks_node_group.main.arn
+  value       = var.create_default_node_group ? aws_eks_node_group.main[0].arn : null
 }
 
 output "node_group_status" {
   description = "EKS node group status"
-  value       = aws_eks_node_group.main.status
+  value       = var.create_default_node_group ? aws_eks_node_group.main[0].status : null
 }
 
 output "oidc_issuer_url" {
@@ -75,5 +75,5 @@ output "kms_key_id" {
 
 output "node_group_role_arn" {
   description = "ARN of the EKS node group IAM role"
-  value       = aws_iam_role.node_group.arn
+  value       = var.create_default_node_group ? aws_iam_role.node_group[0].arn : null
 }
