@@ -203,7 +203,7 @@ variable "public_access_cidrs" {
 # Node Group Configuration - Production Environment
 variable "prod_node_group_instance_types" {
   type        = list(string)
-  default     = ["t3.small"]  # was t3.medium
+  default     = ["t3.small"] # was t3.medium
   description = "Instance types for prod node group (lowest viable for HA)"
 }
 

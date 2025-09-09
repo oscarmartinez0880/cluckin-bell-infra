@@ -47,9 +47,9 @@ private_subnet_ids = [
   "subnet-0e408dd3b79d3568b",
   "subnet-00d5249fbe0695848"
 ]
-cluster_name = "cluckn-bell-nonprod"
+cluster_name               = "cluckn-bell-nonprod"
 cluster_log_retention_days = 30
-public_access_cidrs = ["0.0.0.0/0"] # TODO: tighten
+public_access_cidrs        = ["0.0.0.0/0"] # TODO: tighten
 
 # Node group overrides (optional)
 dev_node_group_instance_types = ["t3.small"]

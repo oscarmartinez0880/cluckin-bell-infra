@@ -23,7 +23,8 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
 
 # EKS Node Group Service Role
 resource "aws_iam_role" "node_group" {
-  name = "${var.cluster_name}-node-group-role"
+  count = var.create_default_node_group ? 1 : 0
+  name  = "${var.cluster_name}-node-group-role"
 
   assume_role_policy = jsonencode({
     Statement = [{
@@ -40,18 +41,21 @@ resource "aws_iam_role" "node_group" {
 }
 
 resource "aws_iam_role_policy_attachment" "node_group_AmazonEKSWorkerNodePolicy" {
+  count      = var.create_default_node_group ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.node_group.name
+  role       = aws_iam_role.node_group[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "node_group_AmazonEKS_CNI_Policy" {
+  count      = var.create_default_node_group ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.node_group.name
+  role       = aws_iam_role.node_group[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "node_group_AmazonEC2ContainerRegistryReadOnly" {
+  count      = var.create_default_node_group ? 1 : 0
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.node_group.name
+  role       = aws_iam_role.node_group[0].name
 }
 
 # IRSA for VPC CNI
