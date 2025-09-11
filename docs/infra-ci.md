@@ -45,6 +45,14 @@ permissions:
    
    Note: The `var_file` parameter is no longer needed as each environment now has its own terraform.tfvars file.
 
+## GitHub Actions Application Roles
+
+For application-specific GitHub Actions (ECR access, SES notifications), see [GitHub Actions Roles Documentation](github-actions-roles.md) which covers:
+
+- ECR read roles for `cluckin-bell-app` repository
+- SES send roles for email notifications
+- Environment-scoped permissions and usage examples
+
 ## Notes
 
 - Kubernetes versions should remain ≥ 1.30; Terraform version is pinned to 1.13.1 in the workflow.

@@ -24,6 +24,16 @@ output "ecr_repository_urls" {
   }
 }
 
+output "ecr_read_role_arn" {
+  description = "ARN of the IAM role for GitHub Actions to read ECR tags for cluckin-bell-app in prod"
+  value       = aws_iam_role.ecr_read_cluckin_bell_app_prod.arn
+}
+
+output "ses_send_role_arn" {
+  description = "ARN of the IAM role for GitHub Actions to send emails via SES in prod environment"
+  value       = aws_iam_role.ses_send_cluckin_bell_prod.arn
+}
+
 output "account_id" {
   description = "AWS account ID"
   value       = var.account_id
