@@ -396,6 +396,147 @@ data "aws_caller_identity" "current" {
   provider = aws.devqa
 }
 
+# ECR Read Role for cluckin-bell-app
+resource "aws_iam_role" "ecr_read_cluckin_bell_app" {
+  provider = aws.devqa
+  name     = "GH_ECR_Read_cluckin_bell_app"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = local.github_oidc_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = merge(
+          local.github_trust_condition,
+          {
+            StringLike = {
+              "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository_owner}/cluckin-bell:environment:qa"
+            }
+          }
+        )
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name        = "GH_ECR_Read_cluckin_bell_app"
+    Environment = "qa"
+    Purpose     = "ecr-read"
+  })
+}
+
+# ECR Read Policy for cluckin-bell-app
+resource "aws_iam_policy" "ecr_read_cluckin_bell_app" {
+  provider = aws.devqa
+  name     = "GH_ECR_Read_cluckin_bell_app_policy"
+  description = "Policy for GitHub Actions to read ECR tags for cluckin-bell-app repository"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:DescribeRepositories",
+          "ecr:ListImages", 
+          "ecr:DescribeImages",
+          "ecr:BatchGetImage"
+        ]
+        Resource = "arn:aws:ecr:${var.region}:${var.account_id}:repository/cluckin-bell-app"
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name        = "GH_ECR_Read_cluckin_bell_app_policy"
+    Environment = "qa"
+    Purpose     = "ecr-read"
+  })
+}
+
+# Attach ECR Read Policy to Role
+resource "aws_iam_role_policy_attachment" "ecr_read_cluckin_bell_app" {
+  provider   = aws.devqa
+  role       = aws_iam_role.ecr_read_cluckin_bell_app.name
+  policy_arn = aws_iam_policy.ecr_read_cluckin_bell_app.arn
+}
+
+# SES Send Role for QA environment
+resource "aws_iam_role" "ses_send_cluckin_bell_qa" {
+  provider = aws.devqa
+  name     = "GH_SES_Send_cluckin_bell_qa"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = local.github_oidc_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = merge(
+          local.github_trust_condition,
+          {
+            StringLike = {
+              "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository_owner}/cluckin-bell:environment:qa"
+            }
+          }
+        )
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name        = "GH_SES_Send_cluckin_bell_qa"
+    Environment = "qa"
+    Purpose     = "ses-send"
+  })
+}
+
+# SES Send Policy for QA environment
+resource "aws_iam_policy" "ses_send_cluckin_bell_qa" {
+  provider = aws.devqa
+  name     = "GH_SES_Send_cluckin_bell_qa_policy"
+  description = "Policy for GitHub Actions to send emails via SES in QA environment"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion" = var.region
+          }
+        }
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name        = "GH_SES_Send_cluckin_bell_qa_policy"
+    Environment = "qa"
+    Purpose     = "ses-send"
+  })
+}
+
+# Attach SES Send Policy to Role
+resource "aws_iam_role_policy_attachment" "ses_send_cluckin_bell_qa" {
+  provider   = aws.devqa
+  role       = aws_iam_role.ses_send_cluckin_bell_qa.name
+  policy_arn = aws_iam_policy.ses_send_cluckin_bell_qa.arn
+}
+
 # Optional GitHub workflow management
 module "github_workflow" {
   count  = var.manage_github_workflow ? 1 : 0

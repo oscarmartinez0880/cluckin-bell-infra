@@ -318,3 +318,149 @@ resource "aws_ecr_lifecycle_policy" "repositories" {
     ]
   })
 }
+
+# Data source for current account ID  
+data "aws_caller_identity" "current" {
+  provider = aws.prod
+}
+
+# ECR Read Role for cluckin-bell-app
+resource "aws_iam_role" "ecr_read_cluckin_bell_app_prod" {
+  provider = aws.prod
+  name     = "GH_ECR_Read_cluckin_bell_app_prod"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = local.github_oidc_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = merge(
+          local.github_trust_condition,
+          {
+            StringLike = {
+              "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository_owner}/cluckin-bell:environment:prod"
+            }
+          }
+        )
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name        = "GH_ECR_Read_cluckin_bell_app_prod"
+    Environment = "prod"
+    Purpose     = "ecr-read"
+  })
+}
+
+# ECR Read Policy for cluckin-bell-app
+resource "aws_iam_policy" "ecr_read_cluckin_bell_app_prod" {
+  provider = aws.prod
+  name     = "GH_ECR_Read_cluckin_bell_app_prod_policy"
+  description = "Policy for GitHub Actions to read ECR tags for cluckin-bell-app repository in prod"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:DescribeRepositories",
+          "ecr:ListImages", 
+          "ecr:DescribeImages",
+          "ecr:BatchGetImage"
+        ]
+        Resource = "arn:aws:ecr:${var.region}:${var.account_id}:repository/cluckin-bell-app"
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name        = "GH_ECR_Read_cluckin_bell_app_prod_policy"
+    Environment = "prod"
+    Purpose     = "ecr-read"
+  })
+}
+
+# Attach ECR Read Policy to Role
+resource "aws_iam_role_policy_attachment" "ecr_read_cluckin_bell_app_prod" {
+  provider   = aws.prod
+  role       = aws_iam_role.ecr_read_cluckin_bell_app_prod.name
+  policy_arn = aws_iam_policy.ecr_read_cluckin_bell_app_prod.arn
+}
+
+# SES Send Role for prod environment
+resource "aws_iam_role" "ses_send_cluckin_bell_prod" {
+  provider = aws.prod
+  name     = "GH_SES_Send_cluckin_bell_prod"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Federated = local.github_oidc_arn
+        }
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Condition = merge(
+          local.github_trust_condition,
+          {
+            StringLike = {
+              "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository_owner}/cluckin-bell:environment:prod"
+            }
+          }
+        )
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name        = "GH_SES_Send_cluckin_bell_prod"
+    Environment = "prod"
+    Purpose     = "ses-send"
+  })
+}
+
+# SES Send Policy for prod environment
+resource "aws_iam_policy" "ses_send_cluckin_bell_prod" {
+  provider = aws.prod
+  name     = "GH_SES_Send_cluckin_bell_prod_policy"
+  description = "Policy for GitHub Actions to send emails via SES in prod environment"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:RequestedRegion" = var.region
+          }
+        }
+      }
+    ]
+  })
+
+  tags = merge(var.tags, {
+    Name        = "GH_SES_Send_cluckin_bell_prod_policy"
+    Environment = "prod"
+    Purpose     = "ses-send"
+  })
+}
+
+# Attach SES Send Policy to Role
+resource "aws_iam_role_policy_attachment" "ses_send_cluckin_bell_prod" {
+  provider   = aws.prod
+  role       = aws_iam_role.ses_send_cluckin_bell_prod.name
+  policy_arn = aws_iam_policy.ses_send_cluckin_bell_prod.arn
+}
