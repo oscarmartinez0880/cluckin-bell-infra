@@ -25,7 +25,7 @@ manage_route53 = true
 #}
 
 # EKS configuration
-kubernetes_version = "1.30"
+kubernetes_version = "1.33"
 
 # Node groups (nonprod defaults)
 linux_node_instance_types = ["m5.large", "m5.xlarge"]
