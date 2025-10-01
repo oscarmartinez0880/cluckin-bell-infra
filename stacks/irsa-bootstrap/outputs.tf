@@ -10,32 +10,32 @@ output "oidc_provider_url" {
 
 output "aws_load_balancer_controller_role_arn" {
   description = "ARN of the IAM role for AWS Load Balancer Controller"
-  value       = module.aws_load_balancer_controller_irsa.iam_role_arn
+  value       = module.aws_load_balancer_controller_irsa.role_arn
 }
 
 output "aws_load_balancer_controller_role_name" {
   description = "Name of the IAM role for AWS Load Balancer Controller"
-  value       = module.aws_load_balancer_controller_irsa.iam_role_name
+  value       = module.aws_load_balancer_controller_irsa.role_name
 }
 
 output "external_dns_role_arn" {
   description = "ARN of the IAM role for External DNS"
-  value       = module.external_dns_irsa.iam_role_arn
+  value       = module.external_dns_irsa.role_arn
 }
 
 output "external_dns_role_name" {
   description = "Name of the IAM role for External DNS"
-  value       = module.external_dns_irsa.iam_role_name
+  value       = module.external_dns_irsa.role_name
 }
 
 output "cert_manager_role_arn" {
   description = "ARN of the IAM role for Cert Manager"
-  value       = module.cert_manager_irsa.iam_role_arn
+  value       = module.cert_manager_irsa.role_arn
 }
 
 output "cert_manager_role_name" {
   description = "Name of the IAM role for Cert Manager"
-  value       = module.cert_manager_irsa.iam_role_name
+  value       = module.cert_manager_irsa.role_name
 }
 
 # Convenience outputs for Helm values
@@ -46,18 +46,18 @@ output "helm_values" {
     aws-load-balancer-controller:
       serviceAccount:
         annotations:
-          eks.amazonaws.com/role-arn: ${module.aws_load_balancer_controller_irsa.iam_role_arn}
+          eks.amazonaws.com/role-arn: ${module.aws_load_balancer_controller_irsa.role_arn}
     
     # External DNS
     external-dns:
       serviceAccount:
         annotations:
-          eks.amazonaws.com/role-arn: ${module.external_dns_irsa.iam_role_arn}
+          eks.amazonaws.com/role-arn: ${module.external_dns_irsa.role_arn}
     
     # Cert Manager
     cert-manager:
       serviceAccount:
         annotations:
-          eks.amazonaws.com/role-arn: ${module.cert_manager_irsa.iam_role_arn}
+          eks.amazonaws.com/role-arn: ${module.cert_manager_irsa.role_arn}
   EOT
 }

@@ -147,7 +147,7 @@ module "eks" {
     vpc-cni = {
       most_recent              = true
       before_compute           = true
-      service_account_role_arn = module.vpc_cni_irsa.iam_role_arn
+      service_account_role_arn = length(module.vpc_cni_irsa) > 0 ? module.vpc_cni_irsa[0].iam_role_arn : null
     }
     eks-pod-identity-agent = {
       most_recent = true
