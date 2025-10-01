@@ -61,31 +61,32 @@ module "vpc" {
 
 # Kubernetes and Helm providers
 provider "kubernetes" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+  host                   = var.manage_eks && length(module.eks) > 0 ? module.eks[0].cluster_endpoint : ""
+  cluster_ca_certificate = var.manage_eks && length(module.eks) > 0 ? base64decode(module.eks[0].cluster_certificate_authority_data) : null
 
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+    args        = var.manage_eks && length(module.eks) > 0 ? ["eks", "get-token", "--cluster-name", module.eks[0].cluster_name] : []
   }
 }
 
 provider "helm" {
   kubernetes {
-    host                   = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
+    host                   = var.manage_eks && length(module.eks) > 0 ? module.eks[0].cluster_endpoint : ""
+    cluster_ca_certificate = var.manage_eks && length(module.eks) > 0 ? base64decode(module.eks[0].cluster_certificate_authority_data) : null
 
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
+      args        = var.manage_eks && length(module.eks) > 0 ? ["eks", "get-token", "--cluster-name", module.eks[0].cluster_name] : []
     }
   }
 }
 
 # EKS Cluster
 module "eks" {
+  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 20.0"
 
@@ -177,6 +178,7 @@ resource "aws_kms_alias" "eks" {
 
 # VPC CNI IRSA role
 module "vpc_cni_irsa" {
+  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -188,7 +190,7 @@ module "vpc_cni_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks.oidc_provider_arn
+      provider_arn               = module.eks[0].oidc_provider_arn
       namespace_service_accounts = ["kube-system:aws-node"]
     }
   }
@@ -200,6 +202,7 @@ module "vpc_cni_irsa" {
 
 # IRSA roles for Kubernetes controllers
 module "aws_load_balancer_controller_irsa" {
+  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -209,7 +212,7 @@ module "aws_load_balancer_controller_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks.oidc_provider_arn
+      provider_arn               = module.eks[0].oidc_provider_arn
       namespace_service_accounts = ["${local.namespace}:aws-load-balancer-controller"]
     }
   }
@@ -220,6 +223,7 @@ module "aws_load_balancer_controller_irsa" {
 }
 
 module "cert_manager_irsa" {
+  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -227,7 +231,7 @@ module "cert_manager_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks.oidc_provider_arn
+      provider_arn               = module.eks[0].oidc_provider_arn
       namespace_service_accounts = ["${local.namespace}:cert-manager"]
     }
   }
@@ -238,8 +242,9 @@ module "cert_manager_irsa" {
 }
 
 resource "aws_iam_role_policy" "cert_manager_route53" {
+  count = var.manage_eks ? 1 : 0
   name = "${local.environment}-cert-manager-route53"
-  role = module.cert_manager_irsa.iam_role_name
+  role  = module.cert_manager_irsa[0].iam_role_name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -271,6 +276,7 @@ resource "aws_iam_role_policy" "cert_manager_route53" {
 }
 
 module "external_dns_irsa" {
+  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -278,7 +284,7 @@ module "external_dns_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks.oidc_provider_arn
+      provider_arn               = module.eks[0].oidc_provider_arn
       namespace_service_accounts = ["${local.namespace}:external-dns"]
     }
   }
@@ -289,8 +295,9 @@ module "external_dns_irsa" {
 }
 
 resource "aws_iam_role_policy" "external_dns_route53" {
+  count = var.manage_eks ? 1 : 0
   name = "${local.environment}-external-dns-route53"
-  role = module.external_dns_irsa.iam_role_name
+  role  = module.external_dns_irsa[0].iam_role_name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -316,6 +323,7 @@ resource "aws_iam_role_policy" "external_dns_route53" {
 
 # IRSA role for Argo CD repo-server to access CodeCommit
 module "argocd_repo_server_irsa" {
+  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -323,7 +331,7 @@ module "argocd_repo_server_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks.oidc_provider_arn
+      provider_arn               = module.eks[0].oidc_provider_arn
       namespace_service_accounts = ["${local.namespace}:argocd-repo-server"]
     }
   }
@@ -335,6 +343,7 @@ module "argocd_repo_server_irsa" {
 
 # IAM policy for CodeCommit read-only access
 resource "aws_iam_policy" "argocd_codecommit_access" {
+  count       = var.manage_eks ? 1 : 0
   name        = "${local.environment}-argocd-codecommit-access"
   description = "Policy for Argo CD to access CodeCommit repository"
 
@@ -365,12 +374,14 @@ resource "aws_iam_policy" "argocd_codecommit_access" {
 
 # Attach policy to IRSA role
 resource "aws_iam_role_policy_attachment" "argocd_codecommit_access" {
-  policy_arn = aws_iam_policy.argocd_codecommit_access.arn
-  role       = module.argocd_repo_server_irsa.iam_role_name
+  count      = var.manage_eks ? 1 : 0
+  policy_arn = aws_iam_policy.argocd_codecommit_access[0].arn
+  role       = module.argocd_repo_server_irsa[0].iam_role_name
 }
 
 # Create the cluckin-bell namespace
 resource "kubernetes_namespace" "cluckin_bell" {
+  count = var.manage_eks ? 1 : 0
   metadata {
     name = local.namespace
     labels = {
@@ -383,9 +394,10 @@ resource "kubernetes_namespace" "cluckin_bell" {
 
 # Deploy Kubernetes controllers
 module "k8s_controllers" {
+  count  = var.manage_eks ? 1 : 0
   source = "../../../modules/k8s-controllers"
 
-  cluster_name = module.eks.cluster_name
+  cluster_name = module.eks[0].cluster_name
   environment  = local.environment
   aws_region   = local.region
   vpc_id       = module.vpc.vpc_id
@@ -398,16 +410,16 @@ module "k8s_controllers" {
   enable_argocd                       = false # We use separate argocd module
 
   # IRSA role ARNs
-  aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa.iam_role_arn
-  cert_manager_role_arn                 = module.cert_manager_irsa.iam_role_arn
-  external_dns_role_arn                 = module.external_dns_irsa.iam_role_arn
+  aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa[0].iam_role_arn
+  cert_manager_role_arn                 = module.cert_manager_irsa[0].iam_role_arn
+  external_dns_role_arn                 = module.external_dns_irsa[0].iam_role_arn
 
   # Configuration
   letsencrypt_email = var.letsencrypt_email
   domain_filter     = "cluckin-bell.com"
 
   # Dependencies
-  node_groups = module.eks.eks_managed_node_groups
+  node_groups = module.eks[0].eks_managed_node_groups
 
   depends_on = [
     module.eks,
@@ -420,6 +432,7 @@ module "k8s_controllers" {
 
 # Deploy ArgoCD for GitOps
 module "argocd" {
+  count  = var.manage_eks ? 1 : 0
   source = "../../../modules/argocd"
 
   cluster_name                = module.eks.cluster_name
@@ -427,7 +440,7 @@ module "argocd" {
   environment                 = local.environment
   git_repository              = "https://github.com/oscarmartinez0880/cluckin-bell.git"
   git_path                    = "k8s/prod"
-  argocd_repo_server_role_arn = module.argocd_repo_server_irsa.iam_role_arn
+  argocd_repo_server_role_arn = module.argocd_repo_server_irsa[0].iam_role_arn
 
   depends_on = [
     kubernetes_namespace.cluckin_bell,

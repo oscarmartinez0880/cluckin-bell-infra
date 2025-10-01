@@ -18,15 +18,15 @@ terraform {
 
 # Local variables for naming consistency
 locals {
-  environment  = "dev"
+  environment  = "prod"
   region       = "us-east-1"
-  cluster_name = "cb-dev-use1"
+  cluster_name = "cb-prod-use1"
   namespace    = "cluckin-bell"
 
   # VPC configuration
-  vpc_cidr             = "10.0.0.0/16"
-  public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
-  private_subnet_cidrs = ["10.0.101.0/24", "10.0.102.0/24"]
+  vpc_cidr             = "10.2.0.0/16"
+  public_subnet_cidrs  = ["10.2.1.0/24", "10.2.2.0/24"]
+  private_subnet_cidrs = ["10.2.101.0/24", "10.2.102.0/24"]
 
   tags = {
     Environment = local.environment
@@ -44,7 +44,7 @@ provider "aws" {
   }
 }
 
-# VPC for dev environment
+# VPC for prod environment
 module "vpc" {
   source = "../../../modules/vpc"
 
@@ -61,25 +61,25 @@ module "vpc" {
 
 # Kubernetes and Helm providers
 provider "kubernetes" {
-  host                   = var.manage_eks && length(module.eks) > 0 ? module.eks[0].cluster_endpoint : ""
-  cluster_ca_certificate = var.manage_eks && length(module.eks) > 0 ? base64decode(module.eks[0].cluster_certificate_authority_data) : null
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
 
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = var.manage_eks && length(module.eks) > 0 ? ["eks", "get-token", "--cluster-name", module.eks[0].cluster_name] : []
+    args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
   }
 }
 
 provider "helm" {
   kubernetes {
-    host                   = var.manage_eks && length(module.eks) > 0 ? module.eks[0].cluster_endpoint : ""
-    cluster_ca_certificate = var.manage_eks && length(module.eks) > 0 ? base64decode(module.eks[0].cluster_certificate_authority_data) : null
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
 
     exec {
       api_version = "client.authentication.k8s.io/v1beta1"
       command     = "aws"
-      args        = var.manage_eks && length(module.eks) > 0 ? ["eks", "get-token", "--cluster-name", module.eks[0].cluster_name] : []
+      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
     }
   }
 }
@@ -178,7 +178,6 @@ resource "aws_kms_alias" "eks" {
 
 # VPC CNI IRSA role
 module "vpc_cni_irsa" {
-  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -190,7 +189,7 @@ module "vpc_cni_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks[0].oidc_provider_arn
+      provider_arn               = module.eks.oidc_provider_arn
       namespace_service_accounts = ["kube-system:aws-node"]
     }
   }
@@ -202,7 +201,6 @@ module "vpc_cni_irsa" {
 
 # IRSA roles for Kubernetes controllers
 module "aws_load_balancer_controller_irsa" {
-  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -212,7 +210,7 @@ module "aws_load_balancer_controller_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks[0].oidc_provider_arn
+      provider_arn               = module.eks.oidc_provider_arn
       namespace_service_accounts = ["${local.namespace}:aws-load-balancer-controller"]
     }
   }
@@ -223,7 +221,6 @@ module "aws_load_balancer_controller_irsa" {
 }
 
 module "cert_manager_irsa" {
-  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -231,7 +228,7 @@ module "cert_manager_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks[0].oidc_provider_arn
+      provider_arn               = module.eks.oidc_provider_arn
       namespace_service_accounts = ["${local.namespace}:cert-manager"]
     }
   }
@@ -242,9 +239,8 @@ module "cert_manager_irsa" {
 }
 
 resource "aws_iam_role_policy" "cert_manager_route53" {
-  count = var.manage_eks ? 1 : 0
-  name  = "${local.environment}-cert-manager-route53"
-  role  = module.cert_manager_irsa[0].iam_role_name
+  name = "${local.environment}-cert-manager-route53"
+  role = module.cert_manager_irsa.iam_role_name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -276,7 +272,6 @@ resource "aws_iam_role_policy" "cert_manager_route53" {
 }
 
 module "external_dns_irsa" {
-  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -284,7 +279,7 @@ module "external_dns_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks[0].oidc_provider_arn
+      provider_arn               = module.eks.oidc_provider_arn
       namespace_service_accounts = ["${local.namespace}:external-dns"]
     }
   }
@@ -295,9 +290,8 @@ module "external_dns_irsa" {
 }
 
 resource "aws_iam_role_policy" "external_dns_route53" {
-  count = var.manage_eks ? 1 : 0
-  name  = "${local.environment}-external-dns-route53"
-  role  = module.external_dns_irsa[0].iam_role_name
+  name = "${local.environment}-external-dns-route53"
+  role = module.external_dns_irsa.iam_role_name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -323,7 +317,6 @@ resource "aws_iam_role_policy" "external_dns_route53" {
 
 # IRSA role for Argo CD repo-server to access CodeCommit
 module "argocd_repo_server_irsa" {
-  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.0"
 
@@ -331,7 +324,7 @@ module "argocd_repo_server_irsa" {
 
   oidc_providers = {
     main = {
-      provider_arn               = module.eks[0].oidc_provider_arn
+      provider_arn               = module.eks.oidc_provider_arn
       namespace_service_accounts = ["${local.namespace}:argocd-repo-server"]
     }
   }
@@ -343,7 +336,6 @@ module "argocd_repo_server_irsa" {
 
 # IAM policy for CodeCommit read-only access
 resource "aws_iam_policy" "argocd_codecommit_access" {
-  count       = var.manage_eks ? 1 : 0
   name        = "${local.environment}-argocd-codecommit-access"
   description = "Policy for Argo CD to access CodeCommit repository"
 
@@ -374,14 +366,12 @@ resource "aws_iam_policy" "argocd_codecommit_access" {
 
 # Attach policy to IRSA role
 resource "aws_iam_role_policy_attachment" "argocd_codecommit_access" {
-  count      = var.manage_eks ? 1 : 0
-  policy_arn = aws_iam_policy.argocd_codecommit_access[0].arn
-  role       = module.argocd_repo_server_irsa[0].iam_role_name
+  policy_arn = aws_iam_policy.argocd_codecommit_access.arn
+  role       = module.argocd_repo_server_irsa.iam_role_name
 }
 
 # Create the cluckin-bell namespace
 resource "kubernetes_namespace" "cluckin_bell" {
-  count = var.manage_eks ? 1 : 0
   metadata {
     name = local.namespace
     labels = {
@@ -394,10 +384,9 @@ resource "kubernetes_namespace" "cluckin_bell" {
 
 # Deploy Kubernetes controllers
 module "k8s_controllers" {
-  count  = var.manage_eks ? 1 : 0
   source = "../../../modules/k8s-controllers"
 
-  cluster_name = module.eks[0].cluster_name
+  cluster_name = module.eks.cluster_name
   environment  = local.environment
   aws_region   = local.region
   vpc_id       = module.vpc.vpc_id
@@ -410,16 +399,16 @@ module "k8s_controllers" {
   enable_argocd                       = false # We use separate argocd module
 
   # IRSA role ARNs
-  aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa[0].iam_role_arn
-  cert_manager_role_arn                 = module.cert_manager_irsa[0].iam_role_arn
-  external_dns_role_arn                 = module.external_dns_irsa[0].iam_role_arn
+  aws_load_balancer_controller_role_arn = module.aws_load_balancer_controller_irsa.iam_role_arn
+  cert_manager_role_arn                 = module.cert_manager_irsa.iam_role_arn
+  external_dns_role_arn                 = module.external_dns_irsa.iam_role_arn
 
   # Configuration
   letsencrypt_email = var.letsencrypt_email
-  domain_filter     = "dev.cluckin-bell.com"
+  domain_filter     = "cluckin-bell.com"
 
   # Dependencies
-  node_groups = module.eks[0].eks_managed_node_groups
+  node_groups = module.eks.eks_managed_node_groups
 
   depends_on = [
     module.eks,
@@ -432,15 +421,14 @@ module "k8s_controllers" {
 
 # Deploy ArgoCD for GitOps
 module "argocd" {
-  count  = var.manage_eks ? 1 : 0
   source = "../../../modules/argocd"
 
-  cluster_name                = module.eks[0].cluster_name
+  cluster_name                = module.eks.cluster_name
   namespace                   = local.namespace
   environment                 = local.environment
   git_repository              = "https://github.com/oscarmartinez0880/cluckin-bell.git"
-  git_path                    = "k8s/dev"
-  argocd_repo_server_role_arn = module.argocd_repo_server_irsa[0].iam_role_arn
+  git_path                    = "k8s/prod"
+  argocd_repo_server_role_arn = module.argocd_repo_server_irsa.iam_role_arn
 
   depends_on = [
     kubernetes_namespace.cluckin_bell,
@@ -449,7 +437,7 @@ module "argocd" {
   ]
 }
 
-# SSM Bastion for dev/qa shared access
+# SSM Bastion for prod environment
 module "ssm_bastion" {
   source = "../../../modules/ssm-bastion"
 
@@ -459,73 +447,9 @@ module "ssm_bastion" {
   subnet_id   = module.vpc.private_subnet_ids[0] # Deploy in first private subnet
 
   tags = merge(local.tags, {
-    Purpose = "dev-qa-shared-bastion"
-    Access  = "dev-qa-environments"
+    Purpose = "prod-bastion"
+    Access  = "prod-environment-only"
   })
-
-  depends_on = [module.vpc]
-}
-
-# Data source for QA VPC
-data "aws_vpc" "qa" {
-  filter {
-    name   = "tag:Name"
-    values = ["qa-cluckin-bell"]
-  }
-}
-
-# Data source for QA route tables
-data "aws_route_tables" "qa" {
-  vpc_id = data.aws_vpc.qa.id
-}
-
-# VPC Peering connection from dev to qa
-resource "aws_vpc_peering_connection" "dev_to_qa" {
-  vpc_id      = module.vpc.vpc_id
-  peer_vpc_id = data.aws_vpc.qa.id
-  auto_accept = true
-
-  tags = merge(local.tags, {
-    Name = "dev-to-qa-peering"
-    Side = "requester"
-  })
-
-  depends_on = [module.vpc]
-}
-
-# Routes in dev VPC private route table to qa VPC
-resource "aws_route" "dev_to_qa_private" {
-  count                     = length(module.vpc.private_route_table_ids)
-  route_table_id            = module.vpc.private_route_table_ids[count.index]
-  destination_cidr_block    = "10.1.0.0/16" # QA VPC CIDR
-  vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
-}
-
-# Routes in dev VPC public route table to qa VPC
-resource "aws_route" "dev_to_qa_public" {
-  route_table_id            = module.vpc.public_route_table_id
-  destination_cidr_block    = "10.1.0.0/16" # QA VPC CIDR
-  vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
-}
-
-# Routes in qa VPC route tables to dev VPC
-resource "aws_route" "qa_to_dev" {
-  count                     = length(data.aws_route_tables.qa.ids)
-  route_table_id            = data.aws_route_tables.qa.ids[count.index]
-  destination_cidr_block    = "10.0.0.0/16" # Dev VPC CIDR
-  vpc_peering_connection_id = aws_vpc_peering_connection.dev_to_qa.id
-}
-
-# Data source for QA private hosted zone
-data "aws_route53_zone" "qa_private" {
-  name         = "qa.cluckin-bell.com"
-  private_zone = true
-}
-
-# Associate QA private hosted zone with dev VPC for cross-environment DNS resolution
-resource "aws_route53_zone_association" "qa_zone_with_dev_vpc" {
-  zone_id = data.aws_route53_zone.qa_private.zone_id
-  vpc_id  = module.vpc.vpc_id
 
   depends_on = [module.vpc]
 }

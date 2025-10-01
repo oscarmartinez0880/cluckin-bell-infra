@@ -93,6 +93,7 @@ module "vpc_prod" {
 
 # Shared Dev/QA EKS Cluster
 module "eks_devqa" {
+  count     = var.manage_eks ? 1 : 0
   source    = "terraform-aws-modules/eks/aws"
   version   = "~> 20.8"
   providers = { aws = aws.devqa }
@@ -138,6 +139,7 @@ module "eks_devqa" {
 
 # Prod EKS Cluster
 module "eks_prod" {
+  count     = var.manage_eks ? 1 : 0
   source    = "terraform-aws-modules/eks/aws"
   version   = "~> 20.8"
   providers = { aws = aws.prod }
@@ -178,55 +180,59 @@ module "eks_prod" {
 
 # Dev/QA cluster auth and providers
 data "aws_eks_cluster" "devqa" {
+  count    = var.manage_eks ? 1 : 0
   provider = aws.devqa
-  name     = module.eks_devqa.cluster_name
+  name     = module.eks_devqa[0].cluster_name
 }
 
 data "aws_eks_cluster_auth" "devqa" {
+  count    = var.manage_eks ? 1 : 0
   provider = aws.devqa
-  name     = module.eks_devqa.cluster_name
+  name     = module.eks_devqa[0].cluster_name
 }
 
 provider "kubernetes" {
   alias                  = "devqa"
-  host                   = data.aws_eks_cluster.devqa.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.devqa.token
+  host                   = var.manage_eks ? data.aws_eks_cluster.devqa[0].endpoint : ""
+  cluster_ca_certificate = var.manage_eks ? base64decode(data.aws_eks_cluster.devqa[0].certificate_authority[0].data) : null
+  token                  = var.manage_eks ? data.aws_eks_cluster_auth.devqa[0].token : ""
 }
 
 provider "helm" {
   alias = "devqa"
   kubernetes {
-    host                   = data.aws_eks_cluster.devqa.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.devqa.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.devqa.token
+    host                   = var.manage_eks ? data.aws_eks_cluster.devqa[0].endpoint : ""
+    cluster_ca_certificate = var.manage_eks ? base64decode(data.aws_eks_cluster.devqa[0].certificate_authority[0].data) : null
+    token                  = var.manage_eks ? data.aws_eks_cluster_auth.devqa[0].token : ""
   }
 }
 
 # Prod cluster auth and providers
 data "aws_eks_cluster" "prod" {
+  count    = var.manage_eks ? 1 : 0
   provider = aws.prod
-  name     = module.eks_prod.cluster_name
+  name     = module.eks_prod[0].cluster_name
 }
 
 data "aws_eks_cluster_auth" "prod" {
+  count    = var.manage_eks ? 1 : 0
   provider = aws.prod
-  name     = module.eks_prod.cluster_name
+  name     = module.eks_prod[0].cluster_name
 }
 
 provider "kubernetes" {
   alias                  = "prod"
-  host                   = data.aws_eks_cluster.prod.endpoint
-  cluster_ca_certificate = base64decode(data.aws_eks_cluster.prod.certificate_authority[0].data)
-  token                  = data.aws_eks_cluster_auth.prod.token
+  host                   = var.manage_eks ? data.aws_eks_cluster.prod[0].endpoint : ""
+  cluster_ca_certificate = var.manage_eks ? base64decode(data.aws_eks_cluster.prod[0].certificate_authority[0].data) : null
+  token                  = var.manage_eks ? data.aws_eks_cluster_auth.prod[0].token : ""
 }
 
 provider "helm" {
   alias = "prod"
   kubernetes {
-    host                   = data.aws_eks_cluster.prod.endpoint
-    cluster_ca_certificate = base64decode(data.aws_eks_cluster.prod.certificate_authority[0].data)
-    token                  = data.aws_eks_cluster_auth.prod.token
+    host                   = var.manage_eks ? data.aws_eks_cluster.prod[0].endpoint : ""
+    cluster_ca_certificate = var.manage_eks ? base64decode(data.aws_eks_cluster.prod[0].certificate_authority[0].data) : null
+    token                  = var.manage_eks ? data.aws_eks_cluster_auth.prod[0].token : ""
   }
 }
 
@@ -235,6 +241,7 @@ provider "helm" {
 ###############################################################################
 
 module "aws_load_balancer_controller_devqa" {
+  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
   version = "~> 20.8"
 
@@ -244,11 +251,12 @@ module "aws_load_balancer_controller_devqa" {
     kubernetes = kubernetes.devqa
   }
 
-  cluster_name      = module.eks_devqa.cluster_name
-  oidc_provider_arn = module.eks_devqa.oidc_provider_arn
+  cluster_name      = module.eks_devqa[0].cluster_name
+  oidc_provider_arn = module.eks_devqa[0].oidc_provider_arn
 }
 
 module "aws_load_balancer_controller_prod" {
+  count   = var.manage_eks ? 1 : 0
   source  = "terraform-aws-modules/eks/aws//modules/aws-load-balancer-controller"
   version = "~> 20.8"
 
@@ -258,8 +266,8 @@ module "aws_load_balancer_controller_prod" {
     kubernetes = kubernetes.prod
   }
 
-  cluster_name      = module.eks_prod.cluster_name
-  oidc_provider_arn = module.eks_prod.oidc_provider_arn
+  cluster_name      = module.eks_prod[0].cluster_name
+  oidc_provider_arn = module.eks_prod[0].oidc_provider_arn
 }
 
 ###############################################################################
@@ -268,22 +276,24 @@ module "aws_load_balancer_controller_prod" {
 
 # IRSA role for ExternalDNS
 resource "aws_iam_role" "external_dns_devqa" {
+  count              = var.manage_eks ? 1 : 0
   provider           = aws.devqa
   name               = "cb-external-dns-devqa"
-  assume_role_policy = data.aws_iam_policy_document.external_dns_assume_devqa.json
+  assume_role_policy = data.aws_iam_policy_document.external_dns_assume_devqa[0].json
 }
 
 data "aws_iam_policy_document" "external_dns_assume_devqa" {
+  count = var.manage_eks ? 1 : 0
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     effect  = "Allow"
     principals {
       type        = "Federated"
-      identifiers = [module.eks_devqa.oidc_provider_arn]
+      identifiers = [module.eks_devqa[0].oidc_provider_arn]
     }
     condition {
       test     = "StringEquals"
-      variable = "${replace(module.eks_devqa.cluster_oidc_issuer_url, "https://", "")}:sub"
+      variable = "${replace(module.eks_devqa[0].cluster_oidc_issuer_url, "https://", "")}:sub"
       values   = ["system:serviceaccount:default:external-dns"]
     }
   }
@@ -350,6 +360,7 @@ module "waf_devqa" {
 
 # IAM role for CloudWatch Agent (DevQA)
 module "cloudwatch_agent_irsa_devqa" {
+  count  = var.manage_eks ? 1 : 0
   source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
 
   providers = { aws = aws.devqa }
@@ -360,7 +371,7 @@ module "cloudwatch_agent_irsa_devqa" {
 
   oidc_providers = {
     devqa = {
-      provider_arn               = module.eks_devqa.oidc_provider_arn
+      provider_arn               = module.eks_devqa[0].oidc_provider_arn
       namespace_service_accounts = ["amazon-cloudwatch:cloudwatch-agent"]
     }
   }
@@ -373,6 +384,7 @@ module "cloudwatch_agent_irsa_devqa" {
 
 # IAM role for Fluent Bit (DevQA)
 module "fluent_bit_irsa_devqa" {
+  count  = var.manage_eks ? 1 : 0
   source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
 
   providers = { aws = aws.devqa }
@@ -383,7 +395,7 @@ module "fluent_bit_irsa_devqa" {
 
   oidc_providers = {
     devqa = {
-      provider_arn               = module.eks_devqa.oidc_provider_arn
+      provider_arn               = module.eks_devqa[0].oidc_provider_arn
       namespace_service_accounts = ["amazon-cloudwatch:aws-for-fluent-bit"]
     }
   }
@@ -396,6 +408,7 @@ module "fluent_bit_irsa_devqa" {
 
 # Container Insights configuration (DevQA)
 module "container_insights_devqa" {
+  count  = var.manage_eks ? 1 : 0
   source = "../../../modules/monitoring"
 
   providers = {
@@ -404,10 +417,10 @@ module "container_insights_devqa" {
     helm       = helm.devqa
   }
 
-  cluster_name              = module.eks_devqa.cluster_name
+  cluster_name              = module.eks_devqa[0].cluster_name
   aws_region                = var.region
-  cloudwatch_agent_role_arn = module.cloudwatch_agent_irsa_devqa.iam_role_arn
-  fluent_bit_role_arn       = module.fluent_bit_irsa_devqa.iam_role_arn
+  cloudwatch_agent_role_arn = module.cloudwatch_agent_irsa_devqa[0].iam_role_arn
+  fluent_bit_role_arn       = module.fluent_bit_irsa_devqa[0].iam_role_arn
   log_retention_days        = 7 # Shorter retention for dev/qa
 
   tags = {
@@ -421,6 +434,12 @@ module "container_insights_devqa" {
 ###############################################################################
 # Variables
 ###############################################################################
+variable "manage_eks" {
+  description = "Whether to manage EKS clusters via Terraform (disabled by default - use eksctl instead)"
+  type        = bool
+  default     = false
+}
+
 variable "region" {
   description = "AWS Region for all EKS clusters"
   type        = string
