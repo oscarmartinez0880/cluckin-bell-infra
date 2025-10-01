@@ -1,0 +1,96 @@
+# eksctl cluster configuration for production
+# Creates cluster: cluckn-bell-prod
+# Account: 346746763840 (cluckin-bell-prod)
+# Region: us-east-1
+# Kubernetes version: 1.33
+# Node groups: prod (production workloads)
+
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: cluckn-bell-prod
+  region: us-east-1
+  version: "1.33"
+  tags:
+    Project: cluckn-bell
+    Environment: prod
+    ManagedBy: eksctl
+
+# VPC Configuration
+# Use existing VPC created by Terraform (cb-prod-use1)
+# Private subnets: 10.70.1.0/24, 10.70.2.0/24, 10.70.3.0/24
+vpc:
+  id: vpc-REPLACE_WITH_VPC_ID  # Replace with actual VPC ID from terraform output
+  subnets:
+    private:
+      us-east-1a:
+        id: subnet-REPLACE_WITH_SUBNET_1A  # Replace with actual private subnet ID
+      us-east-1b:
+        id: subnet-REPLACE_WITH_SUBNET_1B  # Replace with actual private subnet ID
+      us-east-1c:
+        id: subnet-REPLACE_WITH_SUBNET_1C  # Replace with actual private subnet ID
+
+# IAM Configuration
+iam:
+  withOIDC: true
+  serviceAccounts: []
+
+# Managed Node Groups
+managedNodeGroups:
+  # Production node group
+  - name: prod
+    instanceType: m5.xlarge
+    amiFamily: AmazonLinux2023
+    minSize: 2
+    maxSize: 15
+    desiredCapacity: 5
+    volumeSize: 100
+    volumeType: gp3
+    privateNetworking: true
+    labels:
+      environment: prod
+      role: application
+      nodegroup: prod
+    tags:
+      Name: cluckn-bell-prod-prod
+      Environment: prod
+      NodeGroup: prod
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/cluckn-bell-prod: "owned"
+    iam:
+      withAddonPolicies:
+        imageBuilder: true
+        autoScaler: true
+        externalDNS: false
+        certManager: false
+        appMesh: false
+        ebs: true
+        efs: true
+        albIngress: false
+        xRay: false
+        cloudWatch: true
+
+# Add-ons (managed by AWS)
+addons:
+  - name: vpc-cni
+    version: latest
+  - name: coredns
+    version: latest
+  - name: kube-proxy
+    version: latest
+  - name: aws-ebs-csi-driver
+    version: latest
+    wellKnownPolicies:
+      ebsCSIController: true
+
+# CloudWatch logging (extended retention for production)
+cloudWatch:
+  clusterLogging:
+    enableTypes:
+      - api
+      - audit
+      - authenticator
+      - controllerManager
+      - scheduler
+    logRetentionInDays: 90

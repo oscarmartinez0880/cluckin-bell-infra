@@ -2,6 +2,18 @@
 
 This repository contains Terraform infrastructure as code for the Cluckin Bell application, providing multi-environment EKS clusters with GitOps using ArgoCD.
 
+## Operating Model
+
+The infrastructure follows a separation of concerns for better safety and clarity:
+
+- **Terraform** manages foundational AWS resources (VPCs, IAM, Route53, ECR, WAF, endpoints)
+- **eksctl** manages EKS cluster lifecycle (creation, upgrades, Kubernetes v1.33)
+- **Argo CD / Helm** manages all in-cluster resources (controllers, applications)
+
+> **Important**: EKS management in Terraform is **disabled by default** (`manage_eks = false`). Clusters should be created and managed using eksctl. See [docs/CLUSTERS_WITH_EKSCTL.md](docs/CLUSTERS_WITH_EKSCTL.md) for the complete workflow.
+
+To opt-in to Terraform-managed EKS (not recommended), set `manage_eks = true` in your environment stack variables.
+
 ## Architecture Overview
 
 ### Two-Cluster Environment Model
@@ -15,8 +27,10 @@ The infrastructure supports a two-cluster environment model:
 
 ### GitOps Architecture
 
-- **Platform Components** (Terraform-managed): VPC, EKS, external-dns, cert-manager, ArgoCD
-- **Application Workloads** (ArgoCD-managed): All apps from [`oscarmartinez0880/cluckin-bell`](https://github.com/oscarmartinez0880/cluckin-bell) repository
+- **Platform Components** (Terraform-managed): VPC, IAM, Route53, ECR, WAF, VPC endpoints
+- **EKS Clusters** (eksctl-managed): Cluster lifecycle, Kubernetes v1.33, node groups, add-ons
+- **IRSA Roles** (Terraform post-cluster): IAM roles for service accounts after cluster creation
+- **Controllers & Apps** (ArgoCD/Helm-managed): AWS LB Controller, external-dns, cert-manager, application workloads from [`oscarmartinez0880/cluckin-bell`](https://github.com/oscarmartinez0880/cluckin-bell)
 - **Single Namespace Strategy**: All components deployed to `cluckin-bell` namespace per cluster
 
 ## Repository Structure
@@ -27,19 +41,31 @@ The infrastructure supports a two-cluster environment model:
 │   │                         # Single cluster: cluckn-bell-nonprod (dev+qa namespaces)
 │   └── prod/                 # Prod resources (account 346746763840)
 │                             # Single cluster: cluckn-bell-prod (prod namespace)
+├── stacks/                    # Terraform stacks
+│   ├── environments/         # Per-environment EKS stacks (dev, qa, prod) - EKS disabled by default
+│   ├── irsa-bootstrap/       # IRSA role creation (run after eksctl cluster creation)
+│   └── ...
 ├── modules/                   # Consolidated Terraform modules
 │   ├── vpc/                  # VPC with subnets, NAT gateways (single or multi)
-│   ├── eks/                  # EKS cluster with node groups and add-ons
+│   ├── eks/                  # EKS cluster module (not used when manage_eks=false)
+│   ├── irsa/                 # IRSA role module for service accounts
 │   ├── dns-certs/            # Combined Route53 zones and ACM certificates
 │   ├── k8s-controllers/      # Platform controllers (ALB, cert-manager, external-dns)
 │   ├── monitoring/           # CloudWatch logs, metrics, and Container Insights
 │   ├── argocd/               # ArgoCD GitOps setup
 │   └── ...
+├── eksctl/                    # eksctl cluster configurations (Kubernetes 1.33)
+│   ├── nonprod-cluster.yaml  # Nonprod cluster with dev/qa node groups
+│   └── prod-cluster.yaml     # Prod cluster with prod node group
+├── scripts/                   # Helper scripts
+│   └── eks/                  # EKS management scripts
+│       └── create-clusters.sh # Create/upgrade clusters with eksctl
 ├── terraform/accounts/       # Account-level resources (IAM, ECR)
 │   ├── devqa/               # Dev/QA account resources
 │   └── prod/                # Production account resources
 └── docs/                    # Documentation
-    └── modules-matrix.md    # Complete modules reference
+    ├── CLUSTERS_WITH_EKSCTL.md  # Complete guide for eksctl-based cluster management
+    └── modules-matrix.md        # Complete modules reference
 ```
 
 ## Infrastructure Architecture
