@@ -13,11 +13,12 @@ variable "region" {
 variable "cluster_version" {
   description = "Kubernetes version for the EKS cluster"
   type        = string
-  default     = "1.30"
+  default     = "1.33"
 
   validation {
-    condition     = can(regex("^1\\.(30|3[1-9]|[4-9][0-9])$", var.cluster_version)) || can(regex("^[2-9]\\.", var.cluster_version))
-    error_message = "cluster_version must be >= 1.30."
+    # Require >= 1.33 (1.33-1.39, 1.40-1.99, or 2.x+)
+    condition     = can(regex("^1\\.(3[3-9]|[4-9][0-9])$", var.cluster_version)) || can(regex("^[2-9]\\.", var.cluster_version))
+    error_message = "cluster_version must be >= 1.33."
   }
 }
 

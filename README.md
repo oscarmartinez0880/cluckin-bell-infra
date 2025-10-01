@@ -428,7 +428,7 @@ This creates GitHub OIDC roles for CI/CD integration.
 - **Kubernetes Provider**: ~> 2.20
 - **Helm Provider**: ~> 2.0
 - **EKS Module**: ~> 20.0
-- **Kubernetes Version**: 1.29
+- **Kubernetes Version**: 1.33
 
 ## Troubleshooting
 

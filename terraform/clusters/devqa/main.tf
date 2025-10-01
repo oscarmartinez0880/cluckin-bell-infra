@@ -98,7 +98,7 @@ module "eks_devqa" {
   providers = { aws = aws.devqa }
 
   cluster_name                         = "cb-use1-shared"
-  cluster_version                      = "1.30"
+  cluster_version                      = "1.33"
   cluster_endpoint_public_access       = true
   cluster_endpoint_public_access_cidrs = var.api_public_cidrs_devqa
 
@@ -143,7 +143,7 @@ module "eks_prod" {
   providers = { aws = aws.prod }
 
   cluster_name                   = "cb-use1-prod"
-  cluster_version                = "1.30"
+  cluster_version                = "1.33"
   cluster_endpoint_public_access = true
 
   vpc_id     = module.vpc_prod.vpc_id
