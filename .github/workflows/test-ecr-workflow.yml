@@ -85,7 +85,7 @@ jobs:
     environment: ${{ matrix.environment }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Test Environment Setup
         id: test-setup
@@ -105,7 +105,7 @@ jobs:
 
       - name: Configure AWS credentials (OIDC)
         if: ${{ !inputs.dry_run }}
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ matrix.ecr_role }}
           aws-region: ${{ env.AWS_REGION }}

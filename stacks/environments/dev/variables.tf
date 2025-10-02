@@ -1,7 +1,13 @@
+variable "manage_eks" {
+  description = "Whether to manage EKS cluster via Terraform (disabled by default - use eksctl instead)"
+  type        = bool
+  default     = false
+}
+
 variable "kubernetes_version" {
   description = "Kubernetes version for EKS cluster"
   type        = string
-  default     = "1.29"
+  default     = "1.33"
 }
 
 # Linux node group variables

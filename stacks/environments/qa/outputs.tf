@@ -1,26 +1,26 @@
 output "cluster_name" {
   description = "Name of the EKS cluster"
-  value       = module.eks.cluster_name
+  value       = try(module.eks[0].cluster_name, null)
 }
 
 output "cluster_endpoint" {
   description = "Endpoint for EKS control plane"
-  value       = module.eks.cluster_endpoint
+  value       = try(module.eks[0].cluster_endpoint, null)
 }
 
 output "cluster_security_group_id" {
   description = "Security group ids attached to the cluster control plane"
-  value       = module.eks.cluster_security_group_id
+  value       = try(module.eks[0].cluster_security_group_id, null)
 }
 
 output "cluster_iam_role_name" {
   description = "IAM role name associated with EKS cluster"
-  value       = module.eks.cluster_iam_role_name
+  value       = try(module.eks[0].cluster_iam_role_name, null)
 }
 
 output "cluster_certificate_authority_data" {
   description = "Base64 encoded certificate data required to communicate with the cluster"
-  value       = module.eks.cluster_certificate_authority_data
+  value       = try(module.eks[0].cluster_certificate_authority_data, null)
   sensitive   = true
 }
 
@@ -46,7 +46,7 @@ output "public_subnet_ids" {
 
 output "node_groups" {
   description = "EKS node groups"
-  value       = module.eks.eks_managed_node_groups
+  value       = try(module.eks[0].eks_managed_node_groups, {})
 }
 
 output "namespace" {
@@ -56,10 +56,10 @@ output "namespace" {
 
 output "argocd_application_name" {
   description = "Name of the ArgoCD application"
-  value       = module.argocd.application_name
+  value       = try(module.argocd[0].application_name, null)
 }
 
 output "argocd_server_url" {
   description = "ArgoCD server URL"
-  value       = module.argocd.server_url
+  value       = try(module.argocd[0].server_url, null)
 }

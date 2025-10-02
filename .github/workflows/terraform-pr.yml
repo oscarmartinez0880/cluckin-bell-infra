@@ -20,7 +20,7 @@ jobs:
       matrix:
         dir: [ 'terraform/accounts/devqa', 'terraform/accounts/prod' ]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Terraform 1.13.1
         uses: hashicorp/setup-terraform@v3
@@ -29,14 +29,14 @@ jobs:
 
       - name: Configure AWS credentials (OIDC)
         if: contains(matrix.dir, 'prod')
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_PROD }}
           aws-region: us-east-1
 
       - name: Configure AWS credentials (OIDC)
         if: contains(matrix.dir, 'devqa')
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_DEVQA }}
           aws-region: us-east-1

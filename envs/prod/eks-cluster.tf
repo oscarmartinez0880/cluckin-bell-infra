@@ -2,7 +2,7 @@ module "eks" {
   source = "../../modules/eks"
 
   cluster_name                           = local.cluster_name
-  cluster_version                        = "1.34"
+  cluster_version                        = "1.33"
   subnet_ids                             = local.all_subnet_ids
   private_subnet_ids                     = local.private_subnet_ids
   public_access_cidrs                    = var.public_access_cidrs

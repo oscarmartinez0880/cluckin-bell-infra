@@ -48,7 +48,7 @@ variable "manage_route53" {
 
 variable "kubernetes_version" {
   type    = string
-  default = "1.30"
+  default = "1.33"
 }
 
 variable "enable_aws_load_balancer_controller" {
