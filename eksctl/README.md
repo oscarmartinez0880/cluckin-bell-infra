@@ -5,7 +5,6 @@ This directory contains eksctl configuration files for managing EKS clusters in 
 ## Files
 
 - **devqa-cluster.yaml**: Configuration for the shared nonprod cluster (cluckn-bell-nonprod)
-  - This is the canonical config file for the dev/qa shared nonprod cluster
   - Account: 264765154707 (cluckin-bell-qa)
   - Node groups: `dev` and `qa`
   - Kubernetes version: 1.34
