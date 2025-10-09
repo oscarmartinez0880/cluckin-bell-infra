@@ -37,12 +37,12 @@ Test that Terraform would create the NAT gateway resources when `manage_nat_for_
 ```bash
 cd envs/nonprod
 
-# Create a test tfvars file
+# Create a test tfvars file (replace VPC and subnet IDs with your actual values)
 cat > test-nat.tfvars <<EOF
 environment                 = "devqa"
-existing_vpc_id            = "vpc-0749517f2c92924a5"
-public_subnet_ids          = ["subnet-09a601564fef30599", "subnet-0e428ee488b3accac", "subnet-00205cdb6865588ac"]
-private_subnet_ids         = ["subnet-0d1a90b43e2855061", "subnet-0e408dd3b79d3568b", "subnet-00d5249fbe0695848"]
+existing_vpc_id            = "vpc-xxxxxxxxxxxxxxxxx"  # Replace with your VPC ID
+public_subnet_ids          = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy", "subnet-zzzzzzzzzzzzzzzzz"]
+private_subnet_ids         = ["subnet-aaaaaaaaaaaaaaaa", "subnet-bbbbbbbbbbbbbbb", "subnet-ccccccccccccccc"]
 manage_nat_for_existing_vpc = true
 cluster_name               = "cluckn-bell-nonprod"
 EOF
@@ -54,12 +54,8 @@ terraform plan -var-file=test-nat.tfvars
 **Expected Resources in Plan:**
 - `aws_eip.nat[0]` - Elastic IP for NAT gateway
 - `aws_nat_gateway.this[0]` - NAT gateway resource
-- `data.aws_route_table.private_rt["subnet-0d1a90b43e2855061"]` - Route table lookup for each private subnet
-- `data.aws_route_table.private_rt["subnet-0e408dd3b79d3568b"]`
-- `data.aws_route_table.private_rt["subnet-00d5249fbe0695848"]`
-- `aws_route.private_default_to_nat["subnet-0d1a90b43e2855061"]` - Default route for each private subnet
-- `aws_route.private_default_to_nat["subnet-0e408dd3b79d3568b"]`
-- `aws_route.private_default_to_nat["subnet-00d5249fbe0695848"]`
+- `data.aws_route_table.private_rt["subnet-xxx"]` - Route table lookup for each private subnet (one per private subnet)
+- `aws_route.private_default_to_nat["subnet-xxx"]` - Default route for each private subnet (one per private subnet)
 
 ### Test 3: Verify NAT Gateway Disabled
 
@@ -68,12 +64,12 @@ Test that setting `manage_nat_for_existing_vpc = false` prevents NAT gateway cre
 ```bash
 cd envs/nonprod
 
-# Update test tfvars
+# Update test tfvars (replace with your actual VPC and subnet IDs)
 cat > test-nat-disabled.tfvars <<EOF
 environment                 = "devqa"
-existing_vpc_id            = "vpc-0749517f2c92924a5"
-public_subnet_ids          = ["subnet-09a601564fef30599", "subnet-0e428ee488b3accac", "subnet-00205cdb6865588ac"]
-private_subnet_ids         = ["subnet-0d1a90b43e2855061", "subnet-0e408dd3b79d3568b", "subnet-00d5249fbe0695848"]
+existing_vpc_id            = "vpc-xxxxxxxxxxxxxxxxx"  # Replace with your VPC ID
+public_subnet_ids          = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy", "subnet-zzzzzzzzzzzzzzzzz"]
+private_subnet_ids         = ["subnet-aaaaaaaaaaaaaaaa", "subnet-bbbbbbbbbbbbbbb", "subnet-ccccccccccccccc"]
 manage_nat_for_existing_vpc = false
 cluster_name               = "cluckn-bell-nonprod"
 EOF
@@ -92,18 +88,18 @@ cd envs/nonprod
 
 cat > test-nat-custom-subnet.tfvars <<EOF
 environment                 = "devqa"
-existing_vpc_id            = "vpc-0749517f2c92924a5"
-public_subnet_ids          = ["subnet-09a601564fef30599", "subnet-0e428ee488b3accac", "subnet-00205cdb6865588ac"]
-private_subnet_ids         = ["subnet-0d1a90b43e2855061", "subnet-0e408dd3b79d3568b", "subnet-00d5249fbe0695848"]
+existing_vpc_id            = "vpc-xxxxxxxxxxxxxxxxx"  # Replace with your VPC ID
+public_subnet_ids          = ["subnet-xxxxxxxxxxxxxxxxx", "subnet-yyyyyyyyyyyyyyyyy", "subnet-zzzzzzzzzzzzzzzzz"]
+private_subnet_ids         = ["subnet-aaaaaaaaaaaaaaaa", "subnet-bbbbbbbbbbbbbbb", "subnet-ccccccccccccccc"]
 manage_nat_for_existing_vpc = true
-nat_public_subnet_id       = "subnet-0e428ee488b3accac"
+nat_public_subnet_id       = "subnet-yyyyyyyyyyyyyyyyy"  # Second public subnet
 cluster_name               = "cluckn-bell-nonprod"
 EOF
 
 terraform plan -var-file=test-nat-custom-subnet.tfvars | grep "subnet_id"
 ```
 
-**Expected Result:** NAT gateway should be created in `subnet-0e428ee488b3accac`.
+**Expected Result:** NAT gateway should be created in the specified subnet (subnet-yyyyyyyyyyyyyyyyy).
 
 ### Test 5: Verify New VPC Doesn't Trigger NAT Management
 
@@ -140,8 +136,9 @@ aws ec2 describe-nat-gateways \
   --query 'NatGateways[*].[NatGatewayId,State,SubnetId,VpcId]' \
   --output table
 
-# Verify route tables for private subnets
-for subnet in subnet-0d1a90b43e2855061 subnet-0e408dd3b79d3568b subnet-00d5249fbe0695848; do
+# Verify route tables for private subnets (replace with your actual private subnet IDs)
+PRIVATE_SUBNETS=("subnet-aaaaaaaaaaaaaaaa" "subnet-bbbbbbbbbbbbbbb" "subnet-ccccccccccccccc")
+for subnet in "${PRIVATE_SUBNETS[@]}"; do
   echo "Checking routes for $subnet"
   aws ec2 describe-route-tables \
     --filters "Name=association.subnet-id,Values=$subnet" \
@@ -165,7 +162,10 @@ done
 **Verification:**
 ```bash
 cd envs/nonprod
+# Using your actual tfvars file (nonprod.tfvars or test-nat.tfvars)
 terraform plan -var-file=nonprod.tfvars | grep "aws_nat_gateway.this"
+# Or using a test configuration:
+# terraform plan -var-file=test-nat.tfvars | grep "aws_nat_gateway.this"
 ```
 
 ### AC2: Route Table Updates
@@ -175,7 +175,10 @@ terraform plan -var-file=nonprod.tfvars | grep "aws_nat_gateway.this"
 **Verification:**
 ```bash
 cd envs/nonprod
+# Using your actual tfvars file (nonprod.tfvars or test-nat.tfvars)
 terraform plan -var-file=nonprod.tfvars | grep "aws_route.private_default_to_nat"
+# Or using a test configuration:
+# terraform plan -var-file=test-nat.tfvars | grep "aws_route.private_default_to_nat"
 ```
 
 ### AC3: eksctl Node Groups Success
@@ -218,10 +221,16 @@ Expected: No resources planned.
 **Cause:** A route already exists in the route table, possibly manually created.
 
 **Solution:**
-1. Option A: Import the existing NAT gateway and routes:
+1. Option A: Import the existing NAT gateway and routes into Terraform state:
    ```bash
-   terraform import aws_nat_gateway.this[0] nat-xxxxx
-   terraform import aws_route.private_default_to_nat[\"subnet-xxx\"] rtb-xxx_0.0.0.0/0
+   # Import NAT gateway
+   terraform import aws_nat_gateway.this[0] nat-xxxxxxxxxxxxx
+   
+   # Import routes (one for each private subnet)
+   # Note: AWS route import format is: route-table-id_destination-cidr
+   terraform import 'aws_route.private_default_to_nat["subnet-xxx"]' rtb-xxxxxxxxxxxxx_0.0.0.0/0
+   terraform import 'aws_route.private_default_to_nat["subnet-yyy"]' rtb-yyyyyyyyyyyyy_0.0.0.0/0
+   terraform import 'aws_route.private_default_to_nat["subnet-zzz"]' rtb-zzzzzzzzzzzzz_0.0.0.0/0
    ```
 
 2. Option B: Set `manage_nat_for_existing_vpc = false` and manage NAT manually.
@@ -230,9 +239,9 @@ Expected: No resources planned.
 
 **Cause:** Default behavior uses the first public subnet.
 
-**Solution:** Specify the desired subnet:
+**Solution:** Specify the desired subnet in your tfvars file:
 ```hcl
-nat_public_subnet_id = "subnet-0e428ee488b3accac"
+nat_public_subnet_id = "subnet-xxxxxxxxxxxxxxxxx"  # Replace with your desired public subnet ID
 ```
 
 ### Issue: Nodes still can't join cluster after NAT creation
