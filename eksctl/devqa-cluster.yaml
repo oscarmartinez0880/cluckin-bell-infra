@@ -1,0 +1,129 @@
+# eksctl cluster configuration for nonprod (shared dev/qa)
+# Creates cluster: cluckn-bell-nonprod
+# Account: 264765154707 (cluckin-bell-qa)
+# Region: us-east-1
+# Kubernetes version: 1.34
+# Node groups: dev (dev workloads), qa (qa workloads)
+
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: cluckn-bell-nonprod
+  region: us-east-1
+  version: "1.34"
+  tags:
+    Project: cluckn-bell
+    Environment: nonprod
+    ManagedBy: eksctl
+
+# VPC Configuration
+# Use existing VPC created by Terraform (cb-devqa-use1)
+# Private subnets: 10.60.1.0/24, 10.60.2.0/24, 10.60.3.0/24
+vpc:
+  id: vpc-REPLACE_WITH_VPC_ID  # Replace with actual VPC ID from terraform output
+  subnets:
+    private:
+      us-east-1a:
+        id: subnet-REPLACE_WITH_SUBNET_1A  # Replace with actual private subnet ID
+      us-east-1b:
+        id: subnet-REPLACE_WITH_SUBNET_1B  # Replace with actual private subnet ID
+      us-east-1c:
+        id: subnet-REPLACE_WITH_SUBNET_1C  # Replace with actual private subnet ID
+
+# IAM Configuration
+iam:
+  withOIDC: true
+  serviceAccounts: []
+
+# Managed Node Groups
+managedNodeGroups:
+  # Dev node group for dev environment workloads
+  - name: dev
+    instanceType: m5.large
+    amiFamily: AmazonLinux2023
+    minSize: 1
+    maxSize: 5
+    desiredCapacity: 2
+    volumeSize: 50
+    volumeType: gp3
+    privateNetworking: true
+    labels:
+      environment: dev
+      role: application
+      nodegroup: dev
+    tags:
+      Name: cluckn-bell-nonprod-dev
+      Environment: dev
+      NodeGroup: dev
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/cluckn-bell-nonprod: "owned"
+    iam:
+      withAddonPolicies:
+        imageBuilder: true
+        autoScaler: true
+        externalDNS: false
+        certManager: false
+        appMesh: false
+        ebs: true
+        efs: true
+        albIngress: false
+        xRay: false
+        cloudWatch: true
+
+  # QA node group for qa environment workloads  
+  - name: qa
+    instanceType: m5.large
+    amiFamily: AmazonLinux2023
+    minSize: 1
+    maxSize: 8
+    desiredCapacity: 3
+    volumeSize: 50
+    volumeType: gp3
+    privateNetworking: true
+    labels:
+      environment: qa
+      role: application
+      nodegroup: qa
+    tags:
+      Name: cluckn-bell-nonprod-qa
+      Environment: qa
+      NodeGroup: qa
+      k8s.io/cluster-autoscaler/enabled: "true"
+      k8s.io/cluster-autoscaler/cluckn-bell-nonprod: "owned"
+    iam:
+      withAddonPolicies:
+        imageBuilder: true
+        autoScaler: true
+        externalDNS: false
+        certManager: false
+        appMesh: false
+        ebs: true
+        efs: true
+        albIngress: false
+        xRay: false
+        cloudWatch: true
+
+# Add-ons (managed by AWS)
+addons:
+  - name: vpc-cni
+    version: latest
+  - name: coredns
+    version: latest
+  - name: kube-proxy
+    version: latest
+  - name: aws-ebs-csi-driver
+    version: latest
+    wellKnownPolicies:
+      ebsCSIController: true
+
+# CloudWatch logging
+cloudWatch:
+  clusterLogging:
+    enableTypes:
+      - api
+      - audit
+      - authenticator
+      - controllerManager
+      - scheduler
+    logRetentionInDays: 7

@@ -80,10 +80,29 @@ Alternatively, enable direnv in WSL (Windows Subsystem for Linux) for the same c
 - **Auto-loaded variables**: Each environment has a `.auto.tfvars` file that loads automatically
 - **AWS Profile**: Backend honors `AWS_PROFILE` environment variable (no need to set `profile` in backend config)
 
-First-time bootstrap for a new cluster (two-phase apply):
+### EKS Cluster Creation with eksctl
+
+**By default, Terraform does not create EKS clusters** (`create_eks = false`). Instead, use eksctl to create clusters and Terraform for VPC/IAM/Route53/IRSA resources.
+
+**Three-Phase Bootstrap Flow:**
 ```bash
-cd envs/nonprod && terraform apply -target=module.eks
-cd envs/prod && terraform apply -target=module.eks
+# Phase 1: Create VPC/Networking with Terraform
+cd envs/nonprod
+AWS_PROFILE=cluckin-bell-qa terraform apply
+
+# Phase 2: Create EKS cluster with eksctl
+terraform output vpc_id private_subnet_ids
+# Update eksctl/devqa-cluster.yaml with actual VPC/subnet IDs
+eksctl create cluster --config-file=../../eksctl/devqa-cluster.yaml --profile=cluckin-bell-qa
+
+# Phase 3: Apply remaining Terraform components (IAM/Route53/IRSA)
+AWS_PROFILE=cluckin-bell-qa terraform apply
+```
+
+**Optional: Use Terraform to create the cluster** (if you set `create_eks = true`):
+```bash
+cd envs/nonprod && AWS_PROFILE=cluckin-bell-qa terraform apply -var="create_eks=true"
+cd envs/prod && AWS_PROFILE=cluckin-bell-prod terraform apply -var="create_eks=true"
 ```
 
 ### File Structure
@@ -365,10 +384,10 @@ AWS_PROFILE=cluckin-bell-qa terraform apply
 
 #### Option 2: Full Cluster Recreate (Nonprod Only)
 
-For nonprod environments where downtime is acceptable:
+For nonprod environments where downtime is acceptable and if you're using Terraform to manage clusters (`create_eks = true`):
 
 ```bash
-# WARNING: This will destroy and recreate the cluster
+# WARNING: This will destroy and recreate the cluster (only if create_eks = true)
 cd envs/nonprod
 AWS_PROFILE=cluckin-bell-qa terraform destroy -target=module.eks
 AWS_PROFILE=cluckin-bell-qa terraform apply -target=module.eks
@@ -376,6 +395,8 @@ AWS_PROFILE=cluckin-bell-qa terraform apply -target=module.eks
 # Then apply the full configuration
 AWS_PROFILE=cluckin-bell-qa terraform apply
 ```
+
+**Note**: By default, clusters are managed by eksctl (`create_eks = false`), so use `eksctl delete cluster` and `eksctl create cluster` instead.
 
 ### Dev/QA Environment Separation in Shared Cluster
 

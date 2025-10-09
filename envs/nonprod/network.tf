@@ -18,6 +18,44 @@ locals {
 
   # Cluster name selection
   cluster_name = var.cluster_name != "" ? var.cluster_name : "cluckn-bell-nonprod"
+
+  # Unified cluster attributes - works whether cluster is created by Terraform or eksctl
+  cluster_endpoint = var.create_eks ? (
+    length(module.eks) > 0 ? module.eks[0].cluster_endpoint : ""
+  ) : (
+    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].endpoint : ""
+  )
+
+  cluster_arn = var.create_eks ? (
+    length(module.eks) > 0 ? module.eks[0].cluster_arn : ""
+  ) : (
+    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].arn : ""
+  )
+
+  cluster_id = var.create_eks ? (
+    length(module.eks) > 0 ? module.eks[0].cluster_id : ""
+  ) : (
+    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].id : ""
+  )
+
+  cluster_oidc_issuer_url = var.create_eks ? (
+    length(module.eks) > 0 ? module.eks[0].oidc_issuer_url : ""
+  ) : (
+    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].identity[0].oidc[0].issuer : ""
+  )
+
+  cluster_oidc_provider_arn = var.create_eks ? (
+    length(module.eks) > 0 ? module.eks[0].oidc_provider_arn : ""
+  ) : (
+    # For eksctl-managed clusters, construct the OIDC provider ARN
+    length(data.aws_eks_cluster.existing) > 0 ? "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(data.aws_eks_cluster.existing[0].identity[0].oidc[0].issuer, "https://", "")}" : ""
+  )
+
+  cluster_certificate_authority_data = var.create_eks ? (
+    length(module.eks) > 0 ? module.eks[0].cluster_certificate_authority_data : ""
+  ) : (
+    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].certificate_authority[0].data : ""
+  )
 }
 
 # Conditional VPC creation - only create if not using existing VPC

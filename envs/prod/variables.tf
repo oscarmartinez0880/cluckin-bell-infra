@@ -4,6 +4,12 @@ variable "environment" {
   type        = string
 }
 
+variable "create_eks" {
+  description = "Whether to create EKS cluster via Terraform (default: false - use eksctl instead)"
+  type        = bool
+  default     = false
+}
+
 variable "aws_region" {
   description = "AWS region"
   type        = string

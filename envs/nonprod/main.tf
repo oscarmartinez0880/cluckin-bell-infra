@@ -149,7 +149,7 @@ module "irsa_aws_load_balancer_controller" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-aws-load-balancer-controller"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "kube-system"
   service_account   = "aws-load-balancer-controller"
 
@@ -373,7 +373,7 @@ module "irsa_external_dns_dev" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-dns-dev"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "kube-system"
   service_account   = "external-dns-dev"
 
@@ -408,7 +408,7 @@ module "irsa_external_dns_qa" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-dns-qa"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "kube-system"
   service_account   = "external-dns-qa"
 
@@ -443,7 +443,7 @@ module "irsa_cluster_autoscaler" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-cluster-autoscaler"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "kube-system"
   service_account   = "cluster-autoscaler"
 
@@ -473,7 +473,7 @@ module "irsa_aws_for_fluent_bit" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-aws-for-fluent-bit"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "amazon-cloudwatch"
   service_account   = "fluent-bit"
 
@@ -503,7 +503,7 @@ module "irsa_cloudwatch_agent" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-cloudwatch-agent"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "amazon-cloudwatch"
   service_account   = "cloudwatch-agent"
 
@@ -532,7 +532,7 @@ module "irsa_external_secrets" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-secrets"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "external-secrets-system"
   service_account   = "external-secrets"
 
