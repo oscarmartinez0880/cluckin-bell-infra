@@ -96,6 +96,30 @@ terraform apply
 terraform output
 ```
 
+**Important: NAT Gateway for Existing VPCs (Nonprod)**
+
+When reusing an existing VPC (as configured in `envs/nonprod`), Terraform automatically provisions a NAT gateway to ensure private subnets have egress connectivity. This is critical for EKS nodes to successfully join the cluster and pull container images.
+
+By default, Terraform will:
+- Create an Elastic IP and NAT gateway in the first public subnet
+- Update all private subnet route tables with a default route (0.0.0.0/0) to the NAT gateway
+- Replace any existing blackhole routes that may exist
+
+This behavior is controlled by the `manage_nat_for_existing_vpc` variable (default: `true`). To disable automatic NAT management:
+
+```hcl
+# In envs/nonprod/nonprod.tfvars or via CLI
+manage_nat_for_existing_vpc = false
+```
+
+To use a specific public subnet for the NAT gateway:
+
+```hcl
+nat_public_subnet_id = "subnet-09a601564fef30599"
+```
+
+If you skip this step, eksctl nodegroups may fail with `NodeCreationFailure` errors due to nodes being unable to reach the EKS API endpoint or pull images.
+
 ### Step 2: Update eksctl Configuration
 
 Edit the eksctl configuration files and replace placeholders with actual IDs:
@@ -311,6 +335,34 @@ Ensure VPC and subnets exist:
 ```bash
 cd terraform/clusters/devqa
 terraform output
+```
+
+### NodeCreationFailure - Nodes Can't Join Cluster
+
+If eksctl reports `NodeCreationFailure` or nodes fail to join the cluster, check NAT gateway and routing:
+
+```bash
+# Verify NAT gateway exists and is available
+aws ec2 describe-nat-gateways \
+  --filter "Name=vpc-id,Values=vpc-0749517f2c92924a5" \
+  --profile cluckin-bell-qa \
+  --query 'NatGateways[*].[NatGatewayId,State,SubnetId]' \
+  --output table
+
+# Check private subnet route tables have NAT gateway routes
+aws ec2 describe-route-tables \
+  --filter "Name=association.subnet-id,Values=subnet-0d1a90b43e2855061" \
+  --profile cluckin-bell-qa \
+  --query 'RouteTables[*].Routes' \
+  --output table
+```
+
+Expected output: Route table should have a 0.0.0.0/0 route pointing to a NAT gateway (not blackhole).
+
+If NAT gateway is missing:
+```bash
+cd envs/nonprod
+terraform apply  # Will create NAT gateway and update routes
 ```
 
 ### OIDC Provider Issues
