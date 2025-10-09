@@ -50,26 +50,63 @@ Each environment contains:
 
 ## Usage
 
-### Deploy Nonprod Environment
+### Two-Phase Deployment Flow
+
+**Phase 1: Terraform for VPC/Networking**
 ```bash
+# Nonprod
 cd envs/nonprod
 aws sso login --profile cluckin-bell-qa
 terraform init
-terraform plan -var-file=nonprod.tfvars -out=nonprod.plan
-terraform apply nonprod.plan
+terraform apply  # Creates VPC, subnets, etc. (no EKS cluster by default)
+```
+
+**Phase 2: eksctl for EKS Cluster**
+```bash
+# Get VPC and subnet IDs from Terraform outputs
+terraform output vpc_id
+terraform output private_subnet_ids
+
+# Update eksctl/devqa-cluster.yaml with actual VPC/subnet IDs
+# Then create the cluster
+eksctl create cluster --config-file=../../eksctl/devqa-cluster.yaml --profile=cluckin-bell-qa
+```
+
+**Phase 3: Terraform for Remaining Components (IAM/Route53/IRSA)**
+```bash
+# Now that the cluster exists, Terraform can reference it for IRSA roles, etc.
+terraform apply
 aws eks update-kubeconfig --name cluckn-bell-nonprod --profile cluckin-bell-qa --region us-east-1
 kubectl get nodes
 ```
 
 ### Deploy Prod Environment
 ```bash
+# Phase 1: VPC/Networking
 cd envs/prod
 aws sso login --profile cluckin-bell-prod
 terraform init
-terraform plan -var-file=prod.tfvars -out=prod.plan
-terraform apply prod.plan
+terraform apply
+
+# Phase 2: eksctl cluster
+terraform output vpc_id
+terraform output private_subnet_ids
+# Update eksctl/prod-cluster.yaml with actual VPC/subnet IDs
+eksctl create cluster --config-file=../../eksctl/prod-cluster.yaml --profile=cluckin-bell-prod
+
+# Phase 3: Remaining components
+terraform apply
 aws eks update-kubeconfig --name cluckn-bell-prod --profile cluckin-bell-prod --region us-east-1
 kubectl get nodes
+```
+
+### Optional: Use Terraform to Create Cluster
+
+If you prefer to use Terraform to create the EKS cluster instead of eksctl, set `create_eks = true` in your tfvars file:
+
+```bash
+cd envs/nonprod
+terraform apply -var="create_eks=true"
 ```
 
 ### Verify Node Groups

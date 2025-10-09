@@ -132,7 +132,7 @@ module "irsa_aws_load_balancer_controller" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-aws-load-balancer-controller"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "kube-system"
   service_account   = "aws-load-balancer-controller"
 
@@ -356,7 +356,7 @@ module "irsa_external_dns" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-external-dns"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "kube-system"
   service_account   = "external-dns"
 
@@ -390,7 +390,7 @@ module "irsa_cluster_autoscaler" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-cluster-autoscaler"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "kube-system"
   service_account   = "cluster-autoscaler"
 
@@ -420,7 +420,7 @@ module "irsa_aws_for_fluent_bit" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-aws-for-fluent-bit"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "amazon-cloudwatch"
   service_account   = "fluent-bit"
 
@@ -450,7 +450,7 @@ module "irsa_cloudwatch_agent" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-cloudwatch-agent"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "amazon-cloudwatch"
   service_account   = "cloudwatch-agent"
 
@@ -479,7 +479,7 @@ module "irsa_external_secrets" {
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-prod-external-secrets"
-  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_arn = local.cluster_oidc_provider_arn
   namespace         = "external-secrets-system"
   service_account   = "external-secrets"
 

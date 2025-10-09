@@ -5,11 +5,14 @@ This guide explains how to deploy the root EKS stack using the Terraform Deploy 
 ## When to Use the Root EKS Stack
 
 Use the root EKS stack when you want to deploy a complete EKS environment with:
-- EKS cluster with Windows and Linux node groups
-- Kubernetes controllers (AWS Load Balancer Controller, cert-manager, external-dns)
-- ArgoCD for GitOps
-- ECR repositories
-- Route53 zones and DNS management
+- **VPC and networking** (subnets, route tables)
+- **IAM roles for service accounts** (IRSA for AWS Load Balancer Controller, cert-manager, external-dns)
+- **ECR repositories**
+- **Route53 zones and DNS management**
+- **Cognito user pools**
+- **Secrets Manager secrets**
+
+**Important**: By default, the root EKS stack does **not** create EKS clusters (`create_eks = false`). Instead, use **eksctl** to create clusters after Terraform provisions the VPC/networking. The `create_eks` toggle exists for exceptions where Terraform cluster creation is preferred.
 
 This is different from the account-level stacks (`terraform/accounts/devqa` and `terraform/accounts/prod`) which provision IAM roles, OIDC providers, and other bootstrap resources.
 
@@ -59,6 +62,8 @@ When running **Actions → Terraform Deploy → Run workflow**, use these parame
 
 ## Deployment Steps
 
+### Phase 1: Terraform for VPC and Networking
+
 1. **Plan First**: Always run with `apply: false` to review changes
    ```
    Target environment: dev
@@ -75,19 +80,52 @@ When running **Actions → Terraform Deploy → Run workflow**, use these parame
    Apply: true
    ```
 
-4. **Repeat for Other Environments**: Use the appropriate working directory for each environment
+### Phase 2: eksctl for EKS Cluster
+
+After Terraform creates the VPC and subnets:
+
+```bash
+# Get VPC and subnet IDs from Terraform outputs
+cd envs/nonprod
+terraform output vpc_id
+terraform output private_subnet_ids
+
+# Update eksctl/devqa-cluster.yaml with actual VPC/subnet IDs
+# Then create the cluster with eksctl
+eksctl create cluster --config-file=../../eksctl/devqa-cluster.yaml --profile=cluckin-bell-qa
+```
+
+### Phase 3: Terraform for Remaining Components
+
+After the eksctl cluster is created, run Terraform again to provision IAM roles and other resources that depend on the cluster:
+
+```bash
+terraform apply
+```
+
+### Optional: Terraform-Managed Clusters
+
+If you prefer Terraform to create the cluster (by setting `create_eks = true`), skip Phase 2 and run a single Terraform apply in Phase 1.
 
 ## What Gets Deployed
 
 Each environment deployment creates:
-- EKS cluster named `cb-{env}-use1`
-- Linux and Windows node groups with environment-specific sizing
-- AWS Load Balancer Controller for ingress
-- cert-manager for TLS certificate automation
-- external-dns for Route53 DNS management
-- ArgoCD for GitOps (syncs from CodeCommit)
+- VPC and subnets (if not using existing)
+- **EKS cluster via eksctl** (default) or Terraform (if `create_eks = true`)
+  - Nonprod: `cluckn-bell-nonprod`
+  - Prod: `cluckn-bell-prod`
+- Node groups created by eksctl with environment-specific sizing
+- IAM roles for service accounts (IRSA) for:
+  - AWS Load Balancer Controller
+  - cert-manager
+  - external-dns
+  - Cluster Autoscaler
+  - Fluent Bit
+  - External Secrets
 - ECR repositories for application images
-- Required IAM roles and policies (IRSA)
+- Route53 zones and DNS management
+- Cognito user pools
+- Secrets Manager secrets
 
 ## Troubleshooting
 
