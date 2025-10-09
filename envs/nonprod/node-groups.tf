@@ -1,6 +1,9 @@
 # UPDATED: References module.eks (not module.eks_nonprod) and uses object variables for sizes #
+# Note: These node groups are only created when create_eks = true (Terraform-managed cluster)
+# For eksctl-managed clusters, node groups are defined in eksctl YAML configs
 resource "aws_eks_node_group" "dev" {
-  cluster_name    = module.eks.cluster_name # CHANGED reference #
+  count           = var.create_eks ? 1 : 0
+  cluster_name    = module.eks[0].cluster_name
   node_group_name = "dev"
   node_role_arn   = aws_iam_role.eks_node_group.arn # NEW reference to new IAM role #
   subnet_ids      = local.private_subnet_ids        # Use same private subnets local if available #
@@ -28,7 +31,8 @@ resource "aws_eks_node_group" "dev" {
 }
 
 resource "aws_eks_node_group" "qa" {
-  cluster_name    = module.eks.cluster_name # CHANGED reference #
+  count           = var.create_eks ? 1 : 0
+  cluster_name    = module.eks[0].cluster_name
   node_group_name = "qa"
   node_role_arn   = aws_iam_role.eks_node_group.arn # NEW reference #
   subnet_ids      = local.private_subnet_ids
@@ -56,8 +60,8 @@ resource "aws_eks_node_group" "qa" {
 }
 
 output "nonprod_node_groups" {
-  value = {
-    dev = aws_eks_node_group.dev.node_group_name
-    qa  = aws_eks_node_group.qa.node_group_name
-  }
+  value = var.create_eks ? {
+    dev = aws_eks_node_group.dev[0].node_group_name
+    qa  = aws_eks_node_group.qa[0].node_group_name
+  } : {}
 }

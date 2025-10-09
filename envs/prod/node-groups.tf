@@ -1,6 +1,9 @@
 # Explicit managed node group for prod cluster #
+# Note: This node group is only created when create_eks = true (Terraform-managed cluster)
+# For eksctl-managed clusters, node groups are defined in eksctl YAML configs
 resource "aws_eks_node_group" "prod" {
-  cluster_name    = module.eks.cluster_name # Ensure module name matches eks-cluster.tf #
+  count           = var.create_eks ? 1 : 0
+  cluster_name    = module.eks[0].cluster_name
   node_group_name = "prod"
   node_role_arn   = aws_iam_role.eks_node_group.arn # Uses new IAM role #
   subnet_ids      = local.private_subnet_ids
@@ -28,5 +31,5 @@ resource "aws_eks_node_group" "prod" {
 }
 
 output "prod_node_group" {
-  value = aws_eks_node_group.prod.node_group_name
+  value = var.create_eks ? aws_eks_node_group.prod[0].node_group_name : ""
 }

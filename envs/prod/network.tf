@@ -50,6 +50,12 @@ locals {
     # For eksctl-managed clusters, construct the OIDC provider ARN
     length(data.aws_eks_cluster.existing) > 0 ? "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(data.aws_eks_cluster.existing[0].identity[0].oidc[0].issuer, "https://", "")}" : ""
   )
+
+  cluster_certificate_authority_data = var.create_eks ? (
+    length(module.eks) > 0 ? module.eks[0].cluster_certificate_authority_data : ""
+  ) : (
+    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].certificate_authority[0].data : ""
+  )
 }
 
 # Conditional VPC creation - only create if not using existing VPC
