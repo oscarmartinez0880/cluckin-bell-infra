@@ -21,6 +21,7 @@ The infrastructure supports both creating new VPCs/subnets and reusing existing 
 - Set `existing_vpc_id` to an existing VPC ID
 - Provide lists of `public_subnet_ids` and `private_subnet_ids`
 - Terraform will use the existing network infrastructure
+- **NAT Gateway Management**: When reusing an existing VPC, Terraform will automatically provision a NAT gateway in one public subnet and configure private subnet route tables for egress traffic (enabled by default via `manage_nat_for_existing_vpc = true`)
 
 ### EKS Cluster Features
 
@@ -30,6 +31,42 @@ The infrastructure supports both creating new VPCs/subnets and reusing existing 
 - **Enhanced Logging**: Configurable CloudWatch retention (30 days nonprod, 90 days prod)
 - **Encryption**: KMS encryption enabled with module-provisioned keys
 - **API Access**: Configurable CIDR restrictions (currently open, ready for tightening)
+
+### NAT Gateway Management (Nonprod Only)
+
+When reusing an existing VPC in the nonprod environment, Terraform automatically manages NAT gateway provisioning to ensure private subnets have egress connectivity. This is critical for EKS nodes to:
+- Reach the EKS public API endpoint to join the cluster
+- Pull container images from public registries
+- Access AWS services
+
+**Default Behavior (Recommended):**
+```hcl
+manage_nat_for_existing_vpc = true  # Default, automatically managed
+```
+
+Terraform will:
+1. Provision an Elastic IP and NAT gateway in the first public subnet
+2. Discover route tables associated with each private subnet
+3. Create/update default routes (0.0.0.0/0) pointing to the NAT gateway
+
+**Customization Options:**
+
+To use a specific public subnet for the NAT gateway:
+```hcl
+nat_public_subnet_id = "subnet-09a601564fef30599"  # Optional override
+```
+
+To disable automatic NAT management (if you already have a NAT gateway):
+```hcl
+manage_nat_for_existing_vpc = false
+```
+
+**Important Notes:**
+- This feature only applies when `existing_vpc_id` is set (reusing VPC)
+- When creating a new VPC, the vpc module handles NAT gateway provisioning
+- If you previously created a NAT gateway manually, you can either:
+  - Set `manage_nat_for_existing_vpc = false` to avoid drift
+  - Import the existing NAT gateway into Terraform state
 
 ## Variable Files
 

@@ -41,7 +41,7 @@ output "cert_manager_role_name" {
 # Convenience outputs for Helm values
 output "helm_values" {
   description = "Helm values snippet for deploying controllers with these IAM roles"
-  value = <<-EOT
+  value       = <<-EOT
     # AWS Load Balancer Controller
     aws-load-balancer-controller:
       serviceAccount:

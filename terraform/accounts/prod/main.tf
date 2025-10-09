@@ -359,8 +359,8 @@ resource "aws_iam_role" "ecr_read_cluckin_bell_app_prod" {
 
 # ECR Read Policy for cluckin-bell-app
 resource "aws_iam_policy" "ecr_read_cluckin_bell_app_prod" {
-  provider = aws.prod
-  name     = "GH_ECR_Read_cluckin_bell_app_prod_policy"
+  provider    = aws.prod
+  name        = "GH_ECR_Read_cluckin_bell_app_prod_policy"
   description = "Policy for GitHub Actions to read ECR tags for cluckin-bell-app repository in prod"
 
   policy = jsonencode({
@@ -370,7 +370,7 @@ resource "aws_iam_policy" "ecr_read_cluckin_bell_app_prod" {
         Effect = "Allow"
         Action = [
           "ecr:DescribeRepositories",
-          "ecr:ListImages", 
+          "ecr:ListImages",
           "ecr:DescribeImages",
           "ecr:BatchGetImage"
         ]
@@ -428,8 +428,8 @@ resource "aws_iam_role" "ses_send_cluckin_bell_prod" {
 
 # SES Send Policy for prod environment
 resource "aws_iam_policy" "ses_send_cluckin_bell_prod" {
-  provider = aws.prod
-  name     = "GH_SES_Send_cluckin_bell_prod_policy"
+  provider    = aws.prod
+  name        = "GH_SES_Send_cluckin_bell_prod_policy"
   description = "Policy for GitHub Actions to send emails via SES in prod environment"
 
   policy = jsonencode({

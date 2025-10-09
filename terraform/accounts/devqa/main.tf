@@ -431,8 +431,8 @@ resource "aws_iam_role" "ecr_read_cluckin_bell_app" {
 
 # ECR Read Policy for cluckin-bell-app
 resource "aws_iam_policy" "ecr_read_cluckin_bell_app" {
-  provider = aws.devqa
-  name     = "GH_ECR_Read_cluckin_bell_app_policy"
+  provider    = aws.devqa
+  name        = "GH_ECR_Read_cluckin_bell_app_policy"
   description = "Policy for GitHub Actions to read ECR tags for cluckin-bell-app repository"
 
   policy = jsonencode({
@@ -442,7 +442,7 @@ resource "aws_iam_policy" "ecr_read_cluckin_bell_app" {
         Effect = "Allow"
         Action = [
           "ecr:DescribeRepositories",
-          "ecr:ListImages", 
+          "ecr:ListImages",
           "ecr:DescribeImages",
           "ecr:BatchGetImage"
         ]
@@ -500,8 +500,8 @@ resource "aws_iam_role" "ses_send_cluckin_bell_qa" {
 
 # SES Send Policy for QA environment
 resource "aws_iam_policy" "ses_send_cluckin_bell_qa" {
-  provider = aws.devqa
-  name     = "GH_SES_Send_cluckin_bell_qa_policy"
+  provider    = aws.devqa
+  name        = "GH_SES_Send_cluckin_bell_qa_policy"
   description = "Policy for GitHub Actions to send emails via SES in QA environment"
 
   policy = jsonencode({
