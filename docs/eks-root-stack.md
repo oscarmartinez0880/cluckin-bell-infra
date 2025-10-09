@@ -12,7 +12,7 @@ Use the root EKS stack when you want to deploy a complete EKS environment with:
 - **Cognito user pools**
 - **Secrets Manager secrets**
 
-**Important**: By default, the root EKS stack does **not** create EKS clusters (`create_eks = false`). Instead, use **eksctl** to create clusters after Terraform provisions the VPC/networking. The `create_eks` toggle exists for exceptions where Terraform cluster creation is preferred.
+**Important**: The root EKS stack does **not** create EKS clusters. Use **eksctl** to create clusters after Terraform provisions the VPC/networking. eksctl is the single source of truth for cluster lifecycle management.
 
 This is different from the account-level stacks (`terraform/accounts/devqa` and `terraform/accounts/prod`) which provision IAM roles, OIDC providers, and other bootstrap resources.
 
@@ -103,18 +103,14 @@ After the eksctl cluster is created, run Terraform again to provision IAM roles 
 terraform apply
 ```
 
-### Optional: Terraform-Managed Clusters
-
-If you prefer Terraform to create the cluster (by setting `create_eks = true`), skip Phase 2 and run a single Terraform apply in Phase 1.
-
 ## What Gets Deployed
 
 Each environment deployment creates:
 - VPC and subnets (if not using existing)
-- **EKS cluster via eksctl** (default) or Terraform (if `create_eks = true`)
+- **EKS cluster via eksctl** (see `docs/CLUSTERS_WITH_EKSCTL.md`)
   - Nonprod: `cluckn-bell-nonprod`
   - Prod: `cluckn-bell-prod`
-- Node groups created by eksctl with environment-specific sizing
+- Node groups managed by eksctl with environment-specific sizing
 - IAM roles for service accounts (IRSA) for:
   - AWS Load Balancer Controller
   - cert-manager
