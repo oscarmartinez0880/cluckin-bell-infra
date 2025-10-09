@@ -137,15 +137,6 @@ aws eks update-kubeconfig --name cluckn-bell-prod --profile cluckin-bell-prod --
 kubectl get nodes
 ```
 
-### Optional: Use Terraform to Create Cluster
-
-If you prefer to use Terraform to create the EKS cluster instead of eksctl, set `create_eks = true` in your tfvars file:
-
-```bash
-cd envs/nonprod
-terraform apply -var="create_eks=true"
-```
-
 ### Verify Node Groups
 ```bash
 aws eks describe-nodegroup \

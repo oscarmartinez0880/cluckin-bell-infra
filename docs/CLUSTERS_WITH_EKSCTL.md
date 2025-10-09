@@ -34,12 +34,15 @@ The infrastructure follows a separation of concerns:
 3. **Simplified operations**: eksctl is purpose-built for EKS management
 4. **Version control**: Kubernetes version pinned to 1.34 in eksctl configs
 5. **Cost optimization**: Easy to use AL2023 AMI and right-size node groups
+6. **Single source of truth**: eksctl is the only tool for cluster lifecycle management
 
 ### Trade-offs
 
 - Must coordinate between tools (Terraform → eksctl → IRSA → Helm)
 - OIDC issuer URL must be manually retrieved and passed to IRSA stack
 - Two-step process for full cluster setup
+
+**Note**: Terraform does not manage EKS clusters or node groups. eksctl is the single source of truth for cluster lifecycle management.
 
 ## Cluster Architecture
 
@@ -280,23 +283,6 @@ eksctl update nodegroup --config-file=eksctl/devqa-cluster.yaml --profile=clucki
 ```bash
 eksctl update addon --cluster=cluckn-bell-nonprod --name=vpc-cni --version=latest --profile=cluckin-bell-qa
 ```
-
-## Managing Terraform-Gated EKS (Opt-in)
-
-If you need to manage EKS via Terraform (not recommended), set `manage_eks = true`:
-
-```hcl
-# In stacks/environments/dev/terraform.tfvars
-manage_eks = true
-```
-
-Then:
-```bash
-cd stacks/environments/dev
-terraform apply
-```
-
-**Warning**: This will create/manage the cluster via Terraform. Use with caution.
 
 ## Cost Optimization Tips
 

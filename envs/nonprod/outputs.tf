@@ -14,27 +14,6 @@ output "public_subnet_ids" {
   value       = local.public_subnet_ids
 }
 
-# EKS Outputs - unified for both Terraform-created and eksctl-managed clusters
-output "cluster_id" {
-  description = "EKS cluster ID"
-  value       = local.cluster_id
-}
-
-output "cluster_arn" {
-  description = "EKS cluster ARN"
-  value       = local.cluster_arn
-}
-
-output "cluster_endpoint" {
-  description = "EKS cluster endpoint"
-  value       = local.cluster_endpoint
-}
-
-output "cluster_oidc_issuer_url" {
-  description = "The URL on the EKS cluster OIDC Issuer"
-  value       = local.cluster_oidc_issuer_url
-}
-
 # DNS and Certificate Outputs
 
 # ECR Outputs

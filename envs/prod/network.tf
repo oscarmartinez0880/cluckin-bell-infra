@@ -13,49 +13,11 @@ locals {
   public_subnet_ids  = local.use_existing_vpc ? var.public_subnet_ids : module.vpc[0].public_subnet_ids
   private_subnet_ids = local.use_existing_vpc ? var.private_subnet_ids : module.vpc[0].private_subnet_ids
 
-  # Combined subnet IDs for EKS cluster
+  # Combined subnet IDs for EKS cluster (used by eksctl)
   all_subnet_ids = concat(local.private_subnet_ids, local.public_subnet_ids)
 
-  # Cluster name selection
+  # Cluster name for eksctl-managed cluster
   cluster_name = var.cluster_name != "" ? var.cluster_name : "cluckn-bell-prod"
-
-  # Unified cluster attributes - works whether cluster is created by Terraform or eksctl
-  cluster_endpoint = var.create_eks ? (
-    length(module.eks) > 0 ? module.eks[0].cluster_endpoint : ""
-    ) : (
-    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].endpoint : ""
-  )
-
-  cluster_arn = var.create_eks ? (
-    length(module.eks) > 0 ? module.eks[0].cluster_arn : ""
-    ) : (
-    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].arn : ""
-  )
-
-  cluster_id = var.create_eks ? (
-    length(module.eks) > 0 ? module.eks[0].cluster_id : ""
-    ) : (
-    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].id : ""
-  )
-
-  cluster_oidc_issuer_url = var.create_eks ? (
-    length(module.eks) > 0 ? module.eks[0].oidc_issuer_url : ""
-    ) : (
-    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].identity[0].oidc[0].issuer : ""
-  )
-
-  cluster_oidc_provider_arn = var.create_eks ? (
-    length(module.eks) > 0 ? module.eks[0].oidc_provider_arn : ""
-    ) : (
-    # For eksctl-managed clusters, construct the OIDC provider ARN
-    length(data.aws_eks_cluster.existing) > 0 ? "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(data.aws_eks_cluster.existing[0].identity[0].oidc[0].issuer, "https://", "")}" : ""
-  )
-
-  cluster_certificate_authority_data = var.create_eks ? (
-    length(module.eks) > 0 ? module.eks[0].cluster_certificate_authority_data : ""
-    ) : (
-    length(data.aws_eks_cluster.existing) > 0 ? data.aws_eks_cluster.existing[0].certificate_authority[0].data : ""
-  )
 }
 
 # Conditional VPC creation - only create if not using existing VPC
