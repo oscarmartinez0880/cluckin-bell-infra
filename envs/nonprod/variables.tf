@@ -195,3 +195,16 @@ variable "qa_node_group_sizes" {
   type    = object({ min = number, desired = number, max = number })
   default = { min = 1, desired = 1, max = 2 }
 }
+
+variable "manage_nat_for_existing_vpc" {
+  description = "Create a NAT Gateway and wire private subnets when using an existing VPC"
+  type        = bool
+  default     = true
+}
+
+# Optional: choose which public subnet hosts the NAT (defaults to first public subnet)
+variable "nat_public_subnet_id" {
+  description = "Public subnet ID to place the NAT Gateway in (if empty, uses first of public_subnet_ids)"
+  type        = string
+  default     = ""
+}
