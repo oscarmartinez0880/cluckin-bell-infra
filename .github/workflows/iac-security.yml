@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Run tfsec
-        uses: aquasecurity/tfsec-action@v1
+        uses: aquasecurity/tfsec-action@v2
         with:
           format: sarif
           additional_args: "--soft-fail"
