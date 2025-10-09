@@ -101,7 +101,7 @@ terraform output
 Edit the eksctl configuration files and replace placeholders with actual IDs:
 
 ```bash
-# Update eksctl/nonprod-cluster.yaml
+# Update eksctl/devqa-cluster.yaml
 # Replace:
 #   vpc-REPLACE_WITH_VPC_ID with actual VPC ID
 #   subnet-REPLACE_WITH_SUBNET_* with actual subnet IDs
@@ -129,7 +129,7 @@ Manual approach (if needed):
 ```bash
 # Nonprod
 export AWS_PROFILE=cluckin-bell-qa
-eksctl create cluster --config-file=eksctl/nonprod-cluster.yaml
+eksctl create cluster --config-file=eksctl/devqa-cluster.yaml
 
 # Prod
 export AWS_PROFILE=cluckin-bell-prod
@@ -236,7 +236,7 @@ helm install cert-manager jetstack/cert-manager \
 1. Update version in `eksctl/*.yaml` files
 2. Run upgrade:
    ```bash
-   eksctl upgrade cluster --config-file=eksctl/nonprod-cluster.yaml --profile=cluckin-bell-qa --approve
+   eksctl upgrade cluster --config-file=eksctl/devqa-cluster.yaml --profile=cluckin-bell-qa --approve
    ```
 
 ### Scaling Node Groups
@@ -248,7 +248,7 @@ eksctl scale nodegroup --cluster=cluckn-bell-nonprod --name=dev --nodes=3 --prof
 
 Or update the config and apply:
 ```bash
-eksctl update nodegroup --config-file=eksctl/nonprod-cluster.yaml --profile=cluckin-bell-qa
+eksctl update nodegroup --config-file=eksctl/devqa-cluster.yaml --profile=cluckin-bell-qa
 ```
 
 ### Updating Add-ons

@@ -55,7 +55,7 @@ The infrastructure supports a two-cluster environment model:
 │   ├── argocd/               # ArgoCD GitOps setup
 │   └── ...
 ├── eksctl/                    # eksctl cluster configurations (Kubernetes 1.34)
-│   ├── nonprod-cluster.yaml  # Nonprod cluster with dev/qa node groups
+│   ├── devqa-cluster.yaml    # Nonprod cluster with dev/qa node groups
 │   └── prod-cluster.yaml     # Prod cluster with prod node group
 ├── scripts/                   # Helper scripts
 │   └── eks/                  # EKS management scripts

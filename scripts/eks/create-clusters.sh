@@ -104,7 +104,7 @@ create_nonprod_cluster() {
     log_info "=========================================="
     
     local profile="cluckin-bell-qa"
-    local config_file="${EKSCTL_DIR}/nonprod-cluster.yaml"
+    local config_file="${EKSCTL_DIR}/devqa-cluster.yaml"
     
     if [[ ! -f "${config_file}" ]]; then
         log_error "Config file not found: ${config_file}"
