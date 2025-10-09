@@ -5,10 +5,20 @@ aws_profile = "cluckin-bell-qa"
 
 # VPC configuration
 create_vpc_if_missing = true
-existing_vpc_name     = ""
-vpc_cidr              = "10.0.0.0/16"
-public_subnet_cidrs   = [] # auto-calc 3 AZs
-private_subnet_cidrs  = [] # auto-calc 3 AZs
+existing_vpc_name     = "cluckn-bell-nonprod-vpc"
+existing_vpc_id    = "vpc-0749517f2c92924a5"
+
+private_subnet_ids = [
+  "subnet-0d1a90b43e2855061", # us-east-1a
+  "subnet-0e408dd3b79d3568b", # us-east-1b
+  "subnet-00d5249fbe0695848"  # us-east-1c
+]
+
+public_subnet_ids = [
+  "subnet-09a601564fef30599", # us-east-1a
+  "subnet-0e428ee488b3accac", # us-east-1b
+  "subnet-00205cdb6865588ac"  # us-east-1c
+]
 
 # Route53 management
 manage_route53 = true
