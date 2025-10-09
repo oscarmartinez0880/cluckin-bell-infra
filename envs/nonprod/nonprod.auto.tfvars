@@ -6,7 +6,7 @@ aws_profile = "cluckin-bell-qa"
 # VPC configuration
 create_vpc_if_missing = true
 existing_vpc_name     = "cluckn-bell-nonprod-vpc"
-existing_vpc_id    = "vpc-0749517f2c92924a5"
+existing_vpc_id       = "vpc-0749517f2c92924a5"
 
 private_subnet_ids = [
   "subnet-0d1a90b43e2855061", # us-east-1a

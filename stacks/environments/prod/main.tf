@@ -243,7 +243,7 @@ module "cert_manager_irsa" {
 
 resource "aws_iam_role_policy" "cert_manager_route53" {
   count = var.manage_eks ? 1 : 0
-  name = "${local.environment}-cert-manager-route53"
+  name  = "${local.environment}-cert-manager-route53"
   role  = module.cert_manager_irsa[0].iam_role_name
 
   policy = jsonencode({
@@ -296,7 +296,7 @@ module "external_dns_irsa" {
 
 resource "aws_iam_role_policy" "external_dns_route53" {
   count = var.manage_eks ? 1 : 0
-  name = "${local.environment}-external-dns-route53"
+  name  = "${local.environment}-external-dns-route53"
   role  = module.external_dns_irsa[0].iam_role_name
 
   policy = jsonencode({
