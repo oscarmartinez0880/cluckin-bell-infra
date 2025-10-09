@@ -4,7 +4,8 @@ This directory contains eksctl configuration files for managing EKS clusters in 
 
 ## Files
 
-- **nonprod-cluster.yaml**: Configuration for the shared nonprod cluster (cluckn-bell-nonprod)
+- **devqa-cluster.yaml**: Configuration for the shared nonprod cluster (cluckn-bell-nonprod)
+  - This is the canonical config file for the dev/qa shared nonprod cluster
   - Account: 264765154707 (cluckin-bell-qa)
   - Node groups: `dev` and `qa`
   - Kubernetes version: 1.34
@@ -56,7 +57,7 @@ Use the provided script:
 ```bash
 # Nonprod
 export AWS_PROFILE=cluckin-bell-qa
-eksctl create cluster --config-file=eksctl/nonprod-cluster.yaml
+eksctl create cluster --config-file=eksctl/devqa-cluster.yaml
 
 # Prod
 export AWS_PROFILE=cluckin-bell-prod
@@ -70,7 +71,7 @@ To upgrade Kubernetes version or update node group configurations:
 1. Edit the YAML file
 2. Run:
    ```bash
-   eksctl upgrade cluster --config-file=eksctl/nonprod-cluster.yaml --profile=cluckin-bell-qa --approve
+   eksctl upgrade cluster --config-file=eksctl/devqa-cluster.yaml --profile=cluckin-bell-qa --approve
    ```
 
 ### Scaling
