@@ -67,6 +67,27 @@ The infrastructure follows a separation of concerns:
 - **Node Groups**:
   - `prod`: 2-15 nodes, m5.xlarge, AL2023, for production workloads
 
+## Deployment Phases
+
+The infrastructure deployment follows a three-phase approach:
+
+1. **Phase 1: Terraform for VPC/Networking**
+   - Terraform creates VPC, subnets, NAT gateways, Route53 zones, ECR repositories, etc.
+   - Cluster data sources will show as empty/missing - this is expected
+   - Outputs: VPC ID and subnet IDs needed for eksctl
+
+2. **Phase 2: eksctl for EKS Cluster**
+   - Use eksctl to create the EKS cluster and node groups
+   - Update eksctl YAML configs with VPC/subnet IDs from Phase 1
+   - eksctl handles cluster creation, OIDC provider, and initial add-ons
+
+3. **Phase 3: Terraform for Post-Cluster Resources**
+   - Run Terraform again to provision cluster-dependent resources
+   - Creates IRSA roles for service accounts (ALB controller, external-dns, etc.)
+   - Configures Kubernetes/Helm providers to reference the cluster
+
+**Why three phases?** Terraform cannot create IRSA roles without an existing cluster (needs OIDC provider), and we don't want Terraform to manage the cluster itself.
+
 ## Step-by-Step Setup
 
 ### Prerequisites
@@ -88,7 +109,7 @@ unzip terraform_1.5.7_linux_amd64.zip
 sudo mv terraform /usr/local/bin/
 ```
 
-### Step 1: Deploy Foundational Infrastructure with Terraform
+### Phase 1: Deploy Foundational Infrastructure with Terraform
 
 Deploy VPCs, subnets, and other foundational resources:
 
@@ -131,7 +152,7 @@ nat_public_subnet_id = "subnet-09a601564fef30599"
 
 If you skip this step, eksctl nodegroups may fail with `NodeCreationFailure` errors due to nodes being unable to reach the EKS API endpoint or pull images.
 
-### Step 2: Update eksctl Configuration
+### Phase 2: Update eksctl Configuration
 
 Edit the eksctl configuration files and replace placeholders with actual IDs:
 
@@ -145,7 +166,7 @@ Edit the eksctl configuration files and replace placeholders with actual IDs:
 # Same as above for prod VPC
 ```
 
-### Step 3: Create EKS Cluster with eksctl
+### Phase 2 (continued): Create EKS Cluster with eksctl
 
 Use the provided script:
 
@@ -173,9 +194,23 @@ eksctl create cluster --config-file=eksctl/prod-cluster.yaml
 
 This will take 15-20 minutes per cluster.
 
-### Step 4: Get OIDC Issuer URL
+### Phase 3: Apply Terraform for Post-Cluster Resources
 
-After cluster creation, get the OIDC issuer URL:
+After cluster creation, run Terraform again to provision cluster-dependent resources:
+
+```bash
+cd envs/nonprod  # or envs/prod
+terraform apply
+```
+
+This will create:
+- IRSA roles for Kubernetes service accounts
+- Configure Kubernetes/Helm providers to connect to the cluster
+- Any other resources that depend on the cluster
+
+**Optional: Get OIDC Issuer URL for Reference**
+
+You can verify the OIDC issuer URL:
 
 ```bash
 # Nonprod
@@ -195,34 +230,7 @@ aws eks describe-cluster \
   --output text
 ```
 
-### Step 5: Bootstrap IRSA Roles
-
-Create IAM roles for Kubernetes service accounts:
-
-```bash
-cd stacks/irsa-bootstrap
-
-# Create nonprod.tfvars
-cat > nonprod.tfvars <<EOF
-cluster_name          = "cluckn-bell-nonprod"
-region                = "us-east-1"
-aws_profile           = "cluckin-bell-qa"
-oidc_issuer_url       = "https://oidc.eks.us-east-1.amazonaws.com/id/XXXXX"
-environment           = "nonprod"
-controllers_namespace = "kube-system"
-EOF
-
-# Apply for nonprod
-terraform init
-terraform apply -var-file=nonprod.tfvars
-
-# Get role ARNs for Helm/Argo CD
-terraform output helm_values
-```
-
-Repeat for prod with `prod.tfvars`.
-
-### Step 6: Deploy Controllers
+### Deploy Controllers
 
 Deploy Kubernetes controllers via Helm or Argo CD using the IAM role ARNs from the previous step.
 
