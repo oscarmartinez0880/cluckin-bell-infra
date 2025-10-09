@@ -82,7 +82,7 @@ Alternatively, enable direnv in WSL (Windows Subsystem for Linux) for the same c
 
 ### EKS Cluster Creation with eksctl
 
-**By default, Terraform does not create EKS clusters** (`create_eks = false`). Instead, use eksctl to create clusters and Terraform for VPC/IAM/Route53/IRSA resources.
+**Terraform does not create EKS clusters.** Use eksctl to create clusters and Terraform for VPC/IAM/Route53/IRSA resources.
 
 **Three-Phase Bootstrap Flow:**
 ```bash
@@ -99,11 +99,7 @@ eksctl create cluster --config-file=../../eksctl/devqa-cluster.yaml --profile=cl
 AWS_PROFILE=cluckin-bell-qa terraform apply
 ```
 
-**Optional: Use Terraform to create the cluster** (if you set `create_eks = true`):
-```bash
-cd envs/nonprod && AWS_PROFILE=cluckin-bell-qa terraform apply -var="create_eks=true"
-cd envs/prod && AWS_PROFILE=cluckin-bell-prod terraform apply -var="create_eks=true"
-```
+**Note**: eksctl is the single source of truth for EKS cluster lifecycle management. See `docs/CLUSTERS_WITH_EKSCTL.md` for detailed instructions.
 
 ### File Structure
 
@@ -384,19 +380,23 @@ AWS_PROFILE=cluckin-bell-qa terraform apply
 
 #### Option 2: Full Cluster Recreate (Nonprod Only)
 
-For nonprod environments where downtime is acceptable and if you're using Terraform to manage clusters (`create_eks = true`):
+For nonprod environments where downtime is acceptable, use eksctl to delete and recreate the cluster:
 
 ```bash
-# WARNING: This will destroy and recreate the cluster (only if create_eks = true)
-cd envs/nonprod
-AWS_PROFILE=cluckin-bell-qa terraform destroy -target=module.eks
-AWS_PROFILE=cluckin-bell-qa terraform apply -target=module.eks
+# WARNING: This will destroy and recreate the cluster
+# Delete the existing cluster
+eksctl delete cluster --name cluckn-bell-nonprod --profile cluckin-bell-qa
 
-# Then apply the full configuration
+# Update eksctl/devqa-cluster.yaml with new Kubernetes version
+# Then recreate the cluster
+eksctl create cluster --config-file=../../eksctl/devqa-cluster.yaml --profile=cluckin-bell-qa
+
+# Reapply Terraform for IRSA roles and other dependencies
+cd envs/nonprod
 AWS_PROFILE=cluckin-bell-qa terraform apply
 ```
 
-**Note**: By default, clusters are managed by eksctl (`create_eks = false`), so use `eksctl delete cluster` and `eksctl create cluster` instead.
+**Note**: Clusters are managed by eksctl. See `docs/CLUSTERS_WITH_EKSCTL.md` for detailed upgrade procedures.
 
 ### Dev/QA Environment Separation in Shared Cluster
 
@@ -443,10 +443,9 @@ If additional isolation is required, consider implementing:
   AWS_PROFILE=cluckin-bell-prod terraform apply
   ```
 
-First-time bootstrap for a new cluster (two-phase apply):
-```bash
-cd envs/nonprod && terraform apply -target=module.eks
-cd envs/prod && terraform apply -target=module.eks
-```
+First-time bootstrap for a new cluster:
+1. Apply Terraform for VPC/networking
+2. Create cluster with eksctl (see `docs/CLUSTERS_WITH_EKSCTL.md`)
+3. Apply Terraform again for IRSA roles and other post-cluster resources
 
 **Note**: Backend configuration and variable files are now embedded in each environment, making commands OS-agnostic. The `.envrc` files provide optional direnv convenience for Linux/macOS users.

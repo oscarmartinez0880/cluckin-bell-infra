@@ -2,6 +2,8 @@
 
 This document describes the operating model for managing EKS clusters in the cluckin-bell infrastructure.
 
+**Important**: Terraform does NOT create or manage EKS clusters or node groups. eksctl is the single source of truth for all cluster lifecycle operations.
+
 ## Operating Model
 
 The infrastructure follows a separation of concerns:
@@ -13,12 +15,14 @@ The infrastructure follows a separation of concerns:
    - WAF rules
    - VPC endpoints
    - IAM roles (including IRSA roles, post-cluster creation)
+   - **Note**: Terraform references existing eksctl-managed clusters via data sources for post-cluster configuration only
 
 2. **eksctl** - Manages EKS cluster lifecycle (v1.34):
    - Cluster creation and upgrades
    - Kubernetes version management
    - Node group management
    - Add-on versions
+   - **This is the ONLY tool for cluster lifecycle management**
 
 3. **Argo CD / Helm** - Manages in-cluster resources:
    - Application deployments
@@ -34,12 +38,15 @@ The infrastructure follows a separation of concerns:
 3. **Simplified operations**: eksctl is purpose-built for EKS management
 4. **Version control**: Kubernetes version pinned to 1.34 in eksctl configs
 5. **Cost optimization**: Easy to use AL2023 AMI and right-size node groups
+6. **Single source of truth**: eksctl is the only tool for cluster lifecycle management
 
 ### Trade-offs
 
 - Must coordinate between tools (Terraform → eksctl → IRSA → Helm)
 - OIDC issuer URL must be manually retrieved and passed to IRSA stack
 - Two-step process for full cluster setup
+
+**Note**: Terraform does not manage EKS clusters or node groups. eksctl is the single source of truth for cluster lifecycle management.
 
 ## Cluster Architecture
 
@@ -59,6 +66,27 @@ The infrastructure follows a separation of concerns:
 - **VPC**: cb-prod-use1 (10.70.0.0/16)
 - **Node Groups**:
   - `prod`: 2-15 nodes, m5.xlarge, AL2023, for production workloads
+
+## Deployment Phases
+
+The infrastructure deployment follows a three-phase approach:
+
+1. **Phase 1: Terraform for VPC/Networking**
+   - Terraform creates VPC, subnets, NAT gateways, Route53 zones, ECR repositories, etc.
+   - Cluster data sources will show as empty/missing - this is expected
+   - Outputs: VPC ID and subnet IDs needed for eksctl
+
+2. **Phase 2: eksctl for EKS Cluster**
+   - Use eksctl to create the EKS cluster and node groups
+   - Update eksctl YAML configs with VPC/subnet IDs from Phase 1
+   - eksctl handles cluster creation, OIDC provider, and initial add-ons
+
+3. **Phase 3: Terraform for Post-Cluster Resources**
+   - Run Terraform again to provision cluster-dependent resources
+   - Creates IRSA roles for service accounts (ALB controller, external-dns, etc.)
+   - Configures Kubernetes/Helm providers to reference the cluster
+
+**Why three phases?** Terraform cannot create IRSA roles without an existing cluster (needs OIDC provider), and we don't want Terraform to manage the cluster itself.
 
 ## Step-by-Step Setup
 
@@ -81,20 +109,24 @@ unzip terraform_1.5.7_linux_amd64.zip
 sudo mv terraform /usr/local/bin/
 ```
 
-### Step 1: Deploy Foundational Infrastructure with Terraform
+### Phase 1: Deploy Foundational Infrastructure with Terraform
 
 Deploy VPCs, subnets, and other foundational resources:
 
 ```bash
 # Deploy nonprod VPC and networking
-cd terraform/clusters/devqa
+cd envs/nonprod
 terraform init
 terraform plan
 terraform apply
 
 # Note the VPC ID and subnet IDs from outputs
-terraform output
+terraform output vpc_id
+terraform output private_subnet_ids
+terraform output public_subnet_ids
 ```
+
+**Note**: During initial setup (before the cluster exists), Terraform will show warnings about the cluster data source not being found. This is expected and safe to ignore. The cluster-related resources (IRSA roles, Kubernetes/Helm providers) use `try()` functions to gracefully handle missing clusters. After you create the cluster with eksctl in Step 3, run `terraform apply` again to provision the cluster-dependent resources.
 
 **Important: NAT Gateway for Existing VPCs (Nonprod)**
 
@@ -120,7 +152,7 @@ nat_public_subnet_id = "subnet-09a601564fef30599"
 
 If you skip this step, eksctl nodegroups may fail with `NodeCreationFailure` errors due to nodes being unable to reach the EKS API endpoint or pull images.
 
-### Step 2: Update eksctl Configuration
+### Phase 2: Update eksctl Configuration
 
 Edit the eksctl configuration files and replace placeholders with actual IDs:
 
@@ -134,7 +166,7 @@ Edit the eksctl configuration files and replace placeholders with actual IDs:
 # Same as above for prod VPC
 ```
 
-### Step 3: Create EKS Cluster with eksctl
+### Phase 2 (continued): Create EKS Cluster with eksctl
 
 Use the provided script:
 
@@ -162,9 +194,23 @@ eksctl create cluster --config-file=eksctl/prod-cluster.yaml
 
 This will take 15-20 minutes per cluster.
 
-### Step 4: Get OIDC Issuer URL
+### Phase 3: Apply Terraform for Post-Cluster Resources
 
-After cluster creation, get the OIDC issuer URL:
+After cluster creation, run Terraform again to provision cluster-dependent resources:
+
+```bash
+cd envs/nonprod  # or envs/prod
+terraform apply
+```
+
+This will create:
+- IRSA roles for Kubernetes service accounts
+- Configure Kubernetes/Helm providers to connect to the cluster
+- Any other resources that depend on the cluster
+
+**Optional: Get OIDC Issuer URL for Reference**
+
+You can verify the OIDC issuer URL:
 
 ```bash
 # Nonprod
@@ -184,34 +230,7 @@ aws eks describe-cluster \
   --output text
 ```
 
-### Step 5: Bootstrap IRSA Roles
-
-Create IAM roles for Kubernetes service accounts:
-
-```bash
-cd stacks/irsa-bootstrap
-
-# Create nonprod.tfvars
-cat > nonprod.tfvars <<EOF
-cluster_name          = "cluckn-bell-nonprod"
-region                = "us-east-1"
-aws_profile           = "cluckin-bell-qa"
-oidc_issuer_url       = "https://oidc.eks.us-east-1.amazonaws.com/id/XXXXX"
-environment           = "nonprod"
-controllers_namespace = "kube-system"
-EOF
-
-# Apply for nonprod
-terraform init
-terraform apply -var-file=nonprod.tfvars
-
-# Get role ARNs for Helm/Argo CD
-terraform output helm_values
-```
-
-Repeat for prod with `prod.tfvars`.
-
-### Step 6: Deploy Controllers
+### Deploy Controllers
 
 Deploy Kubernetes controllers via Helm or Argo CD using the IAM role ARNs from the previous step.
 
@@ -280,23 +299,6 @@ eksctl update nodegroup --config-file=eksctl/devqa-cluster.yaml --profile=clucki
 ```bash
 eksctl update addon --cluster=cluckn-bell-nonprod --name=vpc-cni --version=latest --profile=cluckin-bell-qa
 ```
-
-## Managing Terraform-Gated EKS (Opt-in)
-
-If you need to manage EKS via Terraform (not recommended), set `manage_eks = true`:
-
-```hcl
-# In stacks/environments/dev/terraform.tfvars
-manage_eks = true
-```
-
-Then:
-```bash
-cd stacks/environments/dev
-terraform apply
-```
-
-**Warning**: This will create/manage the cluster via Terraform. Use with caution.
 
 ## Cost Optimization Tips
 
