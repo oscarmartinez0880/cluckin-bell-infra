@@ -2,6 +2,8 @@
 
 This document describes the operating model for managing EKS clusters in the cluckin-bell infrastructure.
 
+**Important**: Terraform does NOT create or manage EKS clusters or node groups. eksctl is the single source of truth for all cluster lifecycle operations.
+
 ## Operating Model
 
 The infrastructure follows a separation of concerns:
@@ -13,12 +15,14 @@ The infrastructure follows a separation of concerns:
    - WAF rules
    - VPC endpoints
    - IAM roles (including IRSA roles, post-cluster creation)
+   - **Note**: Terraform references existing eksctl-managed clusters via data sources for post-cluster configuration only
 
 2. **eksctl** - Manages EKS cluster lifecycle (v1.34):
    - Cluster creation and upgrades
    - Kubernetes version management
    - Node group management
    - Add-on versions
+   - **This is the ONLY tool for cluster lifecycle management**
 
 3. **Argo CD / Helm** - Manages in-cluster resources:
    - Application deployments
@@ -90,14 +94,18 @@ Deploy VPCs, subnets, and other foundational resources:
 
 ```bash
 # Deploy nonprod VPC and networking
-cd terraform/clusters/devqa
+cd envs/nonprod
 terraform init
 terraform plan
 terraform apply
 
 # Note the VPC ID and subnet IDs from outputs
-terraform output
+terraform output vpc_id
+terraform output private_subnet_ids
+terraform output public_subnet_ids
 ```
+
+**Note**: During initial setup (before the cluster exists), Terraform will show warnings about the cluster data source not being found. This is expected and safe to ignore. The cluster-related resources (IRSA roles, Kubernetes/Helm providers) use `try()` functions to gracefully handle missing clusters. After you create the cluster with eksctl in Step 3, run `terraform apply` again to provision the cluster-dependent resources.
 
 **Important: NAT Gateway for Existing VPCs (Nonprod)**
 
