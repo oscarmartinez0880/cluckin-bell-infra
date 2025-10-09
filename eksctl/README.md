@@ -7,12 +7,12 @@ This directory contains eksctl configuration files for managing EKS clusters in 
 - **nonprod-cluster.yaml**: Configuration for the shared nonprod cluster (cluckn-bell-nonprod)
   - Account: 264765154707 (cluckin-bell-qa)
   - Node groups: `dev` and `qa`
-  - Kubernetes version: 1.33
+  - Kubernetes version: 1.34
   
 - **prod-cluster.yaml**: Configuration for the production cluster (cluckn-bell-prod)
   - Account: 346746763840 (cluckin-bell-prod)
   - Node group: `prod`
-  - Kubernetes version: 1.33
+  - Kubernetes version: 1.34
 
 ## Prerequisites
 

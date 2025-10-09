@@ -94,7 +94,7 @@ Each environment maintains both original and auto-loaded variable files:
 - envs/prod/prod.tfvars (original, kept for reference)  
 - envs/prod/prod.auto.tfvars (auto-loaded copy)
 
-**Requirements**: Terraform >= 1.13.1 and Kubernetes >= 1.30 (default/target: 1.33)
+**Requirements**: Terraform >= 1.13.1 and Kubernetes >= 1.30 (default/target: 1.34)
 
 ## Account Structure
 
@@ -132,9 +132,9 @@ The DevQA account houses both development and QA environments with the following
 
 | Environment | Kubernetes Version | EKS Platform Version | Node AMI |
 |-------------|-------------------|---------------------|----------|
-| **dev** | 1.33 | eks.1 | Amazon Linux 2023 |
-| **qa** | 1.33 | eks.1 | Amazon Linux 2023 |
-| **prod** | 1.33 | eks.1 | Amazon Linux 2023 |
+| **dev** | 1.34 | eks.1 | Amazon Linux 2023 |
+| **qa** | 1.34 | eks.1 | Amazon Linux 2023 |
+| **prod** | 1.34 | eks.1 | Amazon Linux 2023 |
 
 ### Terraform Versions
 
@@ -339,7 +339,7 @@ All resources include consistent tags:
 ## EKS Cluster Version Management
 
 ### Important Note: Fixed kubernetes_version Issue
-As of this update, the EKS module now properly honors the `cluster_version` variable (default 1.33) instead of the deprecated `kubernetes_version` variable (which defaulted to 1.28). This ensures the cluster is created with the intended Kubernetes version.
+As of this update, the EKS module now properly honors the `cluster_version` variable (default 1.34) instead of the deprecated `kubernetes_version` variable (which defaulted to 1.28). This ensures the cluster is created with the intended Kubernetes version.
 
 ### Upgrading Existing Clusters
 

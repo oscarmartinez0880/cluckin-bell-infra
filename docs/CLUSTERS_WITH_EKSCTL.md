@@ -14,7 +14,7 @@ The infrastructure follows a separation of concerns:
    - VPC endpoints
    - IAM roles (including IRSA roles, post-cluster creation)
 
-2. **eksctl** - Manages EKS cluster lifecycle (v1.33):
+2. **eksctl** - Manages EKS cluster lifecycle (v1.34):
    - Cluster creation and upgrades
    - Kubernetes version management
    - Node group management
@@ -32,7 +32,7 @@ The infrastructure follows a separation of concerns:
 1. **Clear separation of concerns**: Infrastructure vs. cluster vs. applications
 2. **Reduced risk**: Terraform changes won't accidentally modify or destroy clusters
 3. **Simplified operations**: eksctl is purpose-built for EKS management
-4. **Version control**: Kubernetes version pinned to 1.33 in eksctl configs
+4. **Version control**: Kubernetes version pinned to 1.34 in eksctl configs
 5. **Cost optimization**: Easy to use AL2023 AMI and right-size node groups
 
 ### Trade-offs
@@ -46,7 +46,7 @@ The infrastructure follows a separation of concerns:
 ### Nonprod Cluster (cluckn-bell-nonprod)
 - **Account**: 264765154707 (cluckin-bell-qa)
 - **Region**: us-east-1
-- **Version**: 1.33
+- **Version**: 1.34
 - **VPC**: cb-devqa-use1 (10.60.0.0/16)
 - **Node Groups**:
   - `dev`: 1-5 nodes, m5.large, AL2023, for dev workloads
@@ -55,7 +55,7 @@ The infrastructure follows a separation of concerns:
 ### Prod Cluster (cluckn-bell-prod)
 - **Account**: 346746763840 (cluckin-bell-prod)
 - **Region**: us-east-1
-- **Version**: 1.33
+- **Version**: 1.34
 - **VPC**: cb-prod-use1 (10.70.0.0/16)
 - **Node Groups**:
   - `prod`: 2-15 nodes, m5.xlarge, AL2023, for production workloads
