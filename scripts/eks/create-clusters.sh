@@ -92,7 +92,11 @@ get_vpc_id() {
     read -p "Have you updated the VPC and subnet IDs in the eksctl config? (y/N) " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        log_error "Please update the VPC and subnet IDs in ${EKSCTL_DIR}/${env}-cluster.yaml"
+        if [[ "${env}" == "nonprod" ]]; then
+            log_error "Please update the VPC and subnet IDs in ${EKSCTL_DIR}/devqa-cluster.yaml"
+        else
+            log_error "Please update the VPC and subnet IDs in ${EKSCTL_DIR}/${env}-cluster.yaml"
+        fi
         exit 1
     fi
 }
