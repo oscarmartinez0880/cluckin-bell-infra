@@ -15,6 +15,10 @@ resource "aws_route53_zone" "internal_prod" {
     Type        = "private-internal"
     Purpose     = "internal-cms-access"
   }
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Output the internal zone ID for use in ExternalDNS

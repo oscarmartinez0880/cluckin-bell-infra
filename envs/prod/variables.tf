@@ -142,7 +142,7 @@ variable "qa_zone_name_servers" {
 variable "create_public_zone" {
   description = "Whether to create the public Route53 zone for cluckn-bell.com"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_internal_zone" {

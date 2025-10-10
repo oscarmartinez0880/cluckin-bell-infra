@@ -43,3 +43,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "allow_zone_destroy" {
+  description = "Allow Terraform to destroy Route53 hosted zones. Set to true only when intentionally removing zones."
+  type        = bool
+  default     = false
+}

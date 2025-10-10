@@ -85,6 +85,9 @@ module "dns_certs" {
     }
   }
 
+  # Prevent accidental zone destruction in production
+  allow_zone_destroy = false
+
   tags = merge(local.common_tags, {
     Managed = "Terraform"
     Service = "dns"
