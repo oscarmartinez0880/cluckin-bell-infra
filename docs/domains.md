@@ -218,15 +218,28 @@ When `create = false`:
 
 #### 2. Lifecycle Protection for Managed Zones
 
-For zones that Terraform creates and manages, the `dns-certs` module includes `lifecycle { prevent_destroy = true }` by default:
+For zones that Terraform creates and manages, the `dns-certs` module includes `lifecycle { prevent_destroy = true }` by default.
+
+**Implementation Note:** Due to Terraform's requirement that `prevent_destroy` must be a literal boolean (not variable-derived), the module uses a dual-resource approach:
+- Protected resources (used by default) have `prevent_destroy = true`
+- Unprotected resources (only used when `allow_zone_destroy = true`) have no lifecycle block
+- Count expressions ensure only one version is created based on the `allow_zone_destroy` variable
 
 ```hcl
+# Protected version (default)
 resource "aws_route53_zone" "public" {
+  count = var.public_zone.create && !var.allow_zone_destroy ? 1 : 0
   # ... configuration ...
 
   lifecycle {
-    prevent_destroy = !var.allow_zone_destroy
+    prevent_destroy = true
   }
+}
+
+# Unprotected version (opt-in only)
+resource "aws_route53_zone" "public_unprotected" {
+  count = var.public_zone.create && var.allow_zone_destroy ? 1 : 0
+  # ... configuration ...
 }
 ```
 
