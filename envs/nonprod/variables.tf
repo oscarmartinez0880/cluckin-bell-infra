@@ -202,3 +202,4 @@ variable "nat_public_subnet_id" {
   type        = string
   default     = ""
 }
+

@@ -409,7 +409,10 @@ module "irsa_cluster_autoscaler" {
           "autoscaling:DescribeTags",
           "autoscaling:SetDesiredCapacity",
           "autoscaling:TerminateInstanceInAutoScalingGroup",
-          "ec2:DescribeLaunchTemplateVersions"
+          "ec2:DescribeLaunchTemplateVersions",
+          "eks:DescribeNodegroup",
+          "eks:ListNodegroups",
+          "eks:DescribeCluster"
         ]
         Resource = "*"
       }
