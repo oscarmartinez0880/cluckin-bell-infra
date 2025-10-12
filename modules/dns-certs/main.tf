@@ -21,8 +21,26 @@ data "aws_route53_zone" "existing_private" {
 }
 
 # Public Route53 Zone (create or reference existing)
+# Protected version (default, prevent_destroy = true)
 resource "aws_route53_zone" "public" {
-  count = var.public_zone.create ? 1 : 0
+  count = var.public_zone.create && !var.allow_zone_destroy ? 1 : 0
+  name  = var.public_zone.name
+
+  force_destroy = false # Prevent accidental deletion with records
+
+  tags = merge(var.tags, {
+    Name = var.public_zone.name
+    Type = "public"
+  })
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Unprotected version (only when allow_zone_destroy = true)
+resource "aws_route53_zone" "public_unprotected" {
+  count = var.public_zone.create && var.allow_zone_destroy ? 1 : 0
   name  = var.public_zone.name
 
   force_destroy = false # Prevent accidental deletion with records
@@ -34,8 +52,30 @@ resource "aws_route53_zone" "public" {
 }
 
 # Private Route53 Zone (create or reference existing)
+# Protected version (default, prevent_destroy = true)
 resource "aws_route53_zone" "private" {
-  count = var.private_zone.create ? 1 : 0
+  count = var.private_zone.create && !var.allow_zone_destroy ? 1 : 0
+  name  = var.private_zone.name
+
+  force_destroy = false # Prevent accidental deletion with records
+
+  vpc {
+    vpc_id = var.private_zone.vpc_id
+  }
+
+  tags = merge(var.tags, {
+    Name = var.private_zone.name
+    Type = "private"
+  })
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Unprotected version (only when allow_zone_destroy = true)
+resource "aws_route53_zone" "private_unprotected" {
+  count = var.private_zone.create && var.allow_zone_destroy ? 1 : 0
   name  = var.private_zone.name
 
   force_destroy = false # Prevent accidental deletion with records
@@ -53,9 +93,15 @@ resource "aws_route53_zone" "private" {
 # Zone ID locals and certificate validation records
 locals {
   # Zone ID locals - select IDs in this order: created resource → provided ID (for private) → data lookup
-  public_zone_id = var.public_zone.create ? aws_route53_zone.public[0].zone_id : data.aws_route53_zone.existing_public[0].zone_id
+  # Handle both protected and unprotected public zone versions
+  public_zone_id = var.public_zone.create ? (
+    var.allow_zone_destroy ? aws_route53_zone.public_unprotected[0].zone_id : aws_route53_zone.public[0].zone_id
+  ) : data.aws_route53_zone.existing_public[0].zone_id
 
-  private_zone_id = var.private_zone.create ? aws_route53_zone.private[0].zone_id : (
+  # Handle both protected and unprotected private zone versions
+  private_zone_id = var.private_zone.create ? (
+    var.allow_zone_destroy ? aws_route53_zone.private_unprotected[0].zone_id : aws_route53_zone.private[0].zone_id
+  ) : (
     var.existing_private_zone_id != "" ? var.existing_private_zone_id : (
       var.private_zone.zone_id != null ? var.private_zone.zone_id : data.aws_route53_zone.existing_private[0].zone_id
     )
