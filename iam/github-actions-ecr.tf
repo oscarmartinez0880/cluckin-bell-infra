@@ -47,7 +47,8 @@ data "aws_iam_policy_document" "ecr_push" {
       "ecr:PutImage",
       "ecr:BatchGetImage",
       "ecr:DescribeRepositories",
-      "ecr:ListImages"
+      "ecr:ListImages",
+      "ecr:DescribeImages",
     ]
     resources = ["*"]
   }
@@ -66,4 +67,9 @@ resource "aws_iam_role_policy_attachment" "ecr_push" {
 output "github_actions_ecr_push_role_arn" {
   description = "IAM role ARN for GitHub Actions to push images to ECR"
   value       = aws_iam_role.github_actions_ecr_push.arn
+}
+
+variable "environment" {
+  description = "Deployment environment (e.g., dev, prod)"
+  type        = string
 }
