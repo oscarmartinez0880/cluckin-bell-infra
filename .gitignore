@@ -58,6 +58,8 @@ target/
 
 # Lambda function packages
 **/lambda/*.zip
+**/__pycache__/
+*.pyc
 
 
 
