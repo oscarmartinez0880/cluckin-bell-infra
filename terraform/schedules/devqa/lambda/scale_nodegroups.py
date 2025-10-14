@@ -57,7 +57,7 @@ def handler(event, context):
     
     cluster_name = event.get('cluster_name', os.environ.get('CLUSTER_NAME'))
     nodegroups_env = os.environ.get('NODEGROUPS', '[]')
-    nodegroups = event.get('nodegroups', json.loads(nodegroups_env) if nodegroups_env.strip() else [])
+    nodegroups = event.get('nodegroups', json.loads(nodegroups_env.strip()) if nodegroups_env and nodegroups_env.strip() else [])
     wait_for_active = event.get('wait_for_active', os.environ.get('WAIT_FOR_ACTIVE', 'false').lower() == 'true')
     
     if not cluster_name:
