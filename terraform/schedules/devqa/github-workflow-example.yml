@@ -1,0 +1,135 @@
+# Example GitHub Actions Workflow for Manual EKS Scaling
+#
+# This workflow allows manual triggering of the EKS nodegroup scaler Lambda
+# function from the GitHub Actions UI.
+#
+# To use this workflow:
+# 1. Create an IAM role for GitHub OIDC with lambda:InvokeFunction permission
+# 2. Update the role-to-assume ARN below with your actual role ARN
+# 3. Copy this file to .github/workflows/eks-devqa-scaler.yml in your repository
+# 4. Commit and push to your repository
+# 5. Go to Actions tab -> Select this workflow -> Click "Run workflow"
+
+name: EKS Dev/QA Manual Scaler
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Scale action to perform'
+        required: true
+        type: choice
+        options:
+          - scale_up
+          - scale_down
+        default: 'scale_up'
+
+# Required for OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  scale-eks-nodegroups:
+    name: Scale EKS Nodegroups
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # TODO: Create this IAM role with:
+          # - Trust policy for GitHub OIDC provider
+          # - Permission: lambda:InvokeFunction on cb-devqa-eks-scaler
+          role-to-assume: arn:aws:iam::264765154707:role/github-actions-eks-scaler
+          aws-region: us-east-1
+
+      - name: Invoke EKS Scaler Lambda
+        id: invoke-lambda
+        run: |
+          echo "Invoking Lambda with action: ${{ github.event.inputs.action }}"
+          
+          aws lambda invoke \
+            --function-name cb-devqa-eks-scaler \
+            --payload "{\"action\":\"${{ github.event.inputs.action }}\"}" \
+            --cli-binary-format raw-in-base64-out \
+            response.json
+          
+          echo "Lambda Response:"
+          cat response.json | jq .
+          
+          # Save response for later steps
+          echo "response=$(cat response.json | jq -c .)" >> $GITHUB_OUTPUT
+
+      - name: Check Nodegroup Status
+        run: |
+          echo "Checking current nodegroup configuration..."
+          
+          aws eks describe-nodegroup \
+            --cluster-name cb-use1-shared \
+            --nodegroup-name default \
+            --query 'nodegroup.{name:nodegroupName,status:status,scalingConfig:scalingConfig}' \
+            --output json | jq .
+
+      - name: Summary
+        run: |
+          echo "## EKS Scaling Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Action**: ${{ github.event.inputs.action }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Cluster**: cb-use1-shared" >> $GITHUB_STEP_SUMMARY
+          echo "**Nodegroup**: default" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Lambda Response**:" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          cat response.json | jq . >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+# IAM Role Trust Policy Example:
+# {
+#   "Version": "2012-10-17",
+#   "Statement": [
+#     {
+#       "Effect": "Allow",
+#       "Principal": {
+#         "Federated": "arn:aws:iam::264765154707:oidc-provider/token.actions.githubusercontent.com"
+#       },
+#       "Action": "sts:AssumeRoleWithWebIdentity",
+#       "Condition": {
+#         "StringEquals": {
+#           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+#         },
+#         "StringLike": {
+#           "token.actions.githubusercontent.com:sub": "repo:YOUR-GITHUB-ORG/cluckin-bell-infra:*"
+#         }
+#       }
+#     }
+#   ]
+# }
+#
+# IAM Role Permission Policy Example:
+# {
+#   "Version": "2012-10-17",
+#   "Statement": [
+#     {
+#       "Effect": "Allow",
+#       "Action": [
+#         "lambda:InvokeFunction"
+#       ],
+#       "Resource": "arn:aws:lambda:us-east-1:264765154707:function:cb-devqa-eks-scaler"
+#     },
+#     {
+#       "Effect": "Allow",
+#       "Action": [
+#         "eks:DescribeNodegroup",
+#         "eks:DescribeCluster"
+#       ],
+#       "Resource": [
+#         "arn:aws:eks:us-east-1:264765154707:cluster/cb-use1-shared",
+#         "arn:aws:eks:us-east-1:264765154707:nodegroup/cb-use1-shared/*/*"
+#       ]
+#     }
+#   ]
+# }
