@@ -13,13 +13,13 @@ variable "profile" {
 variable "cluster_name" {
   description = "Name of the EKS cluster to scale"
   type        = string
-  default     = "cb-use1-shared"
+  default     = "cluckn-bell-nonprod"
 }
 
 variable "nodegroups" {
-  description = "List of nodegroup names to scale"
+  description = "List of nodegroup names to scale (empty list means auto-discover all nodegroups)"
   type        = list(string)
-  default     = ["default"]
+  default     = []
 }
 
 variable "scale_up_min_size" {
@@ -55,7 +55,7 @@ variable "scale_down_desired_size" {
 variable "scale_down_max_size" {
   description = "Maximum size during off-hours"
   type        = number
-  default     = 0
+  default     = 1
 }
 
 variable "timezone" {

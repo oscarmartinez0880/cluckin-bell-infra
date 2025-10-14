@@ -8,10 +8,15 @@ during off-hours.
 Event format:
 {
     "action": "scale_up" | "scale_down",
-    "cluster_name": "cb-use1-shared",  # optional, uses env var if not provided
-    "nodegroups": ["default"],          # optional, uses env var if not provided
-    "wait_for_active": false            # optional, defaults to false
+    "cluster_name": "cluckn-bell-nonprod",  # optional, uses env var if not provided
+    "nodegroups": ["ng-1", "ng-2"],         # optional, uses env var or auto-discovers all if empty
+    "wait_for_active": false                # optional, defaults to false
 }
+
+Auto-discovery:
+- If nodegroups is empty or not provided, the function will list all managed nodegroups
+  in the cluster and scale them all.
+- This eliminates the need to hardcode nodegroup names.
 """
 
 import os
@@ -51,7 +56,8 @@ def handler(event, context):
         }
     
     cluster_name = event.get('cluster_name', os.environ.get('CLUSTER_NAME'))
-    nodegroups = event.get('nodegroups', json.loads(os.environ.get('NODEGROUPS', '[]')))
+    nodegroups_env = os.environ.get('NODEGROUPS', '[]')
+    nodegroups = event.get('nodegroups', json.loads(nodegroups_env) if nodegroups_env else [])
     wait_for_active = event.get('wait_for_active', os.environ.get('WAIT_FOR_ACTIVE', 'false').lower() == 'true')
     
     if not cluster_name:
@@ -60,11 +66,29 @@ def handler(event, context):
             'body': json.dumps({'error': 'Missing required parameter: cluster_name'})
         }
     
+    # Auto-discover nodegroups if not specified
     if not nodegroups:
-        return {
-            'statusCode': 400,
-            'body': json.dumps({'error': 'Missing required parameter: nodegroups'})
-        }
+        try:
+            print(f"No nodegroups specified, auto-discovering all managed nodegroups in cluster {cluster_name}...")
+            response = eks.list_nodegroups(clusterName=cluster_name)
+            nodegroups = response.get('nodegroups', [])
+            print(f"Discovered {len(nodegroups)} nodegroups: {nodegroups}")
+            
+            if not nodegroups:
+                return {
+                    'statusCode': 400,
+                    'body': json.dumps({'error': f'No managed nodegroups found in cluster {cluster_name}'})
+                }
+        except ClientError as e:
+            error_code = e.response['Error']['Code']
+            error_msg = e.response['Error']['Message']
+            return {
+                'statusCode': 500,
+                'body': json.dumps({
+                    'error': f'Failed to list nodegroups: {error_code} - {error_msg}',
+                    'cluster': cluster_name
+                })
+            }
     
     # Get scaling configuration from environment variables
     if action == 'scale_up':
@@ -168,6 +192,7 @@ def handler(event, context):
     response_body = {
         'action': action,
         'cluster': cluster_name,
+        'nodegroups': nodegroups,
         'results': results,
         'errors': errors,
         'summary': {
@@ -177,9 +202,8 @@ def handler(event, context):
         }
     }
     
-    status_code = 200 if not errors else 207  # 207 Multi-Status if partial success
-    
+    # Always return 200 with detailed status in body (207-like semantics)
     return {
-        'statusCode': status_code,
+        'statusCode': 200,
         'body': json.dumps(response_body, indent=2)
     }

@@ -117,7 +117,7 @@ resource "aws_lambda_function" "eks_scaler" {
   environment {
     variables = {
       CLUSTER_NAME            = var.cluster_name
-      NODEGROUPS              = jsonencode(var.nodegroups)
+      NODEGROUPS              = length(var.nodegroups) > 0 ? jsonencode(var.nodegroups) : ""
       SCALE_UP_MIN_SIZE       = var.scale_up_min_size
       SCALE_UP_DESIRED_SIZE   = var.scale_up_desired_size
       SCALE_UP_MAX_SIZE       = var.scale_up_max_size

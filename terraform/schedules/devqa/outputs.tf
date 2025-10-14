@@ -35,15 +35,15 @@ output "scale_down_schedule_expression" {
 
 output "manual_invoke_scale_up" {
   description = "AWS CLI command to manually scale up"
-  value       = "aws --profile ${var.profile} lambda invoke --function-name ${aws_lambda_function.eks_scaler.function_name} --payload '{\"action\":\"scale_up\"}' /dev/stdout"
+  value       = "aws --profile ${var.profile} lambda invoke --function-name ${aws_lambda_function.eks_scaler.function_name} --cli-binary-format raw-in-base64-out --payload '{\"action\":\"scale_up\"}' /dev/stdout"
 }
 
 output "manual_invoke_scale_down" {
   description = "AWS CLI command to manually scale down"
-  value       = "aws --profile ${var.profile} lambda invoke --function-name ${aws_lambda_function.eks_scaler.function_name} --payload '{\"action\":\"scale_down\"}' /dev/stdout"
+  value       = "aws --profile ${var.profile} lambda invoke --function-name ${aws_lambda_function.eks_scaler.function_name} --cli-binary-format raw-in-base64-out --payload '{\"action\":\"scale_down\"}' /dev/stdout"
 }
 
 output "check_nodegroup_command" {
-  description = "AWS CLI command to check nodegroup status"
-  value       = "aws --profile ${var.profile} eks describe-nodegroup --cluster-name ${var.cluster_name} --nodegroup-name ${var.nodegroups[0]} --query 'nodegroup.scalingConfig'"
+  description = "AWS CLI command to check nodegroup status (uses first discovered nodegroup or 'list' for all)"
+  value       = length(var.nodegroups) > 0 ? "aws --profile ${var.profile} eks describe-nodegroup --cluster-name ${var.cluster_name} --nodegroup-name ${var.nodegroups[0]} --query 'nodegroup.scalingConfig'" : "aws --profile ${var.profile} eks list-nodegroups --cluster-name ${var.cluster_name}"
 }
