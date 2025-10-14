@@ -10,12 +10,14 @@ The module provisions:
 - **EventBridge Schedules**: Two schedules to scale up (mornings) and down (nights) on weekdays
 - **CloudWatch Logs**: Lambda execution logs with 7-day retention
 
-## Default Schedule
+## Default Configuration
 
+- **Target Cluster**: `cluckn-bell-nonprod` (account 264765154707, us-east-1)
+- **Nodegroups**: Auto-discovers all managed nodegroups (empty list = discover all)
 - **Scale Up**: Monday-Friday at 08:00 AM ET (`cron(0 8 ? * MON-FRI *)`)
   - min_size=2, desired_size=2, max_size=5
 - **Scale Down**: Monday-Friday at 09:00 PM ET (`cron(0 21 ? * MON-FRI *)`)
-  - min_size=0, desired_size=0, max_size=0
+  - min_size=0, desired_size=0, max_size=1 (EKS requires max >= 1)
 
 Weekends (Saturday-Sunday) remain scaled down.
 
@@ -34,7 +36,7 @@ EventBridge Scheduler -> Lambda Function -> EKS API (UpdateNodegroupConfig)
 
 - AWS CLI configured with `cluckin-bell-qa` profile
 - Terraform >= 1.13.1
-- EKS cluster `cb-use1-shared` must exist in the dev/qa account (264765154707)
+- EKS cluster `cluckn-bell-nonprod` must exist in the dev/qa account (264765154707)
 
 ### Deploy the Scheduler
 
@@ -59,23 +61,38 @@ All variables have sensible defaults. You can override them in a `terraform.tfva
 # terraform.tfvars example
 region       = "us-east-1"
 profile      = "cluckin-bell-qa"
-cluster_name = "cb-use1-shared"
-nodegroups   = ["default"]
+cluster_name = "cluckn-bell-nonprod"
+nodegroups   = []  # Empty list = auto-discover all nodegroups
 
 # Customize daytime capacity
 scale_up_min_size     = 2
 scale_up_desired_size = 2
 scale_up_max_size     = 5
 
-# Customize off-hours capacity (0 = shut down)
+# Customize off-hours capacity (max must be >= 1 for EKS)
 scale_down_min_size     = 0
 scale_down_desired_size = 0
-scale_down_max_size     = 0
+scale_down_max_size     = 1
 
 # Customize schedule (EventBridge cron format)
 scale_up_cron   = "cron(0 8 ? * MON-FRI *)"   # 8 AM ET weekdays
 scale_down_cron = "cron(0 21 ? * MON-FRI *)"  # 9 PM ET weekdays
 timezone        = "America/New_York"
+```
+
+### Auto-Discovery vs Explicit Nodegroups
+
+By default, the Lambda function auto-discovers all managed nodegroups in the cluster:
+- Set `nodegroups = []` (or omit it) to scale **all** managed nodegroups
+- Set `nodegroups = ["nodegroup1", "nodegroup2"]` to scale only specific nodegroups
+
+You can also override at runtime via the Lambda payload:
+```bash
+# Auto-discover and scale all nodegroups
+aws lambda invoke --payload '{"action":"scale_down"}' ...
+
+# Scale specific nodegroups only
+aws lambda invoke --payload '{"action":"scale_down","nodegroups":["ng-1","ng-2"]}' ...
 ```
 
 ## Manual Triggering
@@ -86,6 +103,7 @@ timezone        = "America/New_York"
 ```bash
 aws --profile cluckin-bell-qa lambda invoke \
   --function-name cb-devqa-eks-scaler \
+  --cli-binary-format raw-in-base64-out \
   --payload '{"action":"scale_down"}' \
   /dev/stdout
 ```
@@ -94,6 +112,7 @@ aws --profile cluckin-bell-qa lambda invoke \
 ```bash
 aws --profile cluckin-bell-qa lambda invoke \
   --function-name cb-devqa-eks-scaler \
+  --cli-binary-format raw-in-base64-out \
   --payload '{"action":"scale_up"}' \
   /dev/stdout
 ```
@@ -102,10 +121,11 @@ aws --profile cluckin-bell-qa lambda invoke \
 ```bash
 aws --profile cluckin-bell-qa lambda invoke \
   --function-name cb-devqa-eks-scaler \
+  --cli-binary-format raw-in-base64-out \
   --payload '{
     "action": "scale_up",
-    "cluster_name": "cb-use1-shared",
-    "nodegroups": ["default"],
+    "cluster_name": "cluckn-bell-nonprod",
+    "nodegroups": ["nodegroup-1", "nodegroup-2"],
     "wait_for_active": false
   }' \
   /dev/stdout
@@ -175,9 +195,14 @@ aws --profile cluckin-bell-qa scheduler get-schedule \
 
 ### Check Current Nodegroup Configuration
 ```bash
+# List all nodegroups
+aws --profile cluckin-bell-qa eks list-nodegroups \
+  --cluster-name cluckn-bell-nonprod
+
+# Check specific nodegroup scaling config
 aws --profile cluckin-bell-qa eks describe-nodegroup \
-  --cluster-name cb-use1-shared \
-  --nodegroup-name default \
+  --cluster-name cluckn-bell-nonprod \
+  --nodegroup-name <nodegroup-name> \
   --query 'nodegroup.scalingConfig'
 ```
 
@@ -195,6 +220,7 @@ After scaling down, nodes should drain and terminate. After scaling up, new node
 # Manually invoke scale down
 aws --profile cluckin-bell-qa lambda invoke \
   --function-name cb-devqa-eks-scaler \
+  --cli-binary-format raw-in-base64-out \
   --payload '{"action":"scale_down"}' \
   /dev/stdout
 
@@ -208,6 +234,7 @@ kubectl get nodes
 # Manually invoke scale up
 aws --profile cluckin-bell-qa lambda invoke \
   --function-name cb-devqa-eks-scaler \
+  --cli-binary-format raw-in-base64-out \
   --payload '{"action":"scale_up"}' \
   /dev/stdout
 
@@ -251,10 +278,15 @@ Examples:
 
 ### Multiple Nodegroups
 
-If your cluster has multiple nodegroups, add them to the `nodegroups` variable:
+By default, the scheduler auto-discovers and scales **all** managed nodegroups. To scale only specific nodegroups:
 
 ```hcl
-nodegroups = ["default", "gpu-nodes", "spot-nodes"]
+nodegroups = ["nodegroup-1", "nodegroup-2"]
+```
+
+Or override via `-var`:
+```bash
+terraform apply -var='nodegroups=["nodegroup-1"]'
 ```
 
 ## Troubleshooting
