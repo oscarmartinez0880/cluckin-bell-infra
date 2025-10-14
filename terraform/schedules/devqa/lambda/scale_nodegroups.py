@@ -56,6 +56,7 @@ def handler(event, context):
         }
     
     cluster_name = event.get('cluster_name', os.environ.get('CLUSTER_NAME'))
+    # NODEGROUPS env var is guaranteed to be a string (default '[]'), never None
     nodegroups_env = os.environ.get('NODEGROUPS', '[]')
     stripped_env = nodegroups_env.strip()
     nodegroups = event.get('nodegroups', json.loads(stripped_env) if stripped_env else [])
