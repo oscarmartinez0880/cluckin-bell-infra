@@ -25,19 +25,19 @@ variable "nodegroups" {
 variable "scale_up_min_size" {
   description = "Minimum size during daytime hours"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "scale_up_desired_size" {
   description = "Desired size during daytime hours"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "scale_up_max_size" {
   description = "Maximum size during daytime hours"
   type        = number
-  default     = 5
+  default     = 1
 }
 
 variable "scale_down_min_size" {
