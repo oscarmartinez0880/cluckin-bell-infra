@@ -57,7 +57,7 @@ def handler(event, context):
     
     cluster_name = event.get('cluster_name', os.environ.get('CLUSTER_NAME'))
     nodegroups_env = os.environ.get('NODEGROUPS', '[]')
-    nodegroups = event.get('nodegroups', json.loads(nodegroups_env) if nodegroups_env else [])
+    nodegroups = event.get('nodegroups', json.loads(nodegroups_env) if nodegroups_env.strip() else [])
     wait_for_active = event.get('wait_for_active', os.environ.get('WAIT_FOR_ACTIVE', 'false').lower() == 'true')
     
     if not cluster_name:
@@ -98,7 +98,7 @@ def handler(event, context):
     else:  # scale_down
         min_size = int(os.environ.get('SCALE_DOWN_MIN_SIZE', '0'))
         desired_size = int(os.environ.get('SCALE_DOWN_DESIRED_SIZE', '0'))
-        max_size = int(os.environ.get('SCALE_DOWN_MAX_SIZE', '0'))
+        max_size = int(os.environ.get('SCALE_DOWN_MAX_SIZE', '1'))
     
     print(f"Action: {action}")
     print(f"Cluster: {cluster_name}")
