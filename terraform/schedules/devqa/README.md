@@ -15,7 +15,7 @@ The module provisions:
 - **Target Cluster**: `cluckn-bell-nonprod` (account 264765154707, us-east-1)
 - **Nodegroups**: Auto-discovers all managed nodegroups (empty list = discover all)
 - **Scale Up**: Monday-Friday at 08:00 AM ET (`cron(0 8 ? * MON-FRI *)`)
-  - min_size=2, desired_size=2, max_size=5
+  - min_size=1, desired_size=1, max_size=1
 - **Scale Down**: Monday-Friday at 09:00 PM ET (`cron(0 21 ? * MON-FRI *)`)
   - min_size=0, desired_size=0, max_size=1 (EKS requires max >= 1)
 
@@ -65,9 +65,9 @@ cluster_name = "cluckn-bell-nonprod"
 nodegroups   = []  # Empty list = auto-discover all nodegroups
 
 # Customize daytime capacity
-scale_up_min_size     = 2
-scale_up_desired_size = 2
-scale_up_max_size     = 5
+scale_up_min_size     = 1
+scale_up_desired_size = 1
+scale_up_max_size     = 1
 
 # Customize off-hours capacity (max must be >= 1 for EKS)
 scale_down_min_size     = 0
