@@ -255,20 +255,29 @@ test-ecr-help: ## Show ECR testing help
 
 
 ###############################################################################
-.PHONY: ops-up ops-open ops-status ops-down
+.PHONY: ops-up ops-open ops-open-skip ops-status ops-down ops-down-full ops-down-qa
 
-# Dev/QA operator helpers (wrap scripts/devqa-ops.sh)
+# Dev/QA operator helpers
 ops-up: ## Scale Dev+QA nodegroups to 1/1/1 and wait for nodes
 	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh up
 
 ops-open: ## Open local tunnels (Grafana 3000, Prometheus 9090, Argo CD 8080)
 	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh open
 
+ops-open-skip: ## Open tunnels without refreshing kubeconfig (uses current context)
+	SKIP_KUBE_LOGIN=1 PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh open
+
 ops-status: ## Show nodegroup and node status
 	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh status
 
-ops-down: ## Scale Dev+QA nodegroups to 0/0/1
+ops-down: ## Graceful shutdown: scale Dev+QA nodegroups to 0/0/1
 	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh down
+
+ops-down-full: ## Hard shutdown: scale all to 0, remove PDB blockers, drain+terminate leftovers, stop bastion
+	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) STOP_BASTION=1 bash scripts/devqa-ops.sh down-full
+
+ops-down-qa: ## Scale only QA nodegroup (qa-t3) to 0/0/1 and drain QA nodes
+	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh down-qa
 
 ###############################################################################
 .PHONY: ops-verify
