@@ -26,3 +26,19 @@ kubeconfig-nonprod: ## Update kubeconfig for nonprod cluster
 kubeconfig-prod: ## Update kubeconfig for prod cluster
 	@echo "$(YELLOW)Updating kubeconfig for prod cluster...$(NC)"
 	aws eks update-kubeconfig --region us-east-1 --name cluckn-bell-prod --profile cluckin-bell-prod
+
+
+.PHONY: ops-up ops-open ops-status ops-down
+
+# Dev/QA operator helpers (wrap scripts/devqa-ops.sh)
+ops-up: ## Scale Dev+QA nodegroups to 1/1/1 and wait for nodes
+	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh up
+
+ops-open: ## Open local tunnels (Grafana 3000, Prometheus 9090, Argo CD 8080)
+	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh open
+
+ops-status: ## Show nodegroup and node status
+	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh status
+
+ops-down: ## Scale Dev+QA nodegroups to 0/0/1
+	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh down
