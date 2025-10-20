@@ -269,3 +269,11 @@ ops-status: ## Show nodegroup and node status
 
 ops-down: ## Scale Dev+QA nodegroups to 0/0/1
 	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash scripts/devqa-ops.sh down
+
+###############################################################################
+.PHONY: ops-verify
+ops-verify: ## Verify monitoring and Argo CD are installed and Ready
+	PROFILE=$(DEVQA_PROFILE) REGION=$(REGION) CLUSTER=$(NONPROD_CLUSTER) bash -c '\
+		aws eks update-kubeconfig --region $$REGION --name $$CLUSTER --profile $$PROFILE >/dev/null || true; \
+		bash scripts/ops-verify.sh \
+	'
