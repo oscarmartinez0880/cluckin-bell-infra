@@ -125,6 +125,128 @@ The infrastructure includes automated DNS and TLS certificate management:
 
 See `examples/ingress-examples.yaml` for complete Ingress configuration examples.
 
+#### cert-manager IRSA for Route53 DNS01
+
+The infrastructure provisions IRSA roles for cert-manager to perform DNS01 challenges with Route53:
+
+- **Nonprod** (account 264765154707): Role `cluckn-bell-nonprod-cert-manager` with permissions for dev and qa hosted zones
+- **Prod** (account 346746763840): Role `cluckn-bell-prod-cert-manager` with permissions for production hosted zone
+
+**Kubernetes Configuration:**
+
+To use cert-manager with the provisioned IRSA role, annotate the cert-manager ServiceAccount:
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cert-manager
+  namespace: cert-manager
+  annotations:
+    eks.amazonaws.com/role-arn: <cert_manager_role_arn_from_terraform_output>
+```
+
+The role ARN is available from Terraform outputs:
+```bash
+# Nonprod
+cd envs/nonprod
+terraform output cert_manager_role_arn
+
+# Prod
+cd envs/prod
+terraform output cert_manager_role_arn
+```
+
+### Alerting Infrastructure
+
+The infrastructure includes a complete alerting pipeline for Prometheus Alertmanager:
+
+#### Components
+
+- **SNS Topic**: `alerts-nonprod` and `alerts-prod` for email and SMS notifications
+- **Lambda Function**: `alertmanager-webhook-{env}` processes Alertmanager payloads
+- **API Gateway**: HTTP API endpoint `/webhook` for Alertmanager webhook receiver
+- **Secrets Manager**: `alertmanager/webhook-url-{env}` stores the webhook URL for GitOps reference
+
+#### Alert Subscriptions
+
+Each environment has two subscription types:
+
+1. **Email**: `oscar21martinez88@gmail.com`
+   - **Action Required**: Check your email inbox for an SNS subscription confirmation
+   - Click the "Confirm subscription" link in the email from AWS Notifications
+   - Until confirmed, email alerts will not be delivered
+
+2. **SMS**: `+12298051449`
+   - Auto-subscribed for most regions (including US)
+   - No confirmation required
+
+#### Webhook Configuration
+
+The webhook URL is stored in AWS Secrets Manager and can be retrieved using:
+
+```bash
+# Nonprod
+cd envs/nonprod
+terraform output alerting_webhook_url
+
+# Or from Secrets Manager
+aws secretsmanager get-secret-value \
+  --secret-id alertmanager/webhook-url-nonprod \
+  --query SecretString --output text
+
+# Prod
+cd envs/prod
+terraform output alerting_webhook_url
+
+# Or from Secrets Manager
+aws secretsmanager get-secret-value \
+  --secret-id alertmanager/webhook-url-prod \
+  --query SecretString --output text
+```
+
+#### Alertmanager Configuration
+
+Configure Alertmanager to use the webhook receiver. If using External Secrets Operator, reference the secret:
+
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: alertmanager-webhook
+  namespace: monitoring
+spec:
+  secretStoreRef:
+    name: aws-secretsmanager
+    kind: SecretStore
+  target:
+    name: alertmanager-webhook
+  data:
+    - secretKey: webhook_url
+      remoteRef:
+        key: alertmanager/webhook-url-nonprod  # or prod
+```
+
+Then in your Alertmanager config:
+
+```yaml
+receivers:
+  - name: 'webhook-receiver'
+    webhook_configs:
+      - url: '{{ .webhookUrl }}'
+        send_resolved: true
+```
+
+#### Alert Message Format
+
+The Lambda function formats alerts with the following information:
+- Alert name and status (firing/resolved)
+- Severity level
+- Environment
+- Instance/target
+- Summary/description from annotations
+- All labels for context
+
 ### Argo CD Access
 
 Argo CD is configured with internal ALB access and admin authentication (no OIDC). The URLs are:
@@ -285,16 +407,51 @@ Use the automated deployment script:
 ### Manual Environment Deployment
 
 ```bash
-# Deploy dev environment
-cd stacks/environments/dev
+# Deploy nonprod environment (dev + qa)
+cd envs/nonprod
 terraform init
 terraform plan
 terraform apply
 
-# Get cluster details
-terraform output cluster_name
-terraform output argocd_server_url
+# Deploy prod environment
+cd envs/prod
+terraform init
+terraform plan
+terraform apply
 ```
+
+### Post-Deployment Steps
+
+#### 1. Confirm SNS Email Subscription
+
+After applying the Terraform configuration, you **must** confirm the email subscription:
+
+1. Check the inbox for `oscar21martinez88@gmail.com`
+2. Look for an email from "AWS Notifications" with subject "AWS Notification - Subscription Confirmation"
+3. Click the "Confirm subscription" link
+4. You should see a confirmation page from AWS
+
+**Important**: Email alerts will **not** be delivered until the subscription is confirmed.
+
+SMS alerts to `+12298051449` are auto-confirmed and require no action.
+
+#### 2. Retrieve Webhook URL and Role ARNs
+
+```bash
+# Nonprod
+cd envs/nonprod
+terraform output cert_manager_role_arn
+terraform output alerting_webhook_url
+
+# Prod
+cd envs/prod
+terraform output cert_manager_role_arn
+terraform output alerting_webhook_url
+```
+
+#### 3. Configure Kubernetes Resources
+
+Use the outputs to configure cert-manager and Alertmanager in your Kubernetes manifests or Helm values.
 
 ### ArgoCD Access
 
