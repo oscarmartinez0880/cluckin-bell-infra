@@ -2,23 +2,15 @@
 # SES SMTP Configuration for Alertmanager Email Delivery
 ###############################################################################
 
-# Get the prod apex zone ID from terraform/dns outputs
-# This assumes terraform/dns has already been applied
-data "terraform_remote_state" "dns" {
-  backend = "local"
-  config = {
-    path = "../../dns/terraform.tfstate"
-  }
-}
-
 # SES Domain Identity for cluckn-bell.com
+# Uses var.prod_apex_zone_id for Route53 zone
 module "ses_smtp" {
   source = "../../../modules/ses-smtp"
 
   providers = { aws = aws.prod }
 
   domain_name            = "cluckn-bell.com"
-  route53_zone_id        = data.terraform_remote_state.dns.outputs.prod_apex_zone_id
+  route53_zone_id        = var.prod_apex_zone_id
   create_route53_records = true
 
   tags = {

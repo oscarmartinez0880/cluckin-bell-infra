@@ -101,7 +101,7 @@ locals {
   # Handle both protected and unprotected private zone versions
   private_zone_id = var.private_zone.create ? (
     var.allow_zone_destroy ? aws_route53_zone.private_unprotected[0].zone_id : aws_route53_zone.private[0].zone_id
-  ) : (
+    ) : (
     var.existing_private_zone_id != "" ? var.existing_private_zone_id : (
       var.private_zone.zone_id != null ? var.private_zone.zone_id : data.aws_route53_zone.existing_private[0].zone_id
     )

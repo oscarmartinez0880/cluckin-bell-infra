@@ -7,7 +7,7 @@
 
 terraform {
   required_version = ">= 1.13.1"
-  
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -108,11 +108,11 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
 resource "aws_lambda_function" "eks_scaler" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "cb-devqa-eks-scaler"
-  role            = aws_iam_role.lambda_role.arn
-  handler         = "scale_nodegroups.handler"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "scale_nodegroups.handler"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-  runtime         = "python3.12"
-  timeout         = var.lambda_timeout
+  runtime          = "python3.12"
+  timeout          = var.lambda_timeout
 
   environment {
     variables = {
