@@ -30,7 +30,7 @@ help: ## Show this help message
 	@echo ""
 	@echo "Operating Model:"
 	@echo "  - Terraform for foundational AWS (accounts, DNS, VPC, node IAM)"
-	@echo "  - eksctl for EKS cluster lifecycle (v1.33)"
+	@echo "  - eksctl for EKS cluster lifecycle (>= v1.34)"
 	@echo "  - Terraform for post-cluster IRSA bootstrap"
 	@echo ""
 	@echo "Available targets:"

@@ -49,6 +49,10 @@ variable "manage_route53" {
 variable "kubernetes_version" {
   type    = string
   default = "1.34"
+  validation {
+    condition     = can(regex("^1\\.(3[4-9]|[4-9][0-9])(\\..*)?\$", var.kubernetes_version))
+    error_message = "Kubernetes version must be 1.34 or higher."
+  }
 }
 
 variable "enable_aws_load_balancer_controller" {

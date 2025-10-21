@@ -76,7 +76,7 @@ The infrastructure supports a two-cluster environment model:
 ## Terraform and Kubernetes Versions
 
 - **Terraform**: >= 1.13.1
-- **Kubernetes**: >= 1.30
+- **Kubernetes**: >= 1.34
 - **Provider Versions**:
   - AWS Provider: ~> 5.0
   - Kubernetes Provider: ~> 2.20

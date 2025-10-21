@@ -55,7 +55,7 @@ For application-specific GitHub Actions (ECR access, SES notifications), see [Gi
 
 ## Notes
 
-- Kubernetes versions should remain ≥ 1.30; Terraform version is pinned to 1.13.1 in the workflow.
+- Kubernetes versions should remain ≥ 1.34; Terraform version is pinned to 1.13.1 in the workflow.
 - Start with AdministratorAccess for bootstrap and reduce privileges once your Terraform scope is stable.
 - Trust policies are environment-scoped to align with `environment:` in the job, e.g.,
   - `repo:oscarmartinez0880/cluckin-bell-infra:environment:dev|qa|prod`.

@@ -14,7 +14,7 @@ private_subnet_cidrs  = [] # auto-calc 3 AZs
 manage_route53 = true
 
 # EKS configuration
-kubernetes_version = "1.33"
+kubernetes_version = "1.34"
 
 # Controllers
 enable_aws_load_balancer_controller = true
