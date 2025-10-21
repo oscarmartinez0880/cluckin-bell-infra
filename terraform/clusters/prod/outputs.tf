@@ -54,3 +54,22 @@ output "public_subnet_ids" {
   description = "IDs of the public subnets"
   value       = module.vpc.public_subnets
 }
+
+###############################################################################
+# SES SMTP Outputs
+###############################################################################
+
+output "ses_domain_identity_arn" {
+  description = "ARN of the SES domain identity"
+  value       = module.ses_smtp.domain_identity_arn
+}
+
+output "ses_smtp_smarthost" {
+  description = "SMTP endpoint for Alertmanager configuration"
+  value       = module.ses_smtp.smtp_smarthost
+}
+
+output "alertmanager_smtp_secret_arn" {
+  description = "ARN of the Secrets Manager secret for Alertmanager SMTP settings"
+  value       = aws_secretsmanager_secret.alertmanager_smtp_prod.arn
+}
