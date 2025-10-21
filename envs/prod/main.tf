@@ -662,10 +662,10 @@ module "secrets" {
 module "alerting" {
   source = "../../modules/alerting"
 
-  environment         = "prod"
-  alert_email         = "oscar21martinez88@gmail.com"
-  alert_phone         = "+12298051449"
-  log_retention_days  = 7
+  environment        = "prod"
+  alert_email        = "oscar21martinez88@gmail.com"
+  alert_phone        = "+12298051449"
+  log_retention_days = 7
 
   tags = local.common_tags
 }
