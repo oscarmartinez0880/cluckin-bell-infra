@@ -7,7 +7,7 @@ This repository contains Terraform infrastructure as code for the Cluckin Bell a
 The infrastructure follows a separation of concerns for better safety and clarity:
 
 - **Terraform** manages foundational AWS resources (VPCs, IAM, Route53, ECR, WAF, endpoints)
-- **eksctl** manages EKS cluster lifecycle (creation, upgrades, Kubernetes v1.34)
+- **eksctl** manages EKS cluster lifecycle (creation, upgrades, Kubernetes >= v1.34)
 - **Argo CD / Helm** manages all in-cluster resources (controllers, applications)
 
 > **Important**: EKS management in Terraform is **disabled by default** (`manage_eks = false`). Clusters should be created and managed using eksctl. See [docs/CLUSTERS_WITH_EKSCTL.md](docs/CLUSTERS_WITH_EKSCTL.md) for the complete workflow.
@@ -28,7 +28,7 @@ The infrastructure supports a two-cluster environment model:
 ### GitOps Architecture
 
 - **Platform Components** (Terraform-managed): VPC, IAM, Route53, ECR, WAF, VPC endpoints
-- **EKS Clusters** (eksctl-managed): Cluster lifecycle, Kubernetes v1.34, node groups, add-ons
+- **EKS Clusters** (eksctl-managed): Cluster lifecycle, Kubernetes >= v1.34, node groups, add-ons
 - **IRSA Roles** (Terraform post-cluster): IAM roles for service accounts after cluster creation
 - **Controllers & Apps** (ArgoCD/Helm-managed): AWS LB Controller, external-dns, cert-manager, application workloads from [`oscarmartinez0880/cluckin-bell`](https://github.com/oscarmartinez0880/cluckin-bell)
 - **Single Namespace Strategy**: All components deployed to `cluckin-bell` namespace per cluster
@@ -54,7 +54,7 @@ The infrastructure supports a two-cluster environment model:
 │   ├── monitoring/           # CloudWatch logs, metrics, and Container Insights
 │   ├── argocd/               # ArgoCD GitOps setup
 │   └── ...
-├── eksctl/                    # eksctl cluster configurations (Kubernetes 1.34)
+├── eksctl/                    # eksctl cluster configurations (Kubernetes >= 1.34)
 │   ├── devqa-cluster.yaml    # Nonprod cluster with dev/qa node groups
 │   └── prod-cluster.yaml     # Prod cluster with prod node group
 ├── scripts/                   # Helper scripts

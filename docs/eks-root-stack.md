@@ -58,7 +58,7 @@ When running **Actions → Terraform Deploy → Run workflow**, use these parame
 ## Version Requirements
 
 - **Terraform**: 1.13.1 (pinned in workflow)
-- **Kubernetes**: Minimum 1.30 (as configured in environment terraform.tfvars)
+- **Kubernetes**: Minimum 1.34 (as configured in environment terraform.tfvars)
 
 ## Deployment Steps
 
@@ -128,7 +128,7 @@ Each environment deployment creates:
 ### Common Issues
 - **VPC not found**: Ensure VPCs exist with correct naming convention
 - **IAM role assumption failed**: Verify GitHub environment variables and account-level Terraform deployment
-- **Kubernetes version errors**: Ensure version ≥ 1.30 in environment terraform.tfvars files
+- **Kubernetes version errors**: Ensure version ≥ 1.34 in environment terraform.tfvars files
 
 ### Validation
 - Check GitHub environment variables are correctly configured

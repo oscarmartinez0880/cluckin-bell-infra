@@ -109,7 +109,7 @@ Each environment maintains both original and auto-loaded variable files:
 - envs/prod/prod.tfvars (original, kept for reference)  
 - envs/prod/prod.auto.tfvars (auto-loaded copy)
 
-**Requirements**: Terraform >= 1.13.1 and Kubernetes >= 1.30 (default/target: 1.34)
+**Requirements**: Terraform >= 1.13.1 and Kubernetes >= 1.34 (default/target: 1.34)
 
 ## Account Structure
 
