@@ -508,6 +508,48 @@ module "irsa_external_secrets" {
   tags = local.common_tags
 }
 
+module "irsa_cert_manager" {
+  source = "../../modules/irsa"
+
+  role_name         = "cluckn-bell-prod-cert-manager"
+  oidc_provider_arn = local.cluster_oidc_provider_arn
+  namespace         = "cert-manager"
+  service_account   = "cert-manager"
+
+  custom_policy_json = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:GetChange"
+        ]
+        Resource = "arn:aws:route53:::change/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ChangeResourceRecordSets",
+          "route53:ListResourceRecordSets"
+        ]
+        Resource = [
+          "arn:aws:route53:::hostedzone/${module.dns_certs.public_zone_id}"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "route53:ListHostedZonesByName",
+          "route53:ListHostedZones"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
 # Cognito User Pool (no users initially)
 module "cognito" {
   source = "../../modules/cognito"
@@ -612,6 +654,18 @@ module "secrets" {
       }
     }
   }
+
+  tags = local.common_tags
+}
+
+# Alerting Infrastructure
+module "alerting" {
+  source = "../../modules/alerting"
+
+  environment        = "prod"
+  alert_email        = "oscar21martinez88@gmail.com"
+  alert_phone        = "+12298051449"
+  log_retention_days = 7
 
   tags = local.common_tags
 }

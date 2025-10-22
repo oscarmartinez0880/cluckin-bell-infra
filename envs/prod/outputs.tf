@@ -125,3 +125,25 @@ output "secret_names" {
   description = "Names of the created secrets"
   value       = module.secrets.secret_names
 }
+
+# Cert-Manager IRSA
+output "cert_manager_role_arn" {
+  description = "ARN of the cert-manager IRSA role"
+  value       = module.irsa_cert_manager.role_arn
+}
+
+# Alerting Outputs
+output "alerting_sns_topic_arn" {
+  description = "ARN of the SNS topic for alerts"
+  value       = module.alerting.sns_topic_arn
+}
+
+output "alerting_webhook_url" {
+  description = "Alertmanager webhook URL"
+  value       = module.alerting.webhook_url
+}
+
+output "alerting_webhook_secret_name" {
+  description = "Name of the Secrets Manager secret containing webhook URL"
+  value       = module.alerting.webhook_secret_name
+}
