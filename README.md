@@ -508,6 +508,16 @@ Automatic certificate management with environment-specific domains:
 - **QA**: `*.qa.cluckin-bell.com` 
 - **Prod**: `*.cluckin-bell.com`
 
+### Alerting and Email Delivery
+
+SES SMTP is configured for Alertmanager email delivery:
+- **SES Domain Identity**: `cluckn-bell.com` (verified in prod account)
+- **SMTP Endpoint**: `email-smtp.us-east-1.amazonaws.com:587`
+- **Sender Address**: `alerts@cluckn-bell.com`
+- **Secrets Management**: SMTP credentials stored in AWS Secrets Manager per environment
+
+See [SES SMTP Setup Guide](docs/SES_SMTP_SETUP.md) for complete configuration instructions.
+
 ### Resource Configuration by Environment
 
 | Environment | Linux Nodes | Instance Types | VPC CIDR | Bastion Access |

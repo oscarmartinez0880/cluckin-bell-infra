@@ -90,3 +90,12 @@ output "public_subnet_ids_prod" {
   description = "IDs of the Production public subnets"
   value       = module.vpc_prod.public_subnets
 }
+
+###############################################################################
+# SES SMTP Outputs
+###############################################################################
+
+output "alertmanager_smtp_secret_arn_nonprod" {
+  description = "ARN of the Secrets Manager secret for Alertmanager SMTP settings (nonprod)"
+  value       = aws_secretsmanager_secret.alertmanager_smtp_nonprod.arn
+}
