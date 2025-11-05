@@ -40,8 +40,10 @@ All feature flags are boolean variables that can be set in your `.tfvars` file o
   - Cert Manager
 - **Cost Impact:** No direct cost, but roles are useless without EKS cluster
 - **Default:** `false` - Requires EKS cluster with OIDC provider
-- **Dependencies:** Requires EKS cluster to exist
-- **Notes:** References DNS zone IDs, so ensure `enable_dns=true` if using external-dns or cert-manager
+- **Dependencies:** 
+  - **REQUIRED:** EKS cluster to exist
+  - **REQUIRED:** `enable_dns=true` (IRSA modules reference DNS zone IDs)
+- **Validation:** Terraform will fail with an error if `enable_irsa=true` and `enable_dns=false`
 
 ### `enable_cognito` (default: `false`)
 - **Controls:** Cognito user pools and clients
@@ -53,7 +55,9 @@ All feature flags are boolean variables that can be set in your `.tfvars` file o
 - **Controls:** GitHub OIDC provider role for ECR push
 - **Cost Impact:** No direct cost (IAM role only)
 - **Default:** `false` - Disabled by default
-- **Dependencies:** Requires `enable_ecr=true` (references ECR repository ARNs)
+- **Dependencies:** 
+  - **REQUIRED:** `enable_ecr=true` (references ECR repository ARNs)
+- **Validation:** Terraform will fail with an error if `enable_github_oidc=true` and `enable_ecr=false`
 
 ### `enable_secrets` (default: `false`)
 - **Controls:** AWS Secrets Manager secrets
@@ -154,7 +158,33 @@ Simply set the flag to `false` and run `terraform apply`. Resources will be dest
 - **SNS/Alarms:** ~$1-10/month
 - **Total:** ~$50-200+/month depending on usage
 
+## Validation Rules
+
+The infrastructure includes automatic validation to prevent misconfiguration:
+
+1. **IRSA requires DNS:** If `enable_irsa=true`, then `enable_dns` must also be `true`
+   - Reason: IRSA modules for external-dns and cert-manager reference DNS zone IDs
+   
+2. **GitHub OIDC requires ECR:** If `enable_github_oidc=true`, then `enable_ecr` must also be `true`
+   - Reason: GitHub OIDC role references ECR repository ARNs
+
+These validations will cause Terraform to fail during plan/apply with a clear error message if violated.
+
 ## Troubleshooting
+
+### Error: enable_dns must be true when enable_irsa is true
+You're trying to enable IRSA without DNS. Enable DNS first:
+```hcl
+enable_dns = true   # Required
+enable_irsa = true
+```
+
+### Error: enable_ecr must be true when enable_github_oidc is true
+You're trying to enable GitHub OIDC without ECR. Enable ECR first:
+```hcl
+enable_ecr = true          # Required
+enable_github_oidc = true
+```
 
 ### Error: Can't access attributes on a list of objects
 This means you're trying to reference a module output that's conditionally created. Update your references to use the `[0]` syntax:
