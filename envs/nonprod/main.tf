@@ -46,7 +46,9 @@ locals {
 }
 
 # DNS and Certificates - Dev subdomain in QA account
+# Enabled by default (var.enable_dns = true) as Route53 hosted zone costs are acceptable
 module "dns_certs_dev" {
+  count  = var.enable_dns ? 1 : 0
   source = "../../modules/dns-certs"
 
   # Use existing public zone dev.cluckn-bell.com in QA
@@ -55,10 +57,11 @@ module "dns_certs_dev" {
     create = false
   }
 
-  # Create a single private zone for the cluster in QA
+  # Do not create private zone to avoid additional hosted zone costs
+  # Reuse existing zones where possible
   private_zone = {
     name    = "cluckn-bell.com"
-    create  = true
+    create  = false
     vpc_id  = local.vpc_id
     zone_id = null
   }
@@ -75,7 +78,9 @@ module "dns_certs_dev" {
 }
 
 # DNS and Certificates - QA subdomain in QA account
+# Enabled by default (var.enable_dns = true) as Route53 hosted zone costs are acceptable
 module "dns_certs_qa" {
+  count  = var.enable_dns ? 1 : 0
   source = "../../modules/dns-certs"
 
   # Use existing public zone qa.cluckn-bell.com in QA
@@ -84,16 +89,13 @@ module "dns_certs_qa" {
     create = false
   }
 
-  # Reuse the same private zone created above
+  # Do not create private zone to avoid additional hosted zone costs
   private_zone = {
     name    = "cluckn-bell.com"
     create  = false
     vpc_id  = local.vpc_id
     zone_id = null
   }
-
-  # Use the private zone ID from dns_certs_dev
-  #existing_private_zone_id = module.dns_certs_dev.private_zone_id
 
   certificates = {
     qa_wildcard = {
@@ -109,7 +111,9 @@ module "dns_certs_qa" {
 }
 
 # ECR Repository
+# Disabled by default (var.enable_ecr = false) to prevent costs from image storage
 module "ecr" {
+  count  = var.enable_ecr ? 1 : 0
   source = "../../modules/ecr"
 
   repository_names = ["cluckin-bell-app"]
@@ -118,7 +122,10 @@ module "ecr" {
 }
 
 # Monitoring with CloudWatch and Container Insights
+# Disabled by default (var.enable_monitoring = false) to prevent monitoring costs
+# NOTE: When enabled, also enable var.enable_irsa=true for agent IRSA roles
 module "monitoring" {
+  count  = var.enable_monitoring ? 1 : 0
   source = "../../modules/monitoring"
 
   log_groups = {
@@ -130,22 +137,28 @@ module "monitoring" {
     }
   }
 
+  # Container Insights disabled by default as safety measure
+  # Even when module is enabled, agents should be explicitly turned on
   container_insights = {
-    enabled                   = true
+    enabled                   = false
     cluster_name              = "cluckn-bell-nonprod"
     aws_region                = var.aws_region
     log_retention_days        = 1
-    enable_cloudwatch_agent   = true
-    enable_fluent_bit         = true
-    cloudwatch_agent_role_arn = module.irsa_cloudwatch_agent.role_arn
-    fluent_bit_role_arn       = module.irsa_aws_for_fluent_bit.role_arn
+    enable_cloudwatch_agent   = false
+    enable_fluent_bit         = false
+    cloudwatch_agent_role_arn = var.enable_irsa ? module.irsa_cloudwatch_agent[0].role_arn : ""
+    fluent_bit_role_arn       = var.enable_irsa ? module.irsa_aws_for_fluent_bit[0].role_arn : ""
   }
 
   tags = local.common_tags
 }
 
 # IRSA Roles
+# All IRSA roles disabled by default (var.enable_irsa = false)
+# These require an EKS cluster with OIDC provider to exist
+# Enable with var.enable_irsa=true when EKS cluster is provisioned
 module "irsa_aws_load_balancer_controller" {
+  count  = var.enable_irsa ? 1 : 0
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-aws-load-balancer-controller"
@@ -370,6 +383,7 @@ module "irsa_aws_load_balancer_controller" {
 }
 
 module "irsa_external_dns_dev" {
+  count  = var.enable_irsa ? 1 : 0
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-dns-dev"
@@ -386,8 +400,8 @@ module "irsa_external_dns_dev" {
           "route53:ChangeResourceRecordSets"
         ]
         Resource = [
-          "arn:aws:route53:::hostedzone/${module.dns_certs_dev.public_zone_id}",
-          "arn:aws:route53:::hostedzone/${module.dns_certs_dev.private_zone_id}"
+          "arn:aws:route53:::hostedzone/${var.enable_dns ? module.dns_certs_dev[0].public_zone_id : ""}",
+          "arn:aws:route53:::hostedzone/${var.enable_dns ? module.dns_certs_dev[0].private_zone_id : ""}"
         ]
       },
       {
@@ -405,6 +419,7 @@ module "irsa_external_dns_dev" {
 }
 
 module "irsa_external_dns_qa" {
+  count  = var.enable_irsa ? 1 : 0
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-dns-qa"
@@ -421,8 +436,8 @@ module "irsa_external_dns_qa" {
           "route53:ChangeResourceRecordSets"
         ]
         Resource = [
-          "arn:aws:route53:::hostedzone/${module.dns_certs_qa.public_zone_id}",
-          "arn:aws:route53:::hostedzone/${module.dns_certs_dev.private_zone_id}"
+          "arn:aws:route53:::hostedzone/${var.enable_dns ? module.dns_certs_qa[0].public_zone_id : ""}",
+          "arn:aws:route53:::hostedzone/${var.enable_dns ? module.dns_certs_dev[0].private_zone_id : ""}"
         ]
       },
       {
@@ -440,6 +455,7 @@ module "irsa_external_dns_qa" {
 }
 
 module "irsa_cluster_autoscaler" {
+  count  = var.enable_irsa ? 1 : 0
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-cluster-autoscaler"
@@ -473,6 +489,7 @@ module "irsa_cluster_autoscaler" {
 }
 
 module "irsa_aws_for_fluent_bit" {
+  count  = var.enable_irsa ? 1 : 0
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-aws-for-fluent-bit"
@@ -503,6 +520,7 @@ module "irsa_aws_for_fluent_bit" {
 }
 
 module "irsa_cloudwatch_agent" {
+  count  = var.enable_irsa ? 1 : 0
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-cloudwatch-agent"
@@ -532,6 +550,7 @@ module "irsa_cloudwatch_agent" {
 }
 
 module "irsa_external_secrets" {
+  count  = var.enable_irsa ? 1 : 0
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-external-secrets"
@@ -559,6 +578,7 @@ module "irsa_external_secrets" {
 }
 
 module "irsa_cert_manager" {
+  count  = var.enable_irsa ? 1 : 0
   source = "../../modules/irsa"
 
   role_name         = "cluckn-bell-nonprod-cert-manager"
@@ -583,9 +603,9 @@ module "irsa_cert_manager" {
           "route53:ListResourceRecordSets"
         ]
         Resource = [
-          "arn:aws:route53:::hostedzone/${module.dns_certs_dev.public_zone_id}",
-          "arn:aws:route53:::hostedzone/${module.dns_certs_qa.public_zone_id}",
-          "arn:aws:route53:::hostedzone/${module.dns_certs_dev.private_zone_id}"
+          "arn:aws:route53:::hostedzone/${var.enable_dns ? module.dns_certs_dev[0].public_zone_id : ""}",
+          "arn:aws:route53:::hostedzone/${var.enable_dns ? module.dns_certs_qa[0].public_zone_id : ""}",
+          "arn:aws:route53:::hostedzone/${var.enable_dns ? module.dns_certs_dev[0].private_zone_id : ""}"
         ]
       },
       {
@@ -603,7 +623,9 @@ module "irsa_cert_manager" {
 }
 
 # Cognito User Pool
+# Disabled by default (var.enable_cognito = false) to prevent user pool costs
 module "cognito" {
+  count  = var.enable_cognito ? 1 : 0
   source = "../../modules/cognito"
 
   user_pool_name = "cluckn-bell-nonprod"
@@ -630,7 +652,10 @@ module "cognito" {
 }
 
 # GitHub OIDC Role for ECR Push
+# Disabled by default (var.enable_github_oidc = false)
+# NOTE: Requires var.enable_ecr=true as it references ECR repository ARNs
 module "github_oidc" {
+  count  = var.enable_github_oidc && var.enable_ecr ? 1 : 0
   source = "../../modules/github-oidc"
 
   role_name             = "cluckn-bell-nonprod-github-ecr-push"
@@ -658,7 +683,7 @@ module "github_oidc" {
           "ecr:PutImage"
         ]
         Resource = [
-          module.ecr.repository_arns["cluckin-bell-app"]
+          module.ecr[0].repository_arns["cluckin-bell-app"]
         ]
       }
     ]
@@ -668,7 +693,9 @@ module "github_oidc" {
 }
 
 # Secrets Manager
+# Disabled by default (var.enable_secrets = false) to prevent per-secret costs
 module "secrets" {
+  count  = var.enable_secrets ? 1 : 0
   source = "../../modules/secrets"
 
   secrets = {
@@ -752,7 +779,9 @@ module "secrets" {
 }
 
 # Alerting Infrastructure
+# Disabled by default (var.enable_alerting = false) to prevent SNS/CloudWatch alarm costs
 module "alerting" {
+  count  = var.enable_alerting ? 1 : 0
   source = "../../modules/alerting"
 
   environment        = "nonprod"
