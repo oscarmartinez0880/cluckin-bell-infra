@@ -160,15 +160,17 @@ Simply set the flag to `false` and run `terraform apply`. Resources will be dest
 
 ## Validation Rules
 
-The infrastructure includes automatic validation to prevent misconfiguration:
+The infrastructure includes automatic validation at the variable level to prevent misconfiguration:
 
 1. **IRSA requires DNS:** If `enable_irsa=true`, then `enable_dns` must also be `true`
    - Reason: IRSA modules for external-dns and cert-manager reference DNS zone IDs
+   - Validation: Variable-level check in `enable_irsa` definition
    
 2. **GitHub OIDC requires ECR:** If `enable_github_oidc=true`, then `enable_ecr` must also be `true`
    - Reason: GitHub OIDC role references ECR repository ARNs
+   - Validation: Variable-level check in `enable_github_oidc` definition
 
-These validations will cause Terraform to fail during plan/apply with a clear error message if violated.
+These validations will cause Terraform to fail **immediately** during init/plan/apply with a clear error message if violated, before any resources are created or modified.
 
 ## Troubleshooting
 

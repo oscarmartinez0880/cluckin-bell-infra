@@ -45,30 +45,6 @@ locals {
   }
 }
 
-# Validation: Ensure DNS is enabled if IRSA is enabled (IRSA modules reference DNS zone IDs)
-resource "null_resource" "validate_dns_for_irsa" {
-  count = var.enable_irsa && !var.enable_dns ? 1 : 0
-
-  lifecycle {
-    precondition {
-      condition     = var.enable_dns
-      error_message = "enable_dns must be true when enable_irsa is true. IRSA modules (external-dns, cert-manager) require DNS zone IDs."
-    }
-  }
-}
-
-# Validation: Ensure ECR is enabled if GitHub OIDC is enabled
-resource "null_resource" "validate_ecr_for_github_oidc" {
-  count = var.enable_github_oidc && !var.enable_ecr ? 1 : 0
-
-  lifecycle {
-    precondition {
-      condition     = var.enable_ecr
-      error_message = "enable_ecr must be true when enable_github_oidc is true. GitHub OIDC role requires ECR repository ARNs."
-    }
-  }
-}
-
 # DNS and Certificates - Production
 # Enabled by default (var.enable_dns = true) as Route53 hosted zone costs are acceptable
 #

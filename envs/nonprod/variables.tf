@@ -231,6 +231,11 @@ variable "enable_irsa" {
   description = "Enable all IRSA roles (requires EKS cluster with OIDC provider)"
   type        = bool
   default     = false
+
+  validation {
+    condition     = !var.enable_irsa || var.enable_dns
+    error_message = "enable_dns must be true when enable_irsa is true. IRSA modules (external-dns, cert-manager) require DNS zone IDs."
+  }
 }
 
 variable "enable_cognito" {
@@ -243,6 +248,11 @@ variable "enable_github_oidc" {
   description = "Enable GitHub OIDC role for ECR push (requires enable_ecr=true)"
   type        = bool
   default     = false
+
+  validation {
+    condition     = !var.enable_github_oidc || var.enable_ecr
+    error_message = "enable_ecr must be true when enable_github_oidc is true. GitHub OIDC role requires ECR repository ARNs."
+  }
 }
 
 variable "enable_secrets" {
