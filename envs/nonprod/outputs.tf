@@ -141,7 +141,8 @@ output "public_zone_name_servers" {
 # Private zone (single) - created by dns_certs_dev, reused by dns_certs_qa
 output "private_zone_id" {
   description = "Private Route53 zone ID"
-  value       = var.enable_dns ? try(module.dns_certs_dev[0].private_zone_id, "") : ""
+  # Note: try() provides safety if zone wasn't created (e.g., create=false in config)
+  value = var.enable_dns ? try(module.dns_certs_dev[0].private_zone_id, "") : ""
 }
 
 # Certificates (merged)

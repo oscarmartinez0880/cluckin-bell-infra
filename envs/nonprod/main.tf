@@ -391,6 +391,8 @@ module "irsa_external_dns_dev" {
   namespace         = "kube-system"
   service_account   = "external-dns-dev"
 
+  # Note: Variable validation ensures enable_dns=true when enable_irsa=true,
+  # so zone IDs will always be available when this module is created (count=1)
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -427,6 +429,8 @@ module "irsa_external_dns_qa" {
   namespace         = "kube-system"
   service_account   = "external-dns-qa"
 
+  # Note: Variable validation ensures enable_dns=true when enable_irsa=true,
+  # so zone IDs will always be available when this module is created (count=1)
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -586,6 +590,8 @@ module "irsa_cert_manager" {
   namespace         = "cert-manager"
   service_account   = "cert-manager"
 
+  # Note: Variable validation ensures enable_dns=true when enable_irsa=true,
+  # so zone IDs will always be available when this module is created (count=1)
   custom_policy_json = jsonencode({
     Version = "2012-10-17"
     Statement = [
