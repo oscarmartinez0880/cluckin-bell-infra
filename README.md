@@ -7,12 +7,89 @@ This repository contains Terraform infrastructure as code for the Cluckin Bell a
 The infrastructure follows a separation of concerns for better safety and clarity:
 
 - **Terraform** manages foundational AWS resources (VPCs, IAM, Route53, ECR, WAF, endpoints)
-- **eksctl** manages EKS cluster lifecycle (creation, upgrades, Kubernetes >= v1.34)
+- **eksctl** manages EKS cluster lifecycle (creation, upgrades, Kubernetes >= 1.30)
 - **Argo CD / Helm** manages all in-cluster resources (controllers, applications)
 
 > **Important**: EKS management in Terraform is **disabled by default** (`manage_eks = false`). Clusters should be created and managed using eksctl. See [docs/CLUSTERS_WITH_EKSCTL.md](docs/CLUSTERS_WITH_EKSCTL.md) for the complete workflow.
 
 To opt-in to Terraform-managed EKS (not recommended), set `manage_eks = true` in your environment stack variables.
+
+## On-Demand Cluster Lifecycle (Cost Minimization)
+
+The EKS clusters support **on-demand lifecycle control** to minimize costs when environments are not actively in use. Clusters can be completely created or destroyed using simple Makefile commands.
+
+### Quick Start: Cluster Lifecycle
+
+**For QA/Dev (Nonprod Cluster):**
+```bash
+# Start the nonprod cluster (cluckn-bell-nonprod)
+make cluster-up-qa
+
+# Stop the nonprod cluster to minimize costs
+make cluster-down-qa
+```
+
+**For Production:**
+```bash
+# Start the prod cluster (cluckn-bell-prod)
+make cluster-up-prod
+
+# Stop the prod cluster to minimize costs
+make cluster-down-prod
+```
+
+### How It Works
+
+- **`cluster-up-*`**: Creates the EKS cluster using eksctl with the config from `eksctl/` directory
+  - Ensures valid SSO session (auto-login prompt)
+  - Creates cluster control plane and node groups
+  - Takes ~15-20 minutes
+  - After creation, cluster is running with minimal cost-optimized node configuration
+
+- **`cluster-down-*`**: Completely deletes the EKS cluster
+  - Removes control plane, node groups, and all cluster resources
+  - Takes ~10-15 minutes
+  - After deletion, costs drop to $0 for EKS (VPC/IAM costs remain minimal)
+  - Requires confirmation prompt to prevent accidental deletion
+
+### Cost Optimization Details
+
+**Nonprod Cluster (dev/qa):**
+- **When running**: 2 t3.small nodes (1 per nodegroup), minimal disk
+- **When stopped**: $0 (cluster fully deleted)
+- Kubernetes version: **1.30**
+
+**Prod Cluster:**
+- **When running**: 2 t3.medium nodes, 50GB disk
+- **When stopped**: $0 (cluster fully deleted)
+- Kubernetes version: **1.30**
+
+### Workflow Example
+
+```bash
+# 1. Ensure AWS SSO login (auto-prompted by make targets)
+aws sso login --profile cluckin-bell-qa
+
+# 2. Start cluster
+make cluster-up-qa
+
+# 3. Update kubeconfig to access cluster
+aws eks update-kubeconfig --name cluckn-bell-nonprod --region us-east-1 --profile cluckin-bell-qa
+
+# 4. Work with the cluster
+kubectl get nodes
+
+# 5. When done, stop cluster to save costs
+make cluster-down-qa
+```
+
+### Important Notes
+
+- The `cluster-up-*` commands are **idempotent**: running on an existing cluster will report status and exit safely
+- The `cluster-down-*` commands require **confirmation** before deletion
+- Clusters are managed via **eksctl**, not Terraform (Terraform manages VPC, IAM, etc.)
+- The dev and qa environments share the **same nonprod cluster** (`cluckn-bell-nonprod`)
+- Cluster configs are in `eksctl/devqa-cluster.yaml` (nonprod) and `eksctl/prod-cluster.yaml` (prod)
 
 ## Architecture Overview
 
@@ -28,7 +105,7 @@ The infrastructure supports a two-cluster environment model:
 ### GitOps Architecture
 
 - **Platform Components** (Terraform-managed): VPC, IAM, Route53, ECR, WAF, VPC endpoints
-- **EKS Clusters** (eksctl-managed): Cluster lifecycle, Kubernetes >= v1.34, node groups, add-ons
+- **EKS Clusters** (eksctl-managed): Cluster lifecycle, Kubernetes >= 1.30, node groups, add-ons
 - **IRSA Roles** (Terraform post-cluster): IAM roles for service accounts after cluster creation
 - **Controllers & Apps** (ArgoCD/Helm-managed): AWS LB Controller, external-dns, cert-manager, application workloads from [`oscarmartinez0880/cluckin-bell`](https://github.com/oscarmartinez0880/cluckin-bell)
 - **Single Namespace Strategy**: All components deployed to `cluckin-bell` namespace per cluster
@@ -621,7 +698,7 @@ This creates GitHub OIDC roles for CI/CD integration.
 - **Kubernetes Provider**: ~> 2.20
 - **Helm Provider**: ~> 2.0
 - **EKS Module**: ~> 20.0
-- **Kubernetes Version**: 1.34
+- **Kubernetes Version**: >= 1.30
 
 ## Troubleshooting
 

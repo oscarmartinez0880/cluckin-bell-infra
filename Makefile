@@ -4,6 +4,7 @@
 .PHONY: iam-nonprod iam-prod
 .PHONY: infra-nonprod infra-prod
 .PHONY: eks-create
+.PHONY: cluster-up-qa cluster-down-qa cluster-up-prod cluster-down-prod
 .PHONY: irsa-nonprod irsa-prod irsa-bootstrap
 .PHONY: outputs-vpc
 .PHONY: init fmt fmt-check validate plan plan-out apply apply-auto apply-plan destroy clean show refresh
@@ -118,6 +119,33 @@ eks-create: ## Create/upgrade EKS clusters using eksctl (requires VPCs exist)
 	@echo "Creating EKS clusters via eksctl..."
 	@echo "This will handle SSO login internally and apply eksctl YAMLs"
 	./scripts/eks/create-clusters.sh all
+
+###############################################################################
+# On-demand EKS cluster lifecycle controls (cost minimization)
+###############################################################################
+cluster-up-qa: ## Start nonprod cluster for dev/qa environments
+	@echo "Starting nonprod cluster (cluckn-bell-nonprod)..."
+	@echo "Ensuring SSO login..."
+	aws sso login --profile $(DEVQA_PROFILE) || true
+	./scripts/manage-cluster.sh up qa
+
+cluster-down-qa: ## Stop nonprod cluster to minimize costs
+	@echo "Stopping nonprod cluster (cluckn-bell-nonprod)..."
+	@echo "Ensuring SSO login..."
+	aws sso login --profile $(DEVQA_PROFILE) || true
+	./scripts/manage-cluster.sh down qa
+
+cluster-up-prod: ## Start prod cluster
+	@echo "Starting prod cluster (cluckn-bell-prod)..."
+	@echo "Ensuring SSO login..."
+	aws sso login --profile $(PROD_PROFILE) || true
+	./scripts/manage-cluster.sh up prod
+
+cluster-down-prod: ## Stop prod cluster to minimize costs
+	@echo "Stopping prod cluster (cluckn-bell-prod)..."
+	@echo "Ensuring SSO login..."
+	aws sso login --profile $(PROD_PROFILE) || true
+	./scripts/manage-cluster.sh down prod
 
 ###############################################################################
 # IRSA bootstrap (post-cluster)
