@@ -207,3 +207,63 @@ variable "nat_public_subnet_id" {
   default     = ""
 }
 
+# Feature flags for cost-safe infrastructure management
+# These flags gate expensive resources to prevent accidental provisioning
+variable "enable_dns" {
+  description = "Enable DNS zones and certificates (Route53 costs acceptable per user)"
+  type        = bool
+  default     = true
+}
+
+variable "enable_ecr" {
+  description = "Enable ECR repositories (costs incurred when images are stored)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_monitoring" {
+  description = "Enable CloudWatch monitoring, Container Insights, and log groups (requires enable_irsa if agents are used)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_irsa" {
+  description = "Enable all IRSA roles (requires EKS cluster with OIDC provider)"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_irsa || var.enable_dns
+    error_message = "enable_dns must be true when enable_irsa is true. IRSA modules (external-dns, cert-manager) require DNS zone IDs."
+  }
+}
+
+variable "enable_cognito" {
+  description = "Enable Cognito user pools (incurs costs)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_github_oidc" {
+  description = "Enable GitHub OIDC role for ECR push (requires enable_ecr=true)"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.enable_github_oidc || var.enable_ecr
+    error_message = "enable_ecr must be true when enable_github_oidc is true. GitHub OIDC role requires ECR repository ARNs."
+  }
+}
+
+variable "enable_secrets" {
+  description = "Enable Secrets Manager secrets (incurs costs per secret)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_alerting" {
+  description = "Enable alerting infrastructure (SNS topics, CloudWatch alarms)"
+  type        = bool
+  default     = false
+}
+

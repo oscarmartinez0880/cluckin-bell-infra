@@ -19,103 +19,103 @@ output "public_subnet_ids" {
 # ECR Outputs
 output "ecr_repository_urls" {
   description = "Map of ECR repository URLs"
-  value       = module.ecr.repository_urls
+  value       = var.enable_ecr ? module.ecr[0].repository_urls : {}
 }
 
 output "ecr_repository_arns" {
   description = "Map of ECR repository ARNs"
-  value       = module.ecr.repository_arns
+  value       = var.enable_ecr ? module.ecr[0].repository_arns : {}
 }
 
 # IRSA Role ARNs
 output "aws_load_balancer_controller_role_arn" {
   description = "ARN of the AWS Load Balancer Controller IRSA role"
-  value       = module.irsa_aws_load_balancer_controller.role_arn
+  value       = var.enable_irsa ? module.irsa_aws_load_balancer_controller[0].role_arn : ""
 }
 
 output "external_dns_dev_role_arn" {
   description = "ARN of the external-dns dev IRSA role"
-  value       = module.irsa_external_dns_dev.role_arn
+  value       = var.enable_irsa ? module.irsa_external_dns_dev[0].role_arn : ""
 }
 
 output "external_dns_qa_role_arn" {
   description = "ARN of the external-dns qa IRSA role"
-  value       = module.irsa_external_dns_qa.role_arn
+  value       = var.enable_irsa ? module.irsa_external_dns_qa[0].role_arn : ""
 }
 
 output "cluster_autoscaler_role_arn" {
   description = "ARN of the cluster autoscaler IRSA role"
-  value       = module.irsa_cluster_autoscaler.role_arn
+  value       = var.enable_irsa ? module.irsa_cluster_autoscaler[0].role_arn : ""
 }
 
 output "aws_for_fluent_bit_role_arn" {
   description = "ARN of the aws-for-fluent-bit IRSA role"
-  value       = module.irsa_aws_for_fluent_bit.role_arn
+  value       = var.enable_irsa ? module.irsa_aws_for_fluent_bit[0].role_arn : ""
 }
 
 output "external_secrets_role_arn" {
   description = "ARN of the external-secrets IRSA role"
-  value       = module.irsa_external_secrets.role_arn
+  value       = var.enable_irsa ? module.irsa_external_secrets[0].role_arn : ""
 }
 
 # Cognito Outputs
 output "cognito_user_pool_id" {
   description = "ID of the Cognito user pool"
-  value       = module.cognito.user_pool_id
+  value       = var.enable_cognito ? module.cognito[0].user_pool_id : ""
 }
 
 output "cognito_user_pool_arn" {
   description = "ARN of the Cognito user pool"
-  value       = module.cognito.user_pool_arn
+  value       = var.enable_cognito ? module.cognito[0].user_pool_arn : ""
 }
 
 output "cognito_user_pool_domain" {
   description = "Domain of the Cognito user pool"
-  value       = module.cognito.user_pool_domain
+  value       = var.enable_cognito ? module.cognito[0].user_pool_domain : ""
 }
 
 output "cognito_client_ids" {
   description = "Cognito client IDs"
-  value       = module.cognito.client_ids
+  value       = var.enable_cognito ? module.cognito[0].client_ids : {}
 }
 
 # GitHub OIDC Outputs
 output "github_ecr_push_role_arn" {
   description = "ARN of the GitHub Actions ECR push role"
-  value       = module.github_oidc.role_arn
+  value       = (var.enable_github_oidc && var.enable_ecr) ? module.github_oidc[0].role_arn : ""
 }
 
 # Secrets Manager Outputs
 output "secret_arns" {
   description = "ARNs of the created secrets"
-  value       = module.secrets.secret_arns
+  value       = var.enable_secrets ? module.secrets[0].secret_arns : {}
 }
 
 output "secret_names" {
   description = "Names of the created secrets"
-  value       = module.secrets.secret_names
+  value       = var.enable_secrets ? module.secrets[0].secret_names : []
 }
 
 # Cert-Manager IRSA
 output "cert_manager_role_arn" {
   description = "ARN of the cert-manager IRSA role"
-  value       = module.irsa_cert_manager.role_arn
+  value       = var.enable_irsa ? module.irsa_cert_manager[0].role_arn : ""
 }
 
 # Alerting Outputs
 output "alerting_sns_topic_arn" {
   description = "ARN of the SNS topic for alerts"
-  value       = module.alerting.sns_topic_arn
+  value       = var.enable_alerting ? module.alerting[0].sns_topic_arn : ""
 }
 
 output "alerting_webhook_url" {
   description = "Alertmanager webhook URL"
-  value       = module.alerting.webhook_url
+  value       = var.enable_alerting ? module.alerting[0].webhook_url : ""
 }
 
 output "alerting_webhook_secret_name" {
   description = "Name of the Secrets Manager secret containing webhook URL"
-  value       = module.alerting.webhook_secret_name
+  value       = var.enable_alerting ? module.alerting[0].webhook_secret_name : ""
 }
 # DNS and Certificate Outputs - Split by Environment
 # dns_certs_dev: creates private zone (create=true), manages dev.cluckn-bell.com
@@ -124,31 +124,32 @@ output "alerting_webhook_secret_name" {
 # Public zones (per subdomain)
 output "public_zone_ids" {
   description = "Public Route53 zone IDs for dev and qa"
-  value = {
-    dev = module.dns_certs_dev.public_zone_id
-    qa  = module.dns_certs_qa.public_zone_id
-  }
+  value = var.enable_dns ? {
+    dev = module.dns_certs_dev[0].public_zone_id
+    qa  = module.dns_certs_qa[0].public_zone_id
+  } : {}
 }
 
 output "public_zone_name_servers" {
   description = "Public zone name servers for dev and qa"
-  value = {
-    dev = module.dns_certs_dev.public_zone_name_servers
-    qa  = module.dns_certs_qa.public_zone_name_servers
-  }
+  value = var.enable_dns ? {
+    dev = module.dns_certs_dev[0].public_zone_name_servers
+    qa  = module.dns_certs_qa[0].public_zone_name_servers
+  } : {}
 }
 
 # Private zone (single) - created by dns_certs_dev, reused by dns_certs_qa
 output "private_zone_id" {
   description = "Private Route53 zone ID"
-  value       = coalesce(try(module.dns_certs_dev.private_zone_id, null), try(module.dns_certs_qa.private_zone_id, null))
+  # Note: try() provides safety if zone wasn't created (e.g., create=false in config)
+  value = var.enable_dns ? try(module.dns_certs_dev[0].private_zone_id, "") : ""
 }
 
 # Certificates (merged)
 output "certificate_arns" {
   description = "Map of certificate ARNs"
-  value = merge(
-    module.dns_certs_dev.certificate_arns,
-    module.dns_certs_qa.certificate_arns
-  )
+  value = var.enable_dns ? merge(
+    module.dns_certs_dev[0].certificate_arns,
+    module.dns_certs_qa[0].certificate_arns
+  ) : {}
 }
