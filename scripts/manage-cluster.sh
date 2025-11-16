@@ -102,7 +102,8 @@ validate_credentials() {
         exit 1
     fi
     
-    local account_id=$(aws sts get-caller-identity --profile "${profile}" --query Account --output text)
+    local account_id
+    account_id=$(aws sts get-caller-identity --profile "${profile}" --query Account --output text)
     log_info "Authenticated with AWS account: ${account_id}"
 }
 
