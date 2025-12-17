@@ -817,3 +817,20 @@ module "karpenter" {
 
   tags = local.common_tags
 }
+
+# Disaster Recovery
+# Disabled by default - enable specific features as needed for DR strategy
+module "dr" {
+  source = "../../modules/dr"
+
+  enable_ecr_replication         = var.enable_ecr_replication
+  ecr_replication_regions        = var.ecr_replication_regions
+  enable_secrets_replication     = var.enable_secrets_replication
+  secrets_replication_regions    = var.secrets_replication_regions
+  secret_ids                     = []  # Add secret IDs when secrets_replication is enabled
+  enable_dns_failover            = var.enable_dns_failover
+  failover_records               = var.failover_records
+  hosted_zone_id                 = try(module.dns_certs_dev[0].hosted_zone_id, "")
+
+  tags = local.common_tags
+}
