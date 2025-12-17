@@ -863,74 +863,58 @@ module "karpenter" {
   tags = local.common_tags
 }
 
-# Route53 DNS Failover for Disaster Recovery
+# ============================================================================
+# Disaster Recovery Enhancements (Optional)
+# ============================================================================
+
+# ECR Cross-Region Replication
+# Disabled by default (var.enable_ecr_replication = false)
+# When enabled, automatically replicates ECR images to specified regions
+module "ecr_replication" {
+  count  = var.enable_ecr_replication && length(var.ecr_replication_regions) > 0 ? 1 : 0
+  source = "../../modules/ecr-replication"
+
+  replication_regions = var.ecr_replication_regions
+}
+
+# Secrets Manager Replication
+# Disabled by default (var.enable_secrets_replication = false)
+# When enabled, replicates critical secrets to specified regions
+# Note: Requires secrets to be created via the secrets module
+# 
+# Example configuration:
+# secrets = {
+#   "nonprod/database/master" = {
+#     description      = "Master database credentials"
+#     static_values    = { username = "admin" }
+#     generated_values = { password = "" }
+#   }
+# }
+module "secrets_replication" {
+  count  = var.enable_secrets && var.enable_secrets_replication && length(var.secrets_replication_regions) > 0 ? 1 : 0
+  source = "../../modules/secrets"
+
+  secrets = {} # TODO: Configure with actual secrets to replicate when enabling DR
+
+  enable_replication  = true
+  replication_regions = var.secrets_replication_regions
+
+  tags = merge(local.common_tags, {
+    Service = "secrets-dr"
+  })
+}
+
+# Route53 DNS Failover
 # Disabled by default (var.enable_dns_failover = false)
-# Creates health checks and primary/secondary failover records
-# Requires DNS zones to exist (var.enable_dns = true)
+# When enabled, creates health checks and failover DNS records
+module "dns_failover" {
+  count  = var.enable_dns && var.enable_dns_failover && length(var.failover_records) > 0 ? 1 : 0
+  source = "../../modules/dns-failover"
 
-# Health checks for failover records
-resource "aws_route53_health_check" "primary" {
-  for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
-
-  ip_address        = each.value.primary_value
-  port              = 443
-  type              = "HTTPS"
-  resource_path     = each.value.health_check_path
-  failure_threshold = "3"
-  request_interval  = each.value.health_check_interval
+  hosted_zone_id   = var.enable_dns ? module.dns_certs[0].public_zone_id : ""
+  failover_records = var.failover_records
 
   tags = merge(local.common_tags, {
-    Name = "${each.key}-primary-health-check"
+    Service = "dns-failover"
   })
-}
-
-resource "aws_route53_health_check" "secondary" {
-  for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
-
-  ip_address        = each.value.secondary_value
-  port              = 443
-  type              = "HTTPS"
-  resource_path     = each.value.health_check_path
-  failure_threshold = "3"
-  request_interval  = each.value.health_check_interval
-
-  tags = merge(local.common_tags, {
-    Name = "${each.key}-secondary-health-check"
-  })
-}
-
-# Primary failover records
-resource "aws_route53_record" "primary" {
-  for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
-
-  zone_id = module.dns_certs_dev[0].public_zone_id
-  name    = each.value.name
-  type    = each.value.type
-  ttl     = each.value.ttl
-
-  failover_routing_policy {
-    type = "PRIMARY"
-  }
-
-  set_identifier  = "${each.key}-primary"
-  health_check_id = aws_route53_health_check.primary[each.key].id
-  records         = [each.value.primary_value]
-}
-
-# Secondary failover records
-resource "aws_route53_record" "secondary" {
-  for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
-
-  zone_id = module.dns_certs_dev[0].public_zone_id
-  name    = each.value.name
-  type    = each.value.type
-  ttl     = each.value.ttl
-
-  failover_routing_policy {
-    type = "SECONDARY"
-  }
-
-  set_identifier  = "${each.key}-secondary"
-  health_check_id = aws_route53_health_check.secondary[each.key].id
-  records         = [each.value.secondary_value]
 }

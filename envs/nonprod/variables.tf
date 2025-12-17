@@ -294,39 +294,37 @@ variable "enable_ecr_replication" {
 }
 
 variable "ecr_replication_regions" {
-  description = "List of AWS regions for ECR cross-region replication"
+  description = "List of AWS regions to replicate ECR images to (e.g., ['us-west-2'])"
   type        = list(string)
   default     = []
 }
 
 variable "enable_secrets_replication" {
-  description = "Enable Secrets Manager cross-region replication for disaster recovery"
+  description = "Enable Secrets Manager replication for critical secrets"
   type        = bool
   default     = false
 }
 
 variable "secrets_replication_regions" {
-  description = "List of AWS regions for Secrets Manager replication"
+  description = "List of AWS regions to replicate secrets to for disaster recovery"
   type        = list(string)
   default     = []
 }
 
 variable "enable_dns_failover" {
-  description = "Enable Route53 DNS failover with health checks for disaster recovery"
+  description = "Enable Route53 DNS failover records for disaster recovery"
   type        = bool
   default     = false
 }
 
 variable "failover_records" {
-  description = "Map of DNS failover records with primary/secondary endpoints"
+  description = "Map of DNS failover records with primary and secondary endpoints"
   type = map(object({
-    name                  = string
-    type                  = string
-    ttl                   = number
-    primary_value         = string
-    secondary_value       = string
-    health_check_interval = number
-    health_check_path     = string
+    hostname           = string
+    primary_endpoint   = string
+    secondary_endpoint = string
+    health_check_path  = string
+    health_check_port  = number
   }))
   default = {}
 }

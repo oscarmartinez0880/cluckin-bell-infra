@@ -48,6 +48,14 @@ resource "aws_secretsmanager_secret" "main" {
   name        = each.key
   description = each.value.description
 
+  # Configure replication if enabled
+  dynamic "replica" {
+    for_each = var.enable_replication ? var.replication_regions : []
+    content {
+      region = replica.value
+    }
+  }
+
   tags = merge(var.tags, {
     Name = each.key
   })

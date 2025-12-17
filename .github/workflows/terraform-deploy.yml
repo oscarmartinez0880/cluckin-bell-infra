@@ -39,10 +39,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (nonprod)
+        if: inputs.environment == 'dev' || inputs.environment == 'qa'
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_QA }}
+          aws-region: us-east-1
+
+      - name: Configure AWS credentials (prod)
+        if: inputs.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_PROD }}
           aws-region: us-east-1
 
       - name: Setup Terraform

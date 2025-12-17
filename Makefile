@@ -13,6 +13,7 @@
 .PHONY: init fmt fmt-check validate plan plan-out apply apply-auto apply-plan destroy clean show refresh
 .PHONY: workspace-list workspace-new workspace-select lint ci
 .PHONY: test-ecr-dry test-ecr-dev test-ecr-qa test-ecr-prod test-ecr-all test-ecr-status test-ecr-collect test-ecr-help
+.PHONY: dr-provision-prod dr-status-prod
 
 ###############################################################################
 # Variables (overridable via environment)
@@ -39,7 +40,7 @@ help: ## Show this help message
 	@echo ""
 	@echo "Operating Model:"
 	@echo "  - Terraform for foundational AWS (accounts, DNS, VPC, node IAM)"
-	@echo "  - eksctl for EKS cluster lifecycle (>= v1.34)"
+	@echo "  - eksctl for EKS cluster lifecycle (>= v1.33)"
 	@echo "  - Terraform for post-cluster IRSA bootstrap"
 	@echo ""
 	@echo "Available targets:"
@@ -409,6 +410,29 @@ test-ecr-collect: ## Collect ECR test results and generate reports
 test-ecr-help: ## Show ECR testing help
 	./scripts/run-ecr-tests.sh help
 
+###############################################################################
+# Disaster Recovery targets
+###############################################################################
+dr-provision-prod: ## Provision DR resources in prod (usage: make dr-provision-prod REGION=us-west-2)
+	@echo "Provisioning DR resources for production in region: $(REGION)"
+	@if [ "$(REGION)" = "us-east-1" ]; then \
+		echo "ERROR: Cannot use primary region us-east-1 for DR"; \
+		exit 1; \
+	fi
+	cd envs/prod && \
+		echo 'enable_ecr_replication = true' > dr-override.auto.tfvars && \
+		echo 'ecr_replication_regions = ["$(REGION)"]' >> dr-override.auto.tfvars && \
+		echo 'enable_secrets_replication = true' >> dr-override.auto.tfvars && \
+		echo 'secrets_replication_regions = ["$(REGION)"]' >> dr-override.auto.tfvars && \
+		$(TF) init -backend-config=backend.hcl && \
+		$(TF) plan && \
+		$(TF) apply -auto-approve
+
+dr-status-prod: ## Show current DR configuration status
+	@echo "Checking DR configuration status..."
+	cd envs/prod && \
+		$(TF) init -backend-config=backend.hcl >/dev/null 2>&1 && \
+		$(TF) output -json | grep -E "(ecr_replication|secrets_replication|dns_failover)" || echo "No DR outputs found"
 
 ###############################################################################
 .PHONY: ops-up ops-open ops-open-skip ops-status ops-down ops-down-full ops-down-qa
