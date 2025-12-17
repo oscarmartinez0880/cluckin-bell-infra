@@ -4,26 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Target environment"
+        description: 'Environment to deploy'
         required: true
         type: choice
         options:
           - nonprod
           - prod
-        default: nonprod
-      working_directory:
-        description: "Terraform working directory"
-        required: false
-        default: envs/nonprod
       action:
-        description: "Terraform action"
+        description: 'Terraform action to perform'
         required: true
         type: choice
         options:
           - plan
           - apply
           - destroy
-        default: plan
+      region:
+        description: 'AWS Region'
+        required: false
+        default: 'us-east-1'
+        type: string
 
 permissions:
   id-token: write
@@ -31,30 +30,27 @@ permissions:
 
 jobs:
   terraform:
+    name: Terraform ${{ inputs.action }} - ${{ inputs.environment }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-
-    env:
-      TF_IN_AUTOMATION: "true"
-      AWS_REGION: us-east-1
-
+    
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials (nonprod)
         if: inputs.environment == 'nonprod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_QA }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::264765154707:role/cb-terraform-deploy-devqa
+          aws-region: ${{ inputs.region }}
 
       - name: Configure AWS credentials (prod)
         if: inputs.environment == 'prod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_PROD }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::346746763840:role/cb-terraform-deploy-prod
+          aws-region: ${{ inputs.region }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -62,24 +58,29 @@ jobs:
           terraform_version: 1.13.1
 
       - name: Terraform Init
-        working-directory: ${{ inputs.working_directory }}
+        working-directory: envs/${{ inputs.environment }}
         run: terraform init -backend-config=backend.hcl
-
-      - name: Terraform Validate
-        working-directory: ${{ inputs.working_directory }}
-        run: terraform validate
 
       - name: Terraform Plan
         if: inputs.action == 'plan' || inputs.action == 'apply'
-        working-directory: ${{ inputs.working_directory }}
-        run: terraform plan -input=false -no-color
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform plan -var="aws_region=${{ inputs.region }}" -out=tfplan
 
       - name: Terraform Apply
         if: inputs.action == 'apply'
-        working-directory: ${{ inputs.working_directory }}
-        run: terraform apply -auto-approve -input=false
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform apply -auto-approve tfplan
 
       - name: Terraform Destroy
         if: inputs.action == 'destroy'
-        working-directory: ${{ inputs.working_directory }}
-        run: terraform destroy -auto-approve -input=false
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform destroy -var="aws_region=${{ inputs.region }}" -auto-approve
+
+      - name: Terraform Outputs
+        if: inputs.action == 'apply'
+        working-directory: envs/${{ inputs.environment }}
+        run: |
+          echo "## Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
