@@ -1,0 +1,44 @@
+name: DR - Launch Prod in Alternate Region (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: Target region for DR (e.g., us-west-2)
+        required: true
+        default: us-west-2
+
+jobs:
+  dr:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout infra repo
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (prod)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ github.event.inputs.region }}
+          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_PROD }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+
+      - name: Terraform apply (prod infra in new region)
+        working-directory: envs/prod
+        env:
+          AWS_REGION: ${{ github.event.inputs.region }}
+        run: terraform init -upgrade && terraform apply -auto-approve -var="aws_region=$AWS_REGION"
+
+      - name: Install eksctl
+        run: |
+          curl -sL https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz | tar xz
+          sudo mv eksctl /usr/local/bin/eksctl
+
+      - name: Create EKS prod cluster in target region
+        run: eksctl create cluster --config-file=eksctl/prod-cluster.yaml --region ${{ github.event.inputs.region }}

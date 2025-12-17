@@ -1,0 +1,61 @@
+name: eksctl Cluster Ops (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Environment (nonprod|prod)
+        required: true
+        default: nonprod
+      operation:
+        description: Operation (create|upgrade|delete)
+        required: true
+        default: create
+      region:
+        description: AWS region
+        required: true
+        default: us-east-1
+
+jobs:
+  eksctl:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout infra repo
+        uses: actions/checkout@v4
+
+      - name: Select config and profile
+        id: sel
+        run: |
+          ENV="${{ github.event.inputs.env }}"
+          REGION="${{ github.event.inputs.region }}"
+          if [ "$ENV" = "nonprod" ]; then CFG="eksctl/devqa-cluster.yaml"; PROFILE="cluckin-bell-qa";
+          elif [ "$ENV" = "prod" ]; then CFG="eksctl/prod-cluster.yaml"; PROFILE="cluckin-bell-prod";
+          else echo "Invalid env"; exit 1; fi
+          echo "CFG=$CFG" >> $GITHUB_OUTPUT
+          echo "PROFILE=$PROFILE" >> $GITHUB_OUTPUT
+          echo "REGION=$REGION" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ steps.sel.outputs.REGION }}
+          role-to-assume: ${{ steps.sel.outputs.PROFILE == 'cluckin-bell-qa' && secrets.AWS_EKSCTL_ROLE_ARN_QA || secrets.AWS_EKSCTL_ROLE_ARN_PROD }}
+
+      - name: Install eksctl
+        run: |
+          curl -sL https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz | tar xz
+          sudo mv eksctl /usr/local/bin/eksctl
+          eksctl version
+
+      - name: Run eksctl
+        run: |
+          OP="${{ github.event.inputs.operation }}"
+          case "$OP" in
+            create) eksctl create cluster --config-file=${{ steps.sel.outputs.CFG }} --region ${{ steps.sel.outputs.REGION }} ;;
+            upgrade) eksctl upgrade cluster --config-file=${{ steps.sel.outputs.CFG }} --region ${{ steps.sel.outputs.REGION }} --approve ;;
+            delete) eksctl delete cluster --config-file=${{ steps.sel.outputs.CFG }} --region ${{ steps.sel.outputs.REGION }} ;;
+            *) echo "invalid operation"; exit 1 ;;
+          esac
