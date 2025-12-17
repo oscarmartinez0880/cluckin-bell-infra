@@ -4,6 +4,19 @@ This repository contains Terraform infrastructure as code for the Cluckin Bell a
 
 > **📖 [Operations Runbook](docs/Runbook.md)**: Comprehensive operational guide covering day-to-day operations, Makefile usage, GitHub Actions workflows, and disaster recovery procedures.
 
+## Cheat Sheets
+
+Quick, copy‑pasteable command references for common operations:
+
+- **[Make Commands](docs/cheatsheets/Make-Commands.md)** - Make targets for infra and GitOps operations
+- **[Terraform](docs/cheatsheets/Terraform.md)** - Common Terraform workflows per environment
+- **[eksctl](docs/cheatsheets/eksctl.md)** - Cluster lifecycle commands and caveats
+- **[Helm](docs/cheatsheets/Helm.md)** - Lint and render commands in GitOps repo
+- **[Kubectl](docs/cheatsheets/Kubectl.md)** - Common cluster checks and troubleshooting
+- **[GitHub Actions](docs/cheatsheets/GitHub-Actions.md)** - Inputs and variables used by workflows
+- **[DR](docs/cheatsheets/DR.md)** - Quick disaster recovery actions
+- **[App CI/CD](docs/cheatsheets/App-CI-CD.md)** - App/API CI summary and OIDC notes
+
 ## Operating Model
 
 The infrastructure follows a separation of concerns for better safety and clarity:
