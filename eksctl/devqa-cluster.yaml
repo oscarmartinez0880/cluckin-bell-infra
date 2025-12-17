@@ -2,7 +2,7 @@
 # Creates cluster: cluckn-bell-nonprod
 # Account: 264765154707 (cluckin-bell-qa)
 # Region: us-east-1
-# Kubernetes version: 1.31
+# Kubernetes version: 1.33
 # Node groups: dev (dev workloads), qa (qa workloads)
 
 apiVersion: eksctl.io/v1alpha5
@@ -11,7 +11,7 @@ kind: ClusterConfig
 metadata:
   name: cluckn-bell-nonprod
   region: us-east-1
-  version: "1.31"
+  version: "1.33"
   tags:
     Project: cluckn-bell
     Environment: nonprod
