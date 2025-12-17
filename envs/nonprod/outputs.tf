@@ -157,20 +157,20 @@ output "certificate_arns" {
 # Karpenter IAM Outputs
 output "karpenter_controller_role_arn" {
   description = "ARN of the Karpenter controller IAM role"
-  value       = var.enable_karpenter ? module.karpenter_iam[0].controller_role_arn : null
+  value       = var.enable_karpenter ? module.karpenter[0].controller_role_arn : null
 }
 
 output "karpenter_node_role_arn" {
   description = "ARN of the Karpenter node IAM role"
-  value       = var.enable_karpenter ? module.karpenter_iam[0].node_role_arn : null
+  value       = var.enable_karpenter ? module.karpenter[0].node_role_arn : null
 }
 
 output "karpenter_instance_profile_name" {
   description = "Name of the Karpenter instance profile"
-  value       = var.enable_karpenter ? module.karpenter_iam[0].instance_profile_name : null
+  value       = var.enable_karpenter ? module.karpenter[0].instance_profile_name : null
 }
 
 output "karpenter_queue_name" {
   description = "Name of the Karpenter interruption SQS queue"
-  value       = var.enable_karpenter ? module.karpenter_iam[0].queue_name : null
+  value       = var.enable_karpenter ? module.karpenter[0].queue_name : null
 }

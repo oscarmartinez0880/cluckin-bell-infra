@@ -33,7 +33,7 @@ jobs:
     name: eksctl ${{ inputs.operation }} - ${{ inputs.environment }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -94,7 +94,7 @@ jobs:
           else
             CLUSTER_NAME=cluckn-bell-prod
           fi
-          
+
           echo "## EKS Cluster Information" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           eksctl get cluster --name $CLUSTER_NAME --region ${{ inputs.region }} >> $GITHUB_STEP_SUMMARY

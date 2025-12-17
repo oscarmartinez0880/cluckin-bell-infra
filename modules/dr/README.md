@@ -20,18 +20,32 @@ module "dr" {
 
 ### 2. Secrets Manager Replication
 
-Replicates AWS Secrets Manager secrets to target regions for multi-region deployments.
+Provides configuration for replicating AWS Secrets Manager secrets to target regions. Secrets Manager replication must be configured on the primary `aws_secretsmanager_secret` resource using the `replica` block.
 
 **Usage:**
+
+When creating secrets, add replica configuration:
 ```hcl
+resource "aws_secretsmanager_secret" "db_password" {
+  name = "/cluckn-bell/db-password"
+
+  # Add replica blocks for DR regions
+  dynamic "replica" {
+    for_each = var.enable_secrets_replication ? var.secrets_replication_regions : []
+    content {
+      region = replica.value
+    }
+  }
+}
+
+# Track replication configuration in DR module
 module "dr" {
   source = "../../modules/dr"
 
   enable_secrets_replication  = true
   secrets_replication_regions = ["us-west-2"]
   secret_ids = [
-    "arn:aws:secretsmanager:us-east-1:123456789012:secret:my-secret",
-    "/cluckn-bell/app/database-password"
+    aws_secretsmanager_secret.db_password.id
   ]
 }
 ```

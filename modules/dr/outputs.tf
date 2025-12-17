@@ -18,6 +18,11 @@ output "secrets_replication_regions" {
   value       = var.secrets_replication_regions
 }
 
+output "secret_replicas_config" {
+  description = "Map of secret replication configurations for reference"
+  value       = local.secret_replicas
+}
+
 output "dns_failover_enabled" {
   description = "Whether Route53 DNS failover is enabled"
   value       = var.enable_dns_failover

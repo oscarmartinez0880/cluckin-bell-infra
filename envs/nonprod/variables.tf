@@ -322,11 +322,11 @@ variable "enable_dns_failover" {
 variable "failover_records" {
   description = "Map of DNS failover records with primary and secondary endpoints"
   type = map(object({
-    name              = string
-    type              = string
-    primary_endpoint  = string
+    name               = string
+    type               = string
+    primary_endpoint   = string
     secondary_endpoint = string
-    health_check_path = optional(string, "/health")
+    health_check_path  = optional(string, "/health")
   }))
   default = {}
 }

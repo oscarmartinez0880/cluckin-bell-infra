@@ -30,9 +30,14 @@ resource "aws_ecr_replication_configuration" "replication" {
 }
 
 # Secrets Manager Replication
-# This creates replica secrets in target regions for each secret ID provided
-resource "aws_secretsmanager_secret_replica" "replicas" {
-  for_each = var.enable_secrets_replication && length(var.secrets_replication_regions) > 0 ? {
+# Note: Secrets Manager replication is configured on the primary secret resource
+# This module outputs information about replication configuration
+# Actual replication must be configured on aws_secretsmanager_secret resource
+# using the replica block. See module README for usage.
+
+locals {
+  # Create a map of secret replication configurations for output
+  secret_replicas = var.enable_secrets_replication && length(var.secrets_replication_regions) > 0 ? {
     for pair in flatten([
       for secret_id in var.secret_ids : [
         for region in var.secrets_replication_regions : {
@@ -43,9 +48,6 @@ resource "aws_secretsmanager_secret_replica" "replicas" {
       ]
     ]) : pair.key => pair
   } : {}
-
-  replica_region = each.value.region
-  secret_id      = each.value.secret_id
 }
 
 # Route53 Health Checks for DNS Failover

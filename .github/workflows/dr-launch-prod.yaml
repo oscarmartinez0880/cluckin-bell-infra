@@ -24,7 +24,7 @@ jobs:
     name: DR Provision - Prod (${{ inputs.region }})
     runs-on: ubuntu-latest
     environment: prod
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
