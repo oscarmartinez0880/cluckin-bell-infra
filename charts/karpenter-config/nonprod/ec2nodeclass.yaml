@@ -1,0 +1,37 @@
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2023
+  role: "cluckn-bell-nonprod-node-role"  # Replace with actual node IAM role name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "cluckn-bell-nonprod"
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "cluckn-bell-nonprod"
+  amiSelectorTerms:
+    - alias: al2023@latest
+  userData: |
+    #!/bin/bash
+    # Bootstrap script for Karpenter-provisioned nodes
+    echo "Karpenter-provisioned node for cluckn-bell-nonprod"
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 50Gi
+        volumeType: gp3
+        encrypted: true
+        deleteOnTermination: true
+  tags:
+    Name: "karpenter-cluckn-bell-nonprod"
+    Environment: "nonprod"
+    ManagedBy: "karpenter"
+    Project: "cluckn-bell"
+  metadataOptions:
+    httpEndpoint: enabled
+    httpProtocolIPv6: disabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required

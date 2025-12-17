@@ -7,10 +7,10 @@ variable "manage_eks" {
 variable "kubernetes_version" {
   description = "Kubernetes version for EKS cluster"
   type        = string
-  default     = "1.34"
+  default     = "1.33"
   validation {
-    condition     = can(regex("^1\\.(3[4-9]|[4-9][0-9])(\\..*)?$", var.kubernetes_version))
-    error_message = "Kubernetes version must be 1.34 or higher."
+    condition     = can(regex("^1\\.(3[3-9]|[4-9][0-9])(\\..*)?$", var.kubernetes_version))
+    error_message = "Kubernetes version must be 1.33 or higher."
   }
 }
 

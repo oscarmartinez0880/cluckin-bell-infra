@@ -7,12 +7,12 @@ This directory contains eksctl configuration files for managing EKS clusters in 
 - **devqa-cluster.yaml**: Configuration for the shared nonprod cluster (cluckn-bell-nonprod)
   - Account: 264765154707 (cluckin-bell-qa)
   - Node groups: `dev` and `qa`
-  - Kubernetes version: 1.34
+  - Kubernetes version: 1.33
   
 - **prod-cluster.yaml**: Configuration for the production cluster (cluckn-bell-prod)
   - Account: 346746763840 (cluckin-bell-prod)
   - Node group: `prod`
-  - Kubernetes version: 1.34
+  - Kubernetes version: 1.33
 
 ## Prerequisites
 
@@ -116,8 +116,10 @@ For complete documentation, see [docs/CLUSTERS_WITH_EKSCTL.md](../docs/CLUSTERS_
 Both clusters use:
 - **AMI**: Amazon Linux 2023 (AL2023)
 - **Network**: Private subnets only (no public endpoints)
-- **Add-ons**: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver
+- **Instance Types**: m7i (7th generation Intel instances for better performance)
+- **Add-ons**: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver, eks-pod-identity-agent
 - **Logging**: CloudWatch with appropriate retention (7 days nonprod, 90 days prod)
+- **Karpenter Support**: Nodes tagged for Karpenter discovery
 
 ## Cost Optimization
 
