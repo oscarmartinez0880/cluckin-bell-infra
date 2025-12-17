@@ -32,7 +32,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::346746763840:role/github-actions-terraform-deploy
+          role-to-assume: arn:aws:iam::346746763840:role/cb-terraform-deploy-prod
           aws-region: ${{ inputs.region }}
 
       - name: Setup Terraform

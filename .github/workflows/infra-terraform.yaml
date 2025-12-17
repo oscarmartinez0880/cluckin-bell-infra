@@ -42,14 +42,14 @@ jobs:
         if: inputs.environment == 'nonprod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::264765154707:role/github-actions-terraform-deploy
+          role-to-assume: arn:aws:iam::264765154707:role/cb-terraform-deploy-devqa
           aws-region: ${{ inputs.region }}
 
       - name: Configure AWS credentials (prod)
         if: inputs.environment == 'prod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::346746763840:role/github-actions-terraform-deploy
+          role-to-assume: arn:aws:iam::346746763840:role/cb-terraform-deploy-prod
           aws-region: ${{ inputs.region }}
 
       - name: Setup Terraform
