@@ -798,16 +798,22 @@ module "alerting" {
   tags = local.common_tags
 }
 
-# Karpenter IAM Resources
-# Disabled by default - Karpenter K8s resources deployed via ArgoCD
-module "karpenter_iam" {
+# Karpenter - Just-in-Time Node Provisioning
+# Disabled by default (var.enable_karpenter = false)
+# Requires EKS cluster to exist with OIDC provider
+# Karpenter replaces Cluster Autoscaler for more efficient node provisioning
+module "karpenter" {
   count  = var.enable_karpenter ? 1 : 0
-  source = "../../modules/karpenter-iam"
+  source = "../../modules/karpenter"
 
-  cluster_name      = "cluckn-bell-nonprod"
-  oidc_provider_arn = local.cluster_oidc_provider_arn
-  region            = var.aws_region
-  namespace         = "kube-system"
+  cluster_name              = local.cluster_name
+  cluster_endpoint          = local.cluster_endpoint
+  cluster_oidc_provider_arn = local.cluster_oidc_provider_arn
+  namespace                 = var.karpenter_namespace
+  service_account_name      = "karpenter"
+  chart_version             = var.karpenter_version
+  node_iam_role_name        = "${local.cluster_name}-node-role"
+  enable_pod_identity       = true
 
   tags = local.common_tags
 }

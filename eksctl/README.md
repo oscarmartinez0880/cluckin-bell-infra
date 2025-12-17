@@ -116,8 +116,10 @@ For complete documentation, see [docs/CLUSTERS_WITH_EKSCTL.md](../docs/CLUSTERS_
 Both clusters use:
 - **AMI**: Amazon Linux 2023 (AL2023)
 - **Network**: Private subnets only (no public endpoints)
-- **Add-ons**: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver
+- **Instance Types**: m7i (7th generation Intel instances for better performance)
+- **Add-ons**: vpc-cni, coredns, kube-proxy, aws-ebs-csi-driver, eks-pod-identity-agent
 - **Logging**: CloudWatch with appropriate retention (7 days nonprod, 90 days prod)
+- **Karpenter Support**: Nodes tagged for Karpenter discovery
 
 ## Cost Optimization
 

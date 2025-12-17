@@ -9,8 +9,8 @@ variable "kubernetes_version" {
   type        = string
   default     = "1.33"
   validation {
-    condition     = can(regex("^1\\.(3[0-9]|[4-9][0-9])(\\..*)?$", var.kubernetes_version))
-    error_message = "Kubernetes version must be 1.30 or higher."
+    condition     = can(regex("^1\\.(3[3-9]|[4-9][0-9])(\\..*)?$", var.kubernetes_version))
+    error_message = "Kubernetes version must be 1.33 or higher."
   }
 }
 

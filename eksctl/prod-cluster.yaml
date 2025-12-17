@@ -40,7 +40,7 @@ iam:
 managedNodeGroups:
   # Production node group
   - name: prod
-    instanceType: m5.xlarge
+    instanceType: m7i.xlarge
     amiFamily: AmazonLinux2023
     minSize: 2
     maxSize: 15
@@ -58,6 +58,7 @@ managedNodeGroups:
       NodeGroup: prod
       k8s.io/cluster-autoscaler/enabled: "true"
       k8s.io/cluster-autoscaler/cluckn-bell-prod: "owned"
+      karpenter.sh/discovery: cluckn-bell-prod
     iam:
       withAddonPolicies:
         imageBuilder: true
@@ -70,6 +71,8 @@ managedNodeGroups:
         albIngress: false
         xRay: false
         cloudWatch: true
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
 # Add-ons (managed by AWS)
 addons:

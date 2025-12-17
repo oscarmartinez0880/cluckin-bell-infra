@@ -157,7 +157,62 @@ cd envs/prod
 terraform output cert_manager_role_arn
 ```
 
-### Alerting Infrastructure
+#### Karpenter - Just-in-Time Node Provisioning
+
+Karpenter is available as an optional replacement for Cluster Autoscaler, providing more efficient and flexible node provisioning.
+
+#### Benefits over Cluster Autoscaler
+
+- **Faster provisioning**: Nodes are created in seconds, not minutes
+- **Better bin-packing**: More efficient resource utilization
+- **Pod-level scheduling**: Provisions nodes based on pending pod requirements
+- **Multiple instance types**: Can provision different instance types based on workload needs
+- **Spot instance support**: Native support for Spot instances with automatic fallback
+
+#### Enabling Karpenter
+
+Karpenter is disabled by default. To enable:
+
+1. **Enable in Terraform**:
+   ```bash
+   cd envs/nonprod  # or envs/prod
+   # Set enable_karpenter = true in your tfvars file
+   terraform apply
+   ```
+
+2. **Apply NodePool and EC2NodeClass configurations**:
+   ```bash
+   # For nonprod
+   kubectl apply -f charts/karpenter-config/nonprod/
+   
+   # For prod
+   kubectl apply -f charts/karpenter-config/prod/
+   ```
+
+3. **Update the node IAM role name** in the EC2NodeClass YAML files to match your cluster's node role.
+
+#### Migration from Cluster Autoscaler
+
+When migrating from Cluster Autoscaler to Karpenter:
+
+1. Install Karpenter (set `enable_karpenter = true`)
+2. Apply NodePool and EC2NodeClass configurations
+3. Monitor Karpenter provisioning new nodes for pending pods
+4. Gradually scale down existing node groups managed by Cluster Autoscaler
+5. Once stable, remove Cluster Autoscaler deployment
+6. Remove `k8s.io/cluster-autoscaler/*` tags from node groups
+
+**Note**: Both can run simultaneously during the migration period.
+
+#### Configuration Files
+
+- **Terraform Module**: `modules/karpenter/` - Deploys Karpenter controller with IAM roles
+- **NodePool Configs**: `charts/karpenter-config/` - Defines node provisioning policies
+- **Pod Identity**: Enabled by default for simplified IAM integration
+
+See `charts/karpenter-config/README.md` for detailed configuration options.
+
+## Alerting Infrastructure
 
 The infrastructure includes a complete alerting pipeline for Prometheus Alertmanager:
 
@@ -493,13 +548,14 @@ oscarmartinez0880/cluckin-bell/
 ### Each Environment Includes
 
 - **VPC**: Dedicated VPC with public/private subnets across 2 AZs
-- **EKS Cluster**: Managed Kubernetes cluster with Linux node groups
+- **EKS Cluster**: Managed Kubernetes cluster with Linux node groups (1.33+)
 - **Platform Controllers**:
   - AWS Load Balancer Controller for Ingress resources
   - cert-manager for automatic TLS certificate management
   - external-dns for Route 53 DNS automation
+- **Karpenter** (Optional): Just-in-time node provisioning with Pod Identity support
 - **ArgoCD**: GitOps controller for application deployment
-- **Security**: KMS encryption, IRSA roles, proper networking
+- **Security**: KMS encryption, IRSA roles, EKS Pod Identity, proper networking
 
 ### DNS and TLS Management
 
@@ -609,10 +665,30 @@ This creates GitHub OIDC roles for CI/CD integration.
 - **VPC Endpoints**: SSM VPC endpoints enable Session Manager access without NAT Gateway dependency  
 - **Network Segmentation**: VPC peering between dev/qa with controlled routing
 - **Encryption at Rest**: EKS secrets encrypted with KMS
-- **IRSA**: IAM Roles for Service Accounts for secure AWS API access
+- **EKS Pod Identity**: Simplified IAM integration for Kubernetes workloads (enabled for Karpenter)
+- **IRSA**: IAM Roles for Service Accounts for secure AWS API access (legacy, maintained for compatibility)
 - **TLS Automation**: Let's Encrypt certificates for all domains
 - **GitOps Audit Trail**: All changes tracked in CodeCommit git history
 - **OIDC Authentication**: GitHub Actions use OIDC for secure, keyless CI/CD
+
+### EKS Pod Identity vs IRSA
+
+The infrastructure supports both EKS Pod Identity and IRSA for IAM integration:
+
+**EKS Pod Identity** (Recommended for new workloads):
+- Simpler setup - no OIDC provider configuration needed
+- Managed by AWS EKS service
+- Automatic credential rotation
+- Enabled by default for Karpenter controller
+- Requires `eks-pod-identity-agent` add-on (included in eksctl configs)
+
+**IRSA** (Legacy, maintained for compatibility):
+- Uses OIDC provider federation
+- Requires service account annotations
+- Still used for existing controllers (cert-manager, external-dns, etc.)
+- Fully supported for backward compatibility
+
+New deployments should prefer EKS Pod Identity where possible, while existing IRSA-based workloads continue to work without changes.
 
 ## Version Constraints
 
@@ -621,7 +697,7 @@ This creates GitHub OIDC roles for CI/CD integration.
 - **Kubernetes Provider**: ~> 2.20
 - **Helm Provider**: ~> 2.0
 - **EKS Module**: ~> 20.0
-- **Kubernetes Version**: 1.34
+- **Kubernetes Version**: 1.33 or newer
 
 ## Troubleshooting
 

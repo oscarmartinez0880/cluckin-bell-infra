@@ -40,7 +40,7 @@ iam:
 managedNodeGroups:
   # Dev node group for dev environment workloads
   - name: dev
-    instanceType: m5.large
+    instanceType: m7i.large
     amiFamily: AmazonLinux2023
     minSize: 1
     maxSize: 5
@@ -58,6 +58,7 @@ managedNodeGroups:
       NodeGroup: dev
       k8s.io/cluster-autoscaler/enabled: "true"
       k8s.io/cluster-autoscaler/cluckn-bell-nonprod: "owned"
+      karpenter.sh/discovery: cluckn-bell-nonprod
     iam:
       withAddonPolicies:
         imageBuilder: true
@@ -70,10 +71,12 @@ managedNodeGroups:
         albIngress: false
         xRay: false
         cloudWatch: true
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
   # QA node group for qa environment workloads  
   - name: qa
-    instanceType: m5.large
+    instanceType: m7i.large
     amiFamily: AmazonLinux2023
     minSize: 1
     maxSize: 8
@@ -91,6 +94,7 @@ managedNodeGroups:
       NodeGroup: qa
       k8s.io/cluster-autoscaler/enabled: "true"
       k8s.io/cluster-autoscaler/cluckn-bell-nonprod: "owned"
+      karpenter.sh/discovery: cluckn-bell-nonprod
     iam:
       withAddonPolicies:
         imageBuilder: true
@@ -103,6 +107,8 @@ managedNodeGroups:
         albIngress: false
         xRay: false
         cloudWatch: true
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
 # Add-ons (managed by AWS)
 addons:
