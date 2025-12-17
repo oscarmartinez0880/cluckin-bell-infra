@@ -31,14 +31,14 @@ jobs:
         if: contains(matrix.dir, 'prod')
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_PROD }}
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_PROD }}
           aws-region: us-east-1
 
       - name: Configure AWS credentials (OIDC)
         if: contains(matrix.dir, 'devqa')
         uses: aws-actions/configure-aws-credentials@v5
         with:
-          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_DEVQA }}
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_QA }}
           aws-region: us-east-1
 
       - name: Terraform fmt (check)

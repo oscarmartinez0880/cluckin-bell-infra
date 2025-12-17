@@ -33,7 +33,7 @@ jobs:
     name: Terraform ${{ inputs.action }} - ${{ inputs.environment }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,14 +42,14 @@ jobs:
         if: inputs.environment == 'nonprod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::264765154707:role/cb-terraform-deploy-devqa
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_NONPROD }}
           aws-region: ${{ inputs.region }}
 
       - name: Configure AWS credentials (prod)
         if: inputs.environment == 'prod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::346746763840:role/cb-terraform-deploy-prod
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_PROD }}
           aws-region: ${{ inputs.region }}
 
       - name: Setup Terraform

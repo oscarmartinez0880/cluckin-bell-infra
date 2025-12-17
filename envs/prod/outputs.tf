@@ -148,18 +148,23 @@ output "alerting_webhook_secret_name" {
   value       = var.enable_alerting ? module.alerting[0].webhook_secret_name : ""
 }
 
-# GitHub Actions OIDC Role Outputs
-output "github_actions_terraform_role_arn" {
-  description = "ARN of the GitHub Actions Terraform role"
-  value       = module.github_oidc_roles.terraform_role_arn
+# Disaster Recovery Outputs
+output "dr_ecr_replication_regions" {
+  description = "Regions configured for ECR replication"
+  value       = var.enable_ecr_replication && length(var.ecr_replication_regions) > 0 ? module.ecr_replication[0].replication_regions : []
 }
 
-output "github_actions_eksctl_role_arn" {
-  description = "ARN of the GitHub Actions eksctl role"
-  value       = module.github_oidc_roles.eksctl_role_arn
+output "dr_secrets_replication_regions" {
+  description = "Regions configured for Secrets Manager replication"
+  value       = var.secrets_replication_regions
 }
 
-output "github_actions_ecr_push_role_arn" {
-  description = "ARN of the GitHub Actions ECR push role"
-  value       = module.github_oidc_roles.ecr_push_role_arn
+output "dr_dns_failover_enabled" {
+  description = "Whether DNS failover is enabled"
+  value       = var.enable_dns_failover
+}
+
+output "dr_dns_failover_health_checks" {
+  description = "Map of DNS failover health check IDs"
+  value       = var.enable_dns && var.enable_dns_failover && length(var.failover_records) > 0 ? module.dns_failover[0].health_check_ids : {}
 }

@@ -107,6 +107,27 @@ module "ecr" {
   tags             = local.common_tags
 }
 
+# ECR Cross-Region Replication for Disaster Recovery
+# Disabled by default (var.enable_ecr_replication = false)
+# Requires ECR repositories to exist (var.enable_ecr = true)
+resource "aws_ecr_replication_configuration" "prod" {
+  count = var.enable_ecr && var.enable_ecr_replication ? 1 : 0
+
+  replication_configuration {
+    rule {
+      dynamic "destination" {
+        for_each = var.ecr_replication_regions
+        content {
+          region      = destination.value
+          registry_id = data.aws_caller_identity.current.account_id
+        }
+      }
+    }
+  }
+
+  depends_on = [module.ecr]
+}
+
 # Monitoring with CloudWatch and Container Insights
 # Disabled by default (var.enable_monitoring = false) to prevent monitoring costs
 # NOTE: When enabled, also enable var.enable_irsa=true for agent IRSA roles
@@ -688,6 +709,30 @@ module "secrets" {
   tags = local.common_tags
 }
 
+# Secrets Manager Cross-Region Replication for Disaster Recovery
+# Disabled by default (var.enable_secrets_replication = false)
+# Requires Secrets Manager secrets to exist (var.enable_secrets = true)
+# Note: Replicas are created for each secret in specified regions
+resource "aws_secretsmanager_secret_replica" "prod" {
+  for_each = var.enable_secrets && var.enable_secrets_replication ? {
+    for combo in flatten([
+      for secret_name, secret_config in module.secrets[0].secret_arns : [
+        for region in var.secrets_replication_regions : {
+          key         = "${secret_name}-${region}"
+          secret_id   = secret_config
+          region      = region
+          secret_name = secret_name
+        }
+      ]
+    ]) : combo.key => combo
+  } : {}
+
+  replica_region = each.value.region
+  secret_id      = each.value.secret_id
+
+  depends_on = [module.secrets]
+}
+
 # Alerting Infrastructure
 # Disabled by default (var.enable_alerting = false) to prevent SNS/CloudWatch alarm costs
 module "alerting" {
@@ -722,27 +767,58 @@ module "karpenter" {
   tags = local.common_tags
 }
 
-# GitHub Actions OIDC Roles
-# Creates GitHub OIDC provider and three IAM roles for CI/CD workflows
-module "github_oidc_roles" {
-  source = "../../modules/github-oidc-roles"
+# ============================================================================
+# Disaster Recovery Enhancements (Optional)
+# ============================================================================
 
-  terraform_role_name = "GitHubActions-Terraform-prod"
-  eksctl_role_name    = "GitHubActions-eksctl-prod"
-  ecr_push_role_name  = "GitHubActions-ECRPush-prod"
+# ECR Cross-Region Replication
+# Disabled by default (var.enable_ecr_replication = false)
+# When enabled, automatically replicates ECR images to specified regions
+module "ecr_replication" {
+  count  = var.enable_ecr_replication && length(var.ecr_replication_regions) > 0 ? 1 : 0
+  source = "../../modules/ecr-replication"
 
-  # Allow these repositories to assume the roles
-  allowed_repos = [
-    "repo:oscarmartinez0880/cluckin-bell-infra:*",
-    "repo:oscarmartinez0880/cluckin-bell:*",
-    "repo:oscarmartinez0880/cluckin-bell-app:*",
-    "repo:oscarmartinez0880/wingman-api:*"
-  ]
+  replication_regions = var.ecr_replication_regions
+}
 
-  # Policy attachments (can be customized later for least privilege)
-  terraform_policy_arns = ["arn:aws:iam::aws:policy/AdministratorAccess"]
-  eksctl_policy_arns    = ["arn:aws:iam::aws:policy/AdministratorAccess"]
-  ecr_push_policy_arns  = ["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"]
+# Secrets Manager Replication
+# Disabled by default (var.enable_secrets_replication = false)
+# When enabled, replicates critical secrets to specified regions
+# Note: Requires secrets to be created via the secrets module
+# 
+# Example configuration:
+# secrets = {
+#   "prod/database/master" = {
+#     description      = "Master database credentials"
+#     static_values    = { username = "admin" }
+#     generated_values = { password = "" }
+#   }
+# }
+module "secrets_replication" {
+  count  = var.enable_secrets && var.enable_secrets_replication && length(var.secrets_replication_regions) > 0 ? 1 : 0
+  source = "../../modules/secrets"
 
-  tags = local.common_tags
+  secrets = {} # TODO: Configure with actual secrets to replicate when enabling DR
+
+  enable_replication  = true
+  replication_regions = var.secrets_replication_regions
+
+  tags = merge(local.common_tags, {
+    Service = "secrets-dr"
+  })
+}
+
+# Route53 DNS Failover
+# Disabled by default (var.enable_dns_failover = false)
+# When enabled, creates health checks and failover DNS records
+module "dns_failover" {
+  count  = var.enable_dns && var.enable_dns_failover && length(var.failover_records) > 0 ? 1 : 0
+  source = "../../modules/dns-failover"
+
+  hosted_zone_id   = var.enable_dns ? module.dns_certs[0].public_zone_id : ""
+  failover_records = var.failover_records
+
+  tags = merge(local.common_tags, {
+    Service = "dns-failover"
+  })
 }
