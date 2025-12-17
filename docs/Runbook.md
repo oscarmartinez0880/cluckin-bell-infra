@@ -113,6 +113,8 @@ region = us-east-1
 
 For GitHub Actions workflows to authenticate with AWS, configure these repository variables using the ARNs output by Terraform.
 
+> **Variable Naming Convention**: Repository variables use the `NONPROD` suffix for the nonprod environment (e.g., `AWS_TERRAFORM_ROLE_ARN_NONPROD`) and the `PROD` suffix for production (e.g., `AWS_TERRAFORM_ROLE_ARN_PROD`). Ensure repository variables match the workflow file references exactly. No changes to workflow files are required.
+
 #### Obtaining Role ARNs from Terraform
 
 After applying Terraform in each environment, retrieve the role ARNs:
