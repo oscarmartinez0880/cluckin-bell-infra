@@ -8,16 +8,18 @@ resource "aws_iam_openid_connect_provider" "github" {
 
   client_id_list = ["sts.amazonaws.com"]
 
+  # GitHub OIDC thumbprints (current as of 2024)
+  # These are the SHA-1 fingerprints of the root and intermediate CA certificates
   thumbprint_list = [
-    "6938fd4d98bab03faadb97b34396831e3780aea1",
-    "1c58a3a8518e8759bf075b76b750d4f2df264fcd"
+    "1c58a3a8518e8759bf075b76b750d4f2df264fcd", # Current root CA thumbprint
+    "a031c46782e6e6c662c2c87c76da9aa62ccabd8e"  # Intermediate CA thumbprint
   ]
 
   tags = var.tags
 
   lifecycle {
     # Prevent accidental deletion of OIDC provider
-    prevent_destroy = false
+    prevent_destroy = true
   }
 }
 
