@@ -1,0 +1,104 @@
+name: EKS Cluster Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - nonprod
+          - prod
+        default: nonprod
+      action:
+        description: "Cluster action"
+        required: true
+        type: choice
+        options:
+          - create
+          - upgrade
+          - delete
+        default: create
+      cluster_config:
+        description: "Cluster configuration file"
+        required: false
+        default: ""
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  eksctl:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    env:
+      AWS_REGION: us-east-1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (nonprod)
+        if: inputs.environment == 'nonprod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_EKSCTL_ROLE_ARN_QA }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (prod)
+        if: inputs.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_EKSCTL_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup eksctl
+        run: |
+          ARCH=amd64
+          PLATFORM=$(uname -s)_$ARCH
+          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+          tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+          sudo mv /tmp/eksctl /usr/local/bin
+          eksctl version
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.0'
+
+      - name: Determine cluster config
+        id: config
+        run: |
+          if [ -n "${{ inputs.cluster_config }}" ]; then
+            echo "config=${{ inputs.cluster_config }}" >> $GITHUB_OUTPUT
+          elif [ "${{ inputs.environment }}" = "nonprod" ]; then
+            echo "config=eksctl/devqa-cluster.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "config=eksctl/prod-cluster.yaml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Cluster
+        if: inputs.action == 'create'
+        run: |
+          eksctl create cluster -f ${{ steps.config.outputs.config }}
+
+      - name: Upgrade Cluster
+        if: inputs.action == 'upgrade'
+        run: |
+          eksctl upgrade cluster -f ${{ steps.config.outputs.config }} --approve
+
+      - name: Delete Cluster
+        if: inputs.action == 'delete'
+        run: |
+          eksctl delete cluster -f ${{ steps.config.outputs.config }} --wait
+
+      - name: Verify Cluster
+        if: inputs.action == 'create' || inputs.action == 'upgrade'
+        run: |
+          CLUSTER_NAME=$(grep -A 1 "^metadata:" ${{ steps.config.outputs.config }} | grep "name:" | awk '{print $2}')
+          aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name $CLUSTER_NAME
+          kubectl get nodes
+          kubectl get pods -A

@@ -56,9 +56,9 @@ resource "aws_iam_role_policy" "karpenter_controller" {
         Resource = "*"
       },
       {
-        Sid    = "ConditionalEC2Termination"
-        Effect = "Allow"
-        Action = "ec2:TerminateInstances"
+        Sid      = "ConditionalEC2Termination"
+        Effect   = "Allow"
+        Action   = "ec2:TerminateInstances"
         Resource = "*"
         Condition = {
           StringLike = {
@@ -67,15 +67,15 @@ resource "aws_iam_role_policy" "karpenter_controller" {
         }
       },
       {
-        Sid    = "PassNodeIAMRole"
-        Effect = "Allow"
-        Action = "iam:PassRole"
+        Sid      = "PassNodeIAMRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
         Resource = aws_iam_role.karpenter_node.arn
       },
       {
-        Sid    = "EKSClusterEndpointLookup"
-        Effect = "Allow"
-        Action = "eks:DescribeCluster"
+        Sid      = "EKSClusterEndpointLookup"
+        Effect   = "Allow"
+        Action   = "eks:DescribeCluster"
         Resource = "arn:aws:eks:${var.region}:${data.aws_caller_identity.current.account_id}:cluster/${var.cluster_name}"
       },
       {
@@ -88,7 +88,7 @@ resource "aws_iam_role_policy" "karpenter_controller" {
         Condition = {
           StringEquals = {
             "aws:RequestTag/kubernetes.io/cluster/${var.cluster_name}" = "owned"
-            "aws:RequestTag/topology.kubernetes.io/region"            = var.region
+            "aws:RequestTag/topology.kubernetes.io/region"             = var.region
           }
           StringLike = {
             "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass" = "*"
@@ -105,7 +105,7 @@ resource "aws_iam_role_policy" "karpenter_controller" {
         Condition = {
           StringEquals = {
             "aws:ResourceTag/kubernetes.io/cluster/${var.cluster_name}" = "owned"
-            "aws:ResourceTag/topology.kubernetes.io/region"            = var.region
+            "aws:ResourceTag/topology.kubernetes.io/region"             = var.region
           }
           StringLike = {
             "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass" = "*"
@@ -124,7 +124,7 @@ resource "aws_iam_role_policy" "karpenter_controller" {
         Condition = {
           StringEquals = {
             "aws:ResourceTag/kubernetes.io/cluster/${var.cluster_name}" = "owned"
-            "aws:ResourceTag/topology.kubernetes.io/region"            = var.region
+            "aws:ResourceTag/topology.kubernetes.io/region"             = var.region
           }
           StringLike = {
             "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass" = "*"
@@ -132,9 +132,9 @@ resource "aws_iam_role_policy" "karpenter_controller" {
         }
       },
       {
-        Sid    = "AllowInstanceProfileReadActions"
-        Effect = "Allow"
-        Action = "iam:GetInstanceProfile"
+        Sid      = "AllowInstanceProfileReadActions"
+        Effect   = "Allow"
+        Action   = "iam:GetInstanceProfile"
         Resource = "*"
       }
     ]

@@ -1,0 +1,92 @@
+name: DR Launch Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      dr_region:
+        description: "DR region to provision"
+        required: true
+        type: choice
+        options:
+          - us-west-2
+          - eu-west-1
+          - ap-southeast-1
+        default: us-west-2
+      enable_ecr_replication:
+        description: "Enable ECR replication"
+        required: true
+        type: boolean
+        default: true
+      enable_secrets_replication:
+        description: "Enable Secrets replication"
+        required: true
+        type: boolean
+        default: true
+      enable_dns_failover:
+        description: "Enable DNS failover"
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  dr-provision:
+    runs-on: ubuntu-latest
+    environment: prod
+
+    env:
+      TF_IN_AUTOMATION: "true"
+      AWS_REGION: us-east-1
+      DR_REGION: ${{ inputs.dr_region }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+
+      - name: Create DR tfvars
+        working-directory: envs/prod
+        run: |
+          cat > dr-override.tfvars <<EOF
+          enable_ecr_replication = ${{ inputs.enable_ecr_replication }}
+          ecr_replication_regions = ["${{ inputs.dr_region }}"]
+          
+          enable_secrets_replication = ${{ inputs.enable_secrets_replication }}
+          secrets_replication_regions = ["${{ inputs.dr_region }}"]
+          
+          enable_dns_failover = ${{ inputs.enable_dns_failover }}
+          EOF
+
+      - name: Terraform Init
+        working-directory: envs/prod
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Plan (DR)
+        working-directory: envs/prod
+        run: terraform plan -var-file=dr-override.tfvars -input=false -no-color
+
+      - name: Terraform Apply (DR)
+        working-directory: envs/prod
+        run: terraform apply -var-file=dr-override.tfvars -auto-approve -input=false
+
+      - name: Summary
+        run: |
+          echo "## DR Provisioning Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**DR Region:** ${{ inputs.dr_region }}" >> $GITHUB_STEP_SUMMARY
+          echo "**ECR Replication:** ${{ inputs.enable_ecr_replication }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Secrets Replication:** ${{ inputs.enable_secrets_replication }}" >> $GITHUB_STEP_SUMMARY
+          echo "**DNS Failover:** ${{ inputs.enable_dns_failover }}" >> $GITHUB_STEP_SUMMARY

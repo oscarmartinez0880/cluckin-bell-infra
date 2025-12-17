@@ -1,0 +1,85 @@
+name: Infrastructure Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - nonprod
+          - prod
+        default: nonprod
+      working_directory:
+        description: "Terraform working directory"
+        required: false
+        default: envs/nonprod
+      action:
+        description: "Terraform action"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+        default: plan
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    env:
+      TF_IN_AUTOMATION: "true"
+      AWS_REGION: us-east-1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (nonprod)
+        if: inputs.environment == 'nonprod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_QA }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (prod)
+        if: inputs.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+
+      - name: Terraform Init
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Validate
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        if: inputs.action == 'plan' || inputs.action == 'apply'
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform plan -input=false -no-color
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform apply -auto-approve -input=false
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        working-directory: ${{ inputs.working_directory }}
+        run: terraform destroy -auto-approve -input=false

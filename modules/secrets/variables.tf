@@ -13,3 +13,15 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_replication" {
+  description = "Enable replication of secrets to other regions"
+  type        = bool
+  default     = false
+}
+
+variable "replication_regions" {
+  description = "List of AWS regions to replicate secrets to"
+  type        = list(string)
+  default     = []
+}
