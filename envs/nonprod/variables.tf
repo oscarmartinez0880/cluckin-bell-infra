@@ -286,3 +286,48 @@ variable "karpenter_namespace" {
   default     = "kube-system"
 }
 
+# Disaster Recovery Configuration
+variable "enable_ecr_replication" {
+  description = "Enable ECR cross-region replication for disaster recovery"
+  type        = bool
+  default     = false
+}
+
+variable "ecr_replication_regions" {
+  description = "List of AWS regions for ECR cross-region replication"
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_secrets_replication" {
+  description = "Enable Secrets Manager cross-region replication for disaster recovery"
+  type        = bool
+  default     = false
+}
+
+variable "secrets_replication_regions" {
+  description = "List of AWS regions for Secrets Manager replication"
+  type        = list(string)
+  default     = []
+}
+
+variable "enable_dns_failover" {
+  description = "Enable Route53 DNS failover with health checks for disaster recovery"
+  type        = bool
+  default     = false
+}
+
+variable "failover_records" {
+  description = "Map of DNS failover records with primary/secondary endpoints"
+  type = map(object({
+    name                  = string
+    type                  = string
+    ttl                   = number
+    primary_value         = string
+    secondary_value       = string
+    health_check_interval = number
+    health_check_path     = string
+  }))
+  default = {}
+}
+

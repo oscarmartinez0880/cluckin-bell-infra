@@ -121,6 +121,27 @@ module "ecr" {
   tags             = local.common_tags
 }
 
+# ECR Cross-Region Replication for Disaster Recovery
+# Disabled by default (var.enable_ecr_replication = false)
+# Requires ECR repositories to exist (var.enable_ecr = true)
+resource "aws_ecr_replication_configuration" "nonprod" {
+  count = var.enable_ecr && var.enable_ecr_replication ? 1 : 0
+
+  replication_configuration {
+    rule {
+      dynamic "destination" {
+        for_each = var.ecr_replication_regions
+        content {
+          region      = destination.value
+          registry_id = data.aws_caller_identity.current.account_id
+        }
+      }
+    }
+  }
+
+  depends_on = [module.ecr]
+}
+
 # Monitoring with CloudWatch and Container Insights
 # Disabled by default (var.enable_monitoring = false) to prevent monitoring costs
 # NOTE: When enabled, also enable var.enable_irsa=true for agent IRSA roles
@@ -784,6 +805,30 @@ module "secrets" {
   tags = local.common_tags
 }
 
+# Secrets Manager Cross-Region Replication for Disaster Recovery
+# Disabled by default (var.enable_secrets_replication = false)
+# Requires Secrets Manager secrets to exist (var.enable_secrets = true)
+# Note: Replicas are created for each secret in specified regions
+resource "aws_secretsmanager_secret_replica" "nonprod" {
+  for_each = var.enable_secrets && var.enable_secrets_replication ? {
+    for combo in flatten([
+      for secret_name, secret_config in module.secrets[0].secret_arns : [
+        for region in var.secrets_replication_regions : {
+          key         = "${secret_name}-${region}"
+          secret_id   = secret_config
+          region      = region
+          secret_name = secret_name
+        }
+      ]
+    ]) : combo.key => combo
+  } : {}
+
+  replica_region = each.value.region
+  secret_id      = each.value.secret_id
+
+  depends_on = [module.secrets]
+}
+
 # Alerting Infrastructure
 # Disabled by default (var.enable_alerting = false) to prevent SNS/CloudWatch alarm costs
 module "alerting" {
@@ -816,4 +861,76 @@ module "karpenter" {
   enable_pod_identity       = true
 
   tags = local.common_tags
+}
+
+# Route53 DNS Failover for Disaster Recovery
+# Disabled by default (var.enable_dns_failover = false)
+# Creates health checks and primary/secondary failover records
+# Requires DNS zones to exist (var.enable_dns = true)
+
+# Health checks for failover records
+resource "aws_route53_health_check" "primary" {
+  for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
+
+  fqdn              = each.value.name
+  port              = 443
+  type              = "HTTPS"
+  resource_path     = each.value.health_check_path
+  failure_threshold = "3"
+  request_interval  = each.value.health_check_interval
+
+  tags = merge(local.common_tags, {
+    Name = "${each.key}-primary-health-check"
+  })
+}
+
+resource "aws_route53_health_check" "secondary" {
+  for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
+
+  fqdn              = each.value.name
+  port              = 443
+  type              = "HTTPS"
+  resource_path     = each.value.health_check_path
+  failure_threshold = "3"
+  request_interval  = each.value.health_check_interval
+
+  tags = merge(local.common_tags, {
+    Name = "${each.key}-secondary-health-check"
+  })
+}
+
+# Primary failover records
+resource "aws_route53_record" "primary" {
+  for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
+
+  zone_id = module.dns_certs_dev[0].public_zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = each.value.ttl
+
+  failover_routing_policy {
+    type = "PRIMARY"
+  }
+
+  set_identifier  = "${each.key}-primary"
+  health_check_id = aws_route53_health_check.primary[each.key].id
+  records         = [each.value.primary_value]
+}
+
+# Secondary failover records
+resource "aws_route53_record" "secondary" {
+  for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
+
+  zone_id = module.dns_certs_dev[0].public_zone_id
+  name    = each.value.name
+  type    = each.value.type
+  ttl     = each.value.ttl
+
+  failover_routing_policy {
+    type = "SECONDARY"
+  }
+
+  set_identifier  = "${each.key}-secondary"
+  health_check_id = aws_route53_health_check.secondary[each.key].id
+  records         = [each.value.secondary_value]
 }
