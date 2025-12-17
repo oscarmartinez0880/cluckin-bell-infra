@@ -751,6 +751,206 @@ If DR activation fails or needs to be reversed:
 1. AWS CLI configured with appropriate permissions
 2. Terraform >= 1.0 installed
 3. kubectl installed for cluster management
+4. eksctl installed for EKS cluster management
+
+---
+
+## Quick Start with Makefile
+
+The repository includes a standardized Makefile for common infrastructure operations. All commands support `ENV` (nonprod|prod) and `REGION` (default: us-east-1) variables.
+
+### Basic Operations
+
+```bash
+# AWS SSO Login
+make login-nonprod  # Login to nonprod account (cluckin-bell-qa)
+make login-prod     # Login to prod account (cluckin-bell-prod)
+
+# Terraform Operations
+make tf-init ENV=nonprod                    # Initialize Terraform
+make tf-plan ENV=nonprod REGION=us-east-1   # Plan changes
+make tf-apply ENV=nonprod REGION=us-east-1  # Apply changes
+make tf-destroy ENV=prod REGION=us-east-1   # Destroy infrastructure
+
+# EKS Cluster Operations (via eksctl)
+make eks-create ENV=nonprod REGION=us-east-1   # Create cluster
+make eks-upgrade ENV=nonprod REGION=us-east-1  # Upgrade cluster
+make eks-delete ENV=nonprod REGION=us-east-1   # Delete cluster
+
+# View Outputs
+make outputs ENV=nonprod  # Show Terraform outputs
+```
+
+### Disaster Recovery (DR)
+
+To provision production infrastructure in an alternate region:
+
+```bash
+make dr-provision-prod REGION=us-west-2
+```
+
+This command will:
+1. Login to prod account via AWS SSO
+2. Apply Terraform configuration in the target region
+3. Create EKS cluster in the target region
+
+---
+
+## One-Click Operations via GitHub Actions
+
+The repository includes three GitHub Actions workflows for infrastructure management. All workflows use OIDC authentication and support manual triggering.
+
+### 1. Infrastructure Terraform Workflow
+
+**Workflow**: `.github/workflows/infra-terraform.yaml`
+
+Manage Terraform infrastructure (VPC, IAM, DNS, etc.) with one click.
+
+**Inputs**:
+- **env**: nonprod or prod
+- **action**: plan, apply, or destroy
+- **region**: AWS region (default: us-east-1)
+
+**Required Secrets**:
+- `AWS_TERRAFORM_ROLE_ARN_QA`: OIDC role ARN for nonprod account
+- `AWS_TERRAFORM_ROLE_ARN_PROD`: OIDC role ARN for prod account
+
+**Example Usage**:
+1. Go to Actions tab → "Infra Terraform (manual)"
+2. Click "Run workflow"
+3. Select environment, action, and region
+4. Click "Run workflow"
+
+### 2. eksctl Cluster Operations Workflow
+
+**Workflow**: `.github/workflows/eksctl-cluster.yaml`
+
+Manage EKS cluster lifecycle operations with one click.
+
+**Inputs**:
+- **env**: nonprod or prod
+- **operation**: create, upgrade, or delete
+- **region**: AWS region (default: us-east-1)
+
+**Required Secrets**:
+- `AWS_EKSCTL_ROLE_ARN_QA`: OIDC role ARN for nonprod account
+- `AWS_EKSCTL_ROLE_ARN_PROD`: OIDC role ARN for prod account
+
+**Example Usage**:
+1. Go to Actions tab → "eksctl Cluster Ops (manual)"
+2. Click "Run workflow"
+3. Select environment, operation, and region
+4. Click "Run workflow"
+
+### 3. DR Launch Workflow
+
+**Workflow**: `.github/workflows/dr-launch-prod.yaml`
+
+Launch production infrastructure and EKS cluster in an alternate region for disaster recovery.
+
+**Inputs**:
+- **region**: Target region (default: us-west-2)
+
+**Required Secrets**:
+- `AWS_TERRAFORM_ROLE_ARN_PROD`: OIDC role ARN for prod account
+
+**Example Usage**:
+1. Go to Actions tab → "DR: Launch Prod in Alternate Region (manual)"
+2. Click "Run workflow"
+3. Enter target region (e.g., us-west-2)
+4. Click "Run workflow"
+
+### Setting Up GitHub Actions Secrets
+
+To use the GitHub Actions workflows, configure the following repository secrets:
+
+1. Go to Settings → Secrets and variables → Actions
+2. Add the following secrets:
+   - `AWS_TERRAFORM_ROLE_ARN_QA`: OIDC role ARN for nonprod (e.g., `arn:aws:iam::264765154707:role/github-oidc-terraform`)
+   - `AWS_TERRAFORM_ROLE_ARN_PROD`: OIDC role ARN for prod (e.g., `arn:aws:iam::346746763840:role/github-oidc-terraform`)
+   - `AWS_EKSCTL_ROLE_ARN_QA`: OIDC role ARN for nonprod eksctl operations
+   - `AWS_EKSCTL_ROLE_ARN_PROD`: OIDC role ARN for prod eksctl operations
+
+---
+
+## Disaster Recovery Playbook
+
+### Overview
+
+The DR capability allows you to quickly stand up production infrastructure in an alternate AWS region in case of a regional outage or disaster.
+
+### DR Architecture
+
+- **Primary Region**: us-east-1 (default)
+- **DR Region**: us-west-2 (or any AWS region)
+- **Scope**: Full production stack (VPC, IAM, RDS, ECR, EKS cluster)
+- **RTO Target**: < 1 hour (depending on EKS cluster creation time)
+
+### DR Procedure
+
+#### Option 1: Via Makefile (Local)
+
+```bash
+# Ensure you're authenticated
+make login-prod
+
+# Provision infrastructure and cluster in DR region
+make dr-provision-prod REGION=us-west-2
+```
+
+#### Option 2: Via GitHub Actions (One-Click)
+
+1. Navigate to Actions tab
+2. Select "DR: Launch Prod in Alternate Region (manual)"
+3. Click "Run workflow"
+4. Enter target region (e.g., `us-west-2`)
+5. Click "Run workflow"
+6. Monitor workflow progress
+
+#### Post-DR Steps
+
+After infrastructure and cluster are provisioned:
+
+1. **Update DNS**: Update Route53 records to point to new region
+   ```bash
+   # Get new load balancer endpoints
+   make outputs ENV=prod
+   ```
+
+2. **Deploy Applications**: Use ArgoCD or Helm to deploy applications to new cluster
+   ```bash
+   aws eks update-kubeconfig --region us-west-2 --name cluckn-bell-prod
+   # Deploy applications via ArgoCD or manual apply
+   ```
+
+3. **Verify Services**: Test application endpoints and health checks
+
+4. **Update Monitoring**: Configure CloudWatch dashboards for new region
+
+#### DR Rollback
+
+To return to primary region after incident is resolved:
+
+```bash
+# Deploy applications back to primary region
+aws eks update-kubeconfig --region us-east-1 --name cluckn-bell-prod
+
+# Update DNS back to primary region
+
+# Optional: Destroy DR infrastructure
+make tf-destroy ENV=prod REGION=us-west-2
+make eks-delete ENV=prod REGION=us-west-2
+```
+
+### DR Considerations
+
+- **Data Replication**: Ensure RDS cross-region replication is configured if needed
+- **Secrets Management**: Secrets Manager supports cross-region replication
+- **ECR Replication**: Configure ECR replication rules for multi-region access
+- **State Management**: Terraform state is in S3 with versioning enabled
+- **Cost**: DR infrastructure incurs costs - consider using smaller instance types for standby
+
+---
 
 ### Infrastructure Deployment
 

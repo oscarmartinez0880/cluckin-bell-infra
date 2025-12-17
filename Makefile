@@ -73,11 +73,9 @@ login-prod: ## Login to AWS SSO for prod account
 ###############################################################################
 # AWS SSO Login (legacy targets for backward compatibility)
 ###############################################################################
-sso-devqa: ## Login to AWS SSO for devqa account
-	aws sso login --profile $(DEVQA_PROFILE)
+sso-devqa: login-nonprod ## Login to AWS SSO for devqa account (alias for login-nonprod)
 
-sso-prod: ## Login to AWS SSO for prod account
-	aws sso login --profile $(PROD_PROFILE)
+sso-prod: login-prod ## Login to AWS SSO for prod account (alias for login-prod)
 
 ###############################################################################
 # Accounts-level IAM/ECR/OIDC
@@ -272,7 +270,7 @@ outputs: ## Print key infrastructure outputs (usage: make outputs ENV=nonprod)
 ###############################################################################
 # EKS cluster creation via eksctl (legacy target for backward compatibility)
 ###############################################################################
-eks-create: ## Create/upgrade EKS clusters using eksctl (requires VPCs exist)
+eks-create-legacy: ## Create/upgrade EKS clusters using eksctl (legacy script, requires VPCs exist)
 	@echo "Creating EKS clusters via eksctl..."
 	@echo "This will handle SSO login internally and apply eksctl YAMLs"
 	./scripts/eks/create-clusters.sh all
