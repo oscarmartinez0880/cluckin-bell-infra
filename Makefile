@@ -194,6 +194,8 @@ eks-create-env: ## Create EKS cluster for environment (usage: make eks-create-en
 		exit 1; \
 	fi
 
+eks-create: eks-create-env ## Alias for eks-create-env (usage: make eks-create ENV=nonprod REGION=us-east-1)
+
 eks-upgrade: ## Upgrade EKS cluster (usage: make eks-upgrade ENV=nonprod)
 	@echo "Upgrading EKS cluster for $(ENV)..."
 	@if [ "$(ENV)" = "nonprod" ]; then \
@@ -413,8 +415,8 @@ test-ecr-help: ## Show ECR testing help
 ###############################################################################
 # Disaster Recovery targets
 ###############################################################################
-dr-provision-prod: ## Provision DR resources in prod (usage: make dr-provision-prod REGION=us-west-2)
-	@echo "Provisioning DR resources for production in region: $(REGION)"
+dr-enable-features-prod: ## Enable DR features (ECR/Secrets replication) for prod (usage: make dr-enable-features-prod REGION=us-west-2)
+	@echo "Enabling DR features for production in region: $(REGION)"
 	@if [ "$(REGION)" = "us-east-1" ]; then \
 		echo "ERROR: Cannot use primary region us-east-1 for DR"; \
 		exit 1; \
