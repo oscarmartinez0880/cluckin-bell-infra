@@ -172,5 +172,26 @@ output "karpenter_instance_profile_name" {
 
 output "karpenter_queue_name" {
   description = "Name of the Karpenter interruption SQS queue"
-  value       = var.enable_karpenter ? module.karpenter[0].queue_name : null
+  value       = var.enable_karpenter ? module.karpenter_iam[0].queue_name : null
+}
+
+# Disaster Recovery Outputs
+output "dr_ecr_replication_regions" {
+  description = "Regions configured for ECR replication"
+  value       = var.enable_ecr_replication && length(var.ecr_replication_regions) > 0 ? module.ecr_replication[0].replication_regions : []
+}
+
+output "dr_secrets_replication_regions" {
+  description = "Regions configured for Secrets Manager replication"
+  value       = var.secrets_replication_regions
+}
+
+output "dr_dns_failover_enabled" {
+  description = "Whether DNS failover is enabled"
+  value       = var.enable_dns_failover
+}
+
+output "dr_dns_failover_health_checks" {
+  description = "Map of DNS failover health check IDs"
+  value       = var.enable_dns && var.enable_dns_failover && length(var.failover_records) > 0 ? module.dns_failover[0].health_check_ids : {}
 }
