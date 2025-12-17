@@ -817,3 +817,59 @@ module "karpenter" {
 
   tags = local.common_tags
 }
+
+# ============================================================================
+# Disaster Recovery Enhancements (Optional)
+# ============================================================================
+
+# ECR Cross-Region Replication
+# Disabled by default (var.enable_ecr_replication = false)
+# When enabled, automatically replicates ECR images to specified regions
+module "ecr_replication" {
+  count  = var.enable_ecr_replication && length(var.ecr_replication_regions) > 0 ? 1 : 0
+  source = "../../modules/ecr-replication"
+
+  replication_regions = var.ecr_replication_regions
+}
+
+# Secrets Manager Replication
+# Disabled by default (var.enable_secrets_replication = false)
+# When enabled, replicates critical secrets to specified regions
+# Note: Requires secrets to be created via the secrets module
+# 
+# Example configuration:
+# secrets = {
+#   "nonprod/database/master" = {
+#     description      = "Master database credentials"
+#     static_values    = { username = "admin" }
+#     generated_values = { password = "" }
+#   }
+# }
+module "secrets_replication" {
+  count  = var.enable_secrets && var.enable_secrets_replication && length(var.secrets_replication_regions) > 0 ? 1 : 0
+  source = "../../modules/secrets"
+
+  secrets = {} # TODO: Configure with actual secrets to replicate when enabling DR
+
+  enable_replication  = true
+  replication_regions = var.secrets_replication_regions
+
+  tags = merge(local.common_tags, {
+    Service = "secrets-dr"
+  })
+}
+
+# Route53 DNS Failover
+# Disabled by default (var.enable_dns_failover = false)
+# When enabled, creates health checks and failover DNS records
+module "dns_failover" {
+  count  = var.enable_dns && var.enable_dns_failover && length(var.failover_records) > 0 ? 1 : 0
+  source = "../../modules/dns-failover"
+
+  hosted_zone_id   = var.enable_dns ? module.dns_certs[0].public_zone_id : ""
+  failover_records = var.failover_records
+
+  tags = merge(local.common_tags, {
+    Service = "dns-failover"
+  })
+}
