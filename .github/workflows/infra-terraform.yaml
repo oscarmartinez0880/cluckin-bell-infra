@@ -1,0 +1,86 @@
+name: Infrastructure Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - nonprod
+          - prod
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+      region:
+        description: 'AWS Region'
+        required: false
+        default: 'us-east-1'
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }} - ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (nonprod)
+        if: inputs.environment == 'nonprod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::264765154707:role/github-actions-terraform-deploy
+          aws-region: ${{ inputs.region }}
+
+      - name: Configure AWS credentials (prod)
+        if: inputs.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::346746763840:role/github-actions-terraform-deploy
+          aws-region: ${{ inputs.region }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.13.1
+
+      - name: Terraform Init
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Plan
+        if: inputs.action == 'plan' || inputs.action == 'apply'
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform plan -var="aws_region=${{ inputs.region }}" -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform apply -auto-approve tfplan
+
+      - name: Terraform Destroy
+        if: inputs.action == 'destroy'
+        working-directory: envs/${{ inputs.environment }}
+        run: terraform destroy -var="aws_region=${{ inputs.region }}" -auto-approve
+
+      - name: Terraform Outputs
+        if: inputs.action == 'apply'
+        working-directory: envs/${{ inputs.environment }}
+        run: |
+          echo "## Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
