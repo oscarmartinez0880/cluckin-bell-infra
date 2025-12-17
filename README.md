@@ -426,6 +426,324 @@ This creates a GitHub Actions workflow that uses OIDC to assume the CodeCommit m
 
 ---
 
+## One-Click Operations with GitHub Actions
+
+The repository provides three GitHub Actions workflows for infrastructure operations via the GitHub UI:
+
+### 1. Infrastructure Terraform Workflow
+**Workflow**: `.github/workflows/infra-terraform.yaml`
+
+Run Terraform operations on your infrastructure:
+- Navigate to **Actions** → **Infrastructure Terraform**
+- Click **Run workflow**
+- Select:
+  - **Environment**: `nonprod` or `prod`
+  - **Action**: `plan`, `apply`, or `destroy`
+  - **Region**: Target AWS region (default: `us-east-1`)
+
+The workflow uses OIDC to authenticate with AWS (no credentials needed) and runs Terraform in the appropriate `envs/{environment}` directory.
+
+### 2. EKS Cluster Management Workflow
+**Workflow**: `.github/workflows/eksctl-cluster.yaml`
+
+Manage EKS cluster lifecycle:
+- Navigate to **Actions** → **EKS Cluster Management**
+- Click **Run workflow**
+- Select:
+  - **Environment**: `nonprod` or `prod`
+  - **Operation**: `create`, `upgrade`, or `delete`
+  - **Region**: Target AWS region (default: `us-east-1`)
+
+Uses eksctl with the cluster configurations in `eksctl/devqa-cluster.yaml` or `eksctl/prod-cluster.yaml`.
+
+### 3. Disaster Recovery Launch Workflow
+**Workflow**: `.github/workflows/dr-launch-prod.yaml`
+
+Quickly provision production infrastructure in an alternate region:
+- Navigate to **Actions** → **Disaster Recovery - Launch Prod**
+- Click **Run workflow**
+- Select:
+  - **Region**: Target DR region (e.g., `us-west-2`, `eu-west-1`)
+
+This workflow will:
+1. Provision VPC, RDS, ECR, and other infrastructure via Terraform
+2. Create the EKS cluster using eksctl
+3. Display next steps for completing the DR setup
+
+**Note**: After the workflow completes, you'll need to:
+- Bootstrap IRSA roles
+- Deploy applications via ArgoCD
+- Update DNS records if needed
+
+---
+
+## Makefile Quick Start
+
+The repository includes a comprehensive Makefile for common operations. All targets support environment and region overrides.
+
+### Prerequisites
+```bash
+# Ensure required tools are installed
+make check-tools
+```
+
+### Authentication
+```bash
+# Login to AWS SSO for nonprod (DevQA account)
+make login-nonprod
+
+# Login to AWS SSO for prod account
+make login-prod
+```
+
+### Terraform Operations
+```bash
+# Initialize Terraform
+make tf-init ENV=nonprod REGION=us-east-1
+
+# Plan changes
+make tf-plan ENV=nonprod REGION=us-east-1
+
+# Apply changes
+make tf-apply ENV=nonprod REGION=us-east-1
+
+# Destroy resources (with confirmation)
+make tf-destroy ENV=nonprod REGION=us-east-1
+```
+
+### EKS Cluster Management
+```bash
+# Create EKS cluster
+make eks-create-env ENV=nonprod REGION=us-east-1
+
+# Upgrade EKS cluster
+make eks-upgrade ENV=nonprod
+
+# Delete EKS cluster (with confirmation)
+make eks-delete ENV=nonprod
+```
+
+### View Infrastructure Outputs
+```bash
+# Print all Terraform outputs for an environment
+make outputs ENV=nonprod
+
+# Examples of outputs:
+# - RDS endpoint
+# - Karpenter IAM role ARNs
+# - cert-manager role ARN
+# - VPC IDs and subnet IDs
+```
+
+### Disaster Recovery Shortcut
+```bash
+# One-command DR provisioning for prod in alternate region
+make dr-provision-prod REGION=us-west-2
+
+# This interactive target will:
+# 1. Login to prod account via SSO
+# 2. Initialize and apply Terraform
+# 3. Create EKS cluster
+# 4. Display next steps
+```
+
+### Common Workflows
+
+**Full nonprod deployment**:
+```bash
+make login-nonprod
+make tf-init ENV=nonprod
+make tf-apply ENV=nonprod
+make eks-create-env ENV=nonprod
+make irsa-nonprod
+make outputs ENV=nonprod
+```
+
+**Full prod deployment**:
+```bash
+make login-prod
+make tf-init ENV=prod
+make tf-apply ENV=prod
+make eks-create-env ENV=prod
+make irsa-prod
+make outputs ENV=prod
+```
+
+---
+
+## Disaster Recovery Playbook
+
+This playbook describes how to launch production infrastructure in an alternate region for disaster recovery.
+
+### DR Architecture
+
+- **Primary Region**: `us-east-1` (default production)
+- **DR Regions**: Any supported region (e.g., `us-west-2`, `eu-west-1`)
+- **RTO Target**: < 4 hours for full environment
+- **RPO Target**: Based on RDS backup schedule (Multi-AZ for HA)
+
+### Prerequisites
+
+1. ✅ AWS SSO configured with production account access
+2. ✅ Terraform version 1.13.1 installed
+3. ✅ eksctl installed (latest version recommended)
+4. ✅ Production account IAM roles and OIDC provider configured
+
+### Option 1: Using GitHub Actions (Recommended)
+
+**Advantages**: Automated, audited, no local dependencies
+
+1. Navigate to **Actions** → **Disaster Recovery - Launch Prod**
+2. Click **Run workflow**
+3. Select the target DR region (e.g., `us-west-2`)
+4. Monitor the workflow progress
+5. Once complete, follow the displayed next steps
+
+**Estimated time**: 30-45 minutes
+
+### Option 2: Using Makefile
+
+**Advantages**: More control, can be run locally
+
+```bash
+# Interactive DR provisioning
+make dr-provision-prod REGION=us-west-2
+
+# The command will:
+# - Prompt for confirmation before proceeding
+# - Login to prod account via SSO
+# - Initialize Terraform backend
+# - Show plan and prompt before applying
+# - Apply Terraform to create infrastructure
+# - Create EKS cluster via eksctl
+# - Display completion status
+```
+
+**Estimated time**: 30-45 minutes
+
+### Option 3: Manual Steps
+
+For complete control or troubleshooting:
+
+```bash
+# 1. Login to production account
+make login-prod
+
+# 2. Navigate to prod environment
+cd envs/prod
+
+# 3. Initialize Terraform
+terraform init -backend-config=backend.hcl
+
+# 4. Plan infrastructure changes
+terraform plan -var="aws_region=us-west-2"
+
+# 5. Apply infrastructure
+terraform apply -var="aws_region=us-west-2"
+
+# 6. Create EKS cluster
+cd ../..
+AWS_PROFILE=cluckin-bell-prod eksctl create cluster \
+  -f eksctl/prod-cluster.yaml \
+  --region us-west-2
+
+# 7. Bootstrap IRSA roles
+make irsa-prod REGION=us-west-2
+
+# 8. Verify outputs
+make outputs ENV=prod
+```
+
+**Estimated time**: 45-60 minutes
+
+### Post-DR Provisioning Steps
+
+Once infrastructure is provisioned in the DR region:
+
+1. **Verify Infrastructure**
+   ```bash
+   # Check EKS cluster status
+   aws eks describe-cluster --name cluckn-bell-prod --region us-west-2
+   
+   # Check RDS instance
+   aws rds describe-db-instances --region us-west-2
+   ```
+
+2. **Configure kubectl**
+   ```bash
+   aws eks update-kubeconfig --name cluckn-bell-prod --region us-west-2
+   kubectl get nodes
+   ```
+
+3. **Deploy Platform Components**
+   - Bootstrap IRSA roles: `make irsa-prod REGION=us-west-2`
+   - Deploy ArgoCD and platform controllers
+   - Configure monitoring and alerting
+
+4. **Restore Database** (if needed)
+   - Restore RDS from snapshot or replica
+   - Update application connection strings
+   - Verify database connectivity
+
+5. **Deploy Applications**
+   - Deploy applications via ArgoCD
+   - Verify application health
+   - Run smoke tests
+
+6. **Update DNS**
+   - Update Route53 records to point to DR region ALBs
+   - Consider weighted routing for gradual cutover
+   - Verify DNS propagation
+
+7. **Monitoring & Validation**
+   - Check CloudWatch metrics
+   - Verify Prometheus/Grafana dashboards
+   - Test application endpoints
+   - Validate certificate renewal
+
+### DR Testing Recommendations
+
+- **Quarterly**: Test DR provisioning in alternate region
+- **Semi-Annually**: Full DR failover test with application traffic
+- **Document**: Update runbook with lessons learned
+- **Automate**: Consider Route53 health checks for automatic failover
+
+### RDS Multi-AZ Configuration
+
+For production databases, ensure Multi-AZ is enabled:
+
+```hcl
+# In your RDS module configuration
+module "rds_prod" {
+  source = "../../modules/rds"
+  
+  multi_az       = true      # Enable Multi-AZ for high availability
+  storage_type   = "gp3"     # Use gp3 for better performance
+  
+  # Other configuration...
+}
+```
+
+Multi-AZ provides:
+- ✅ Automatic failover to standby in another AZ
+- ✅ RTO of 1-2 minutes for database failover
+- ✅ Synchronous replication to standby
+- ✅ No data loss on failover
+
+### Rollback Procedure
+
+If DR activation fails or needs to be reversed:
+
+```bash
+# 1. Preserve DR infrastructure (don't destroy)
+# 2. Update DNS to point back to primary region
+# 3. Verify primary region health
+# 4. Drain traffic from DR region
+# 5. Keep DR environment for future testing
+```
+
+---
+
 ## Deployment Guide
 
 ### Prerequisites

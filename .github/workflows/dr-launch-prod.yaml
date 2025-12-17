@@ -1,44 +1,93 @@
-name: DR - Launch Prod in Alternate Region (manual)
+name: Disaster Recovery - Launch Prod
 
 on:
   workflow_dispatch:
     inputs:
       region:
-        description: Target region for DR (e.g., us-west-2)
+        description: 'AWS Region for DR deployment'
         required: true
-        default: us-west-2
+        type: choice
+        options:
+          - us-west-2
+          - us-west-1
+          - eu-west-1
+          - eu-central-1
+          - ap-southeast-1
+          - ap-northeast-1
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  dr:
+  dr-provision:
+    name: DR Provision - Prod (${{ inputs.region }})
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
+    environment: prod
+    
     steps:
-      - name: Checkout infra repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (prod)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ github.event.inputs.region }}
-          role-to-assume: ${{ secrets.AWS_TERRAFORM_ROLE_ARN_PROD }}
+          role-to-assume: arn:aws:iam::346746763840:role/cb-terraform-deploy-prod
+          aws-region: ${{ inputs.region }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.13.1
 
-      - name: Terraform apply (prod infra in new region)
-        working-directory: envs/prod
-        env:
-          AWS_REGION: ${{ github.event.inputs.region }}
-        run: terraform init -upgrade && terraform apply -auto-approve -var="aws_region=$AWS_REGION"
-
-      - name: Install eksctl
+      - name: Setup eksctl
         run: |
-          curl -sL https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz | tar xz
-          sudo mv eksctl /usr/local/bin/eksctl
+          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"
+          tar -xzf eksctl_Linux_amd64.tar.gz -C /tmp
+          sudo mv /tmp/eksctl /usr/local/bin
+          eksctl version
 
-      - name: Create EKS prod cluster in target region
-        run: eksctl create cluster --config-file=eksctl/prod-cluster.yaml --region ${{ github.event.inputs.region }}
+      - name: Terraform Init
+        working-directory: envs/prod
+        run: terraform init -backend-config=backend.hcl
+
+      - name: Terraform Plan
+        working-directory: envs/prod
+        run: terraform plan -var="aws_region=${{ inputs.region }}" -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: envs/prod
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Infrastructure Outputs
+        id: tf-outputs
+        working-directory: envs/prod
+        run: |
+          echo "## Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create EKS Cluster
+        run: |
+          eksctl create cluster -f eksctl/prod-cluster.yaml --region ${{ inputs.region }}
+
+      - name: Get Cluster Info
+        run: |
+          echo "## EKS Cluster Information" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          eksctl get cluster --name cluckn-bell-prod --region ${{ inputs.region }} >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: DR Summary
+        run: |
+          echo "## Disaster Recovery Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Production infrastructure provisioned in **${{ inputs.region }}**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Update DNS records to point to the new region" >> $GITHUB_STEP_SUMMARY
+          echo "2. Bootstrap IRSA roles: \`make irsa-prod REGION=${{ inputs.region }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Deploy applications via ArgoCD" >> $GITHUB_STEP_SUMMARY
+          echo "4. Verify service health and monitoring" >> $GITHUB_STEP_SUMMARY
+          echo "5. Update Route53 health checks if applicable" >> $GITHUB_STEP_SUMMARY

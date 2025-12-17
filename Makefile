@@ -1,126 +1,49 @@
-# Global defaults
-ENV ?= nonprod          # nonprod|prod
-REGION ?= us-east-1
-TF_VERSION := 1.13.1
-EKSCTL := eksctl
-
-# Profile names must match your ~/.aws/config
-NONPROD_PROFILE := cluckin-bell-qa
-PROD_PROFILE    := cluckin-bell-prod
-
-# Paths
-TF_DIR_NONPROD := envs/nonprod
-TF_DIR_PROD    := envs/prod
-EKSCTL_CFG_NONPROD := eksctl/devqa-cluster.yaml
-EKSCTL_CFG_PROD    := eksctl/prod-cluster.yaml
-
-# Select dirs based on ENV (only validate when needed)
-ifeq ($(ENV),nonprod)
-  TF_DIR := $(TF_DIR_NONPROD)
-  AWS_PROFILE := $(NONPROD_PROFILE)
-  EKSCTL_CFG := $(EKSCTL_CFG_NONPROD)
-else ifeq ($(ENV),prod)
-  TF_DIR := $(TF_DIR_PROD)
-  AWS_PROFILE := $(PROD_PROFILE)
-  EKSCTL_CFG := $(EKSCTL_CFG_PROD)
-endif
-
-.PHONY: help
-help:
-	@echo "Targets:"
-	@echo "  login-nonprod / login-prod     - AWS SSO login for the account"
-	@echo "  tf-init|tf-plan|tf-apply|tf-destroy ENV=nonprod|prod REGION=us-east-1"
-	@echo "  eks-create|eks-upgrade|eks-delete ENV=nonprod|prod REGION=us-east-1"
-	@echo "  outputs ENV=nonprod|prod       - Show key Terraform outputs"
-	@echo "  dr-provision-prod REGION=us-west-2 - Provision prod infra + EKS in new region"
-	@echo "Variables: ENV, REGION"
-
-# SSO logins
+.PHONY: help check-tools
 .PHONY: login-nonprod login-prod
-login-nonprod:
-	aws sso login --profile $(NONPROD_PROFILE)
-login-prod:
-	aws sso login --profile $(PROD_PROFILE)
-
-# Terraform wrappers
-.PHONY: tf-init tf-plan tf-apply tf-destroy
-tf-init:
-	@if [ "$(ENV)" != "nonprod" ] && [ "$(ENV)" != "prod" ]; then echo "ERROR: ENV must be nonprod or prod"; exit 1; fi
-	@echo "==> Terraform init in $(TF_DIR) (region=$(REGION), env=$(ENV))"
-	cd $(TF_DIR) && AWS_PROFILE=$(AWS_PROFILE) terraform init -upgrade
-
-tf-plan:
-	@if [ "$(ENV)" != "nonprod" ] && [ "$(ENV)" != "prod" ]; then echo "ERROR: ENV must be nonprod or prod"; exit 1; fi
-	@echo "==> Terraform plan in $(TF_DIR) (region=$(REGION), env=$(ENV))"
-	cd $(TF_DIR) && AWS_PROFILE=$(AWS_PROFILE) terraform validate && terraform fmt -recursive && terraform plan -var="aws_region=$(REGION)"
-
-tf-apply:
-	@if [ "$(ENV)" != "nonprod" ] && [ "$(ENV)" != "prod" ]; then echo "ERROR: ENV must be nonprod or prod"; exit 1; fi
-	@echo "==> Terraform apply in $(TF_DIR) (region=$(REGION), env=$(ENV))"
-	cd $(TF_DIR) && AWS_PROFILE=$(AWS_PROFILE) terraform apply -auto-approve -var="aws_region=$(REGION)"
-
-tf-destroy:
-	@if [ "$(ENV)" != "nonprod" ] && [ "$(ENV)" != "prod" ]; then echo "ERROR: ENV must be nonprod or prod"; exit 1; fi
-	@echo "==> Terraform destroy in $(TF_DIR) (region=$(REGION), env=$(ENV))"
-	cd $(TF_DIR) && AWS_PROFILE=$(AWS_PROFILE) terraform destroy -auto-approve -var="aws_region=$(REGION)"
-
-# eksctl wrappers (cluster lifecycle)
-.PHONY: eks-create eks-upgrade eks-delete
-eks-create:
-	@if [ "$(ENV)" != "nonprod" ] && [ "$(ENV)" != "prod" ]; then echo "ERROR: ENV must be nonprod or prod"; exit 1; fi
-	@echo "==> Creating EKS cluster (env=$(ENV), region=$(REGION))"
-	AWS_PROFILE=$(AWS_PROFILE) $(EKSCTL) create cluster --config-file=$(EKSCTL_CFG) --region $(REGION)
-
-eks-upgrade:
-	@if [ "$(ENV)" != "nonprod" ] && [ "$(ENV)" != "prod" ]; then echo "ERROR: ENV must be nonprod or prod"; exit 1; fi
-	@echo "==> Upgrading EKS cluster (env=$(ENV), region=$(REGION))"
-	AWS_PROFILE=$(AWS_PROFILE) $(EKSCTL) upgrade cluster --config-file=$(EKSCTL_CFG) --region $(REGION) --approve
-
-eks-delete:
-	@if [ "$(ENV)" != "nonprod" ] && [ "$(ENV)" != "prod" ]; then echo "ERROR: ENV must be nonprod or prod"; exit 1; fi
-	@echo "==> Deleting EKS cluster (env=$(ENV), region=$(REGION))"
-	AWS_PROFILE=$(AWS_PROFILE) $(EKSCTL) delete cluster --config-file=$(EKSCTL_CFG) --region $(REGION)
-
-# Outputs shortcut
-.PHONY: outputs
-outputs:
-	@if [ "$(ENV)" != "nonprod" ] && [ "$(ENV)" != "prod" ]; then echo "ERROR: ENV must be nonprod or prod"; exit 1; fi
-	@echo "==> Terraform outputs (env=$(ENV))"
-	cd $(TF_DIR) && AWS_PROFILE=$(AWS_PROFILE) terraform output
-
-# DR: minimal commands to stand up prod in another region
-# - Provisions VPC, RDS, ECR, Route53 links (where applicable) via Terraform
-# - Creates EKS in target region via eksctl
-.PHONY: dr-provision-prod
-dr-provision-prod:
-	@[ -n "$(REGION)" ] || (echo "Set REGION for DR (e.g., us-west-2)"; exit 1)
-	@echo "==> DR provisioning: prod in $(REGION)"
-	$(MAKE) login-prod
-	@echo "==> Terraform apply (prod) in new region"
-	cd $(TF_DIR_PROD) && AWS_PROFILE=$(PROD_PROFILE) terraform apply -auto-approve -var="aws_region=$(REGION)"
-	@echo "==> Create EKS cluster (prod) in new region"
-	AWS_PROFILE=$(PROD_PROFILE) $(EKSCTL) create cluster --config-file=$(EKSCTL_CFG_PROD) --region $(REGION)
-	@echo "==> DR provisioning complete for prod in $(REGION)"
-
-###############################################################################
-# Legacy targets (preserved for backward compatibility)
-###############################################################################
-.PHONY: check-tools
 .PHONY: sso-devqa sso-prod
 .PHONY: accounts-devqa accounts-prod dns vpc
 .PHONY: iam-nonprod iam-prod
 .PHONY: infra-nonprod infra-prod
-.PHONY: eks-create-legacy
+.PHONY: tf-init tf-plan tf-apply tf-destroy
+.PHONY: eks-create eks-upgrade eks-delete
+.PHONY: dr-provision-prod
+.PHONY: outputs
 .PHONY: irsa-nonprod irsa-prod irsa-bootstrap
 .PHONY: outputs-vpc
 .PHONY: init fmt fmt-check validate plan plan-out apply apply-auto apply-plan destroy clean show refresh
 .PHONY: workspace-list workspace-new workspace-select lint ci
 .PHONY: test-ecr-dry test-ecr-dev test-ecr-qa test-ecr-prod test-ecr-all test-ecr-status test-ecr-collect test-ecr-help
 
+###############################################################################
+# Variables (overridable via environment)
+###############################################################################
+REGION ?= us-east-1
+ENV ?= nonprod
+DEVQA_PROFILE ?= cluckin-bell-qa
+PROD_PROFILE ?= cluckin-bell-prod
 TF ?= terraform
 NONPROD_CLUSTER ?= cluckn-bell-nonprod
 PROD_CLUSTER ?= cluckn-bell-prod
-DEVQA_PROFILE ?= cluckin-bell-qa
+
+# Account IDs for reference
+NONPROD_ACCOUNT ?= 264765154707
+PROD_ACCOUNT ?= 346746763840
+
+###############################################################################
+# Default target
+###############################################################################
+help: ## Show this help message
+	@echo "==========================================="
+	@echo "Cluckin Bell Infrastructure Makefile"
+	@echo "==========================================="
+	@echo ""
+	@echo "Operating Model:"
+	@echo "  - Terraform for foundational AWS (accounts, DNS, VPC, node IAM)"
+	@echo "  - eksctl for EKS cluster lifecycle (>= v1.34)"
+	@echo "  - Terraform for post-cluster IRSA bootstrap"
+	@echo ""
+	@echo "Available targets:"
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 ###############################################################################
 # Tool checking
@@ -135,7 +58,20 @@ check-tools: ## Verify required tools are installed
 	@echo "✓ All required tools are installed"
 
 ###############################################################################
-# AWS SSO Login (legacy aliases)
+# AWS SSO Login (new simplified targets)
+###############################################################################
+login-nonprod: ## Login to AWS SSO for nonprod account
+	@echo "Logging into nonprod account ($(NONPROD_ACCOUNT))..."
+	aws sso login --profile $(DEVQA_PROFILE)
+	@echo "✓ Logged in to nonprod account"
+
+login-prod: ## Login to AWS SSO for prod account
+	@echo "Logging into prod account ($(PROD_ACCOUNT))..."
+	aws sso login --profile $(PROD_PROFILE)
+	@echo "✓ Logged in to prod account"
+
+###############################################################################
+# AWS SSO Login (legacy targets for backward compatibility)
 ###############################################################################
 sso-devqa: login-nonprod ## Login to AWS SSO for devqa account (alias for login-nonprod)
 
@@ -196,7 +132,143 @@ infra-nonprod: sso-devqa accounts-devqa vpc iam-nonprod ## Deploy all foundation
 infra-prod: sso-prod accounts-prod vpc iam-prod ## Deploy all foundational prod infrastructure
 
 ###############################################################################
-# EKS cluster creation via eksctl (legacy)
+# Terraform workflow targets (new parameterized targets)
+###############################################################################
+tf-init: ## Initialize Terraform for environment (usage: make tf-init ENV=nonprod REGION=us-east-1)
+	@echo "Initializing Terraform for $(ENV) in $(REGION)..."
+	@if [ "$(ENV)" = "nonprod" ]; then \
+		cd envs/nonprod && $(TF) init -backend-config=backend.hcl; \
+	elif [ "$(ENV)" = "prod" ]; then \
+		cd envs/prod && $(TF) init -backend-config=backend.hcl; \
+	else \
+		echo "ERROR: ENV must be 'nonprod' or 'prod'"; \
+		exit 1; \
+	fi
+
+tf-plan: ## Plan Terraform changes (usage: make tf-plan ENV=nonprod REGION=us-east-1)
+	@echo "Planning Terraform changes for $(ENV) in $(REGION)..."
+	@if [ "$(ENV)" = "nonprod" ]; then \
+		cd envs/nonprod && $(TF) plan -var="aws_region=$(REGION)"; \
+	elif [ "$(ENV)" = "prod" ]; then \
+		cd envs/prod && $(TF) plan -var="aws_region=$(REGION)"; \
+	else \
+		echo "ERROR: ENV must be 'nonprod' or 'prod'"; \
+		exit 1; \
+	fi
+
+tf-apply: ## Apply Terraform changes (usage: make tf-apply ENV=nonprod REGION=us-east-1)
+	@echo "Applying Terraform changes for $(ENV) in $(REGION)..."
+	@if [ "$(ENV)" = "nonprod" ]; then \
+		cd envs/nonprod && $(TF) apply -var="aws_region=$(REGION)"; \
+	elif [ "$(ENV)" = "prod" ]; then \
+		cd envs/prod && $(TF) apply -var="aws_region=$(REGION)"; \
+	else \
+		echo "ERROR: ENV must be 'nonprod' or 'prod'"; \
+		exit 1; \
+	fi
+
+tf-destroy: ## Destroy Terraform resources (usage: make tf-destroy ENV=nonprod REGION=us-east-1)
+	@echo "WARNING: Destroying Terraform resources for $(ENV) in $(REGION)..."
+	@read -p "Are you sure? Type 'yes' to continue: " confirm && [ "$$confirm" = "yes" ] || exit 1
+	@if [ "$(ENV)" = "nonprod" ]; then \
+		cd envs/nonprod && $(TF) destroy -var="aws_region=$(REGION)"; \
+	elif [ "$(ENV)" = "prod" ]; then \
+		cd envs/prod && $(TF) destroy -var="aws_region=$(REGION)"; \
+	else \
+		echo "ERROR: ENV must be 'nonprod' or 'prod'"; \
+		exit 1; \
+	fi
+
+###############################################################################
+# EKS cluster management via eksctl (new parameterized targets)
+###############################################################################
+eks-create-env: ## Create EKS cluster for environment (usage: make eks-create-env ENV=nonprod REGION=us-east-1)
+	@echo "Creating EKS cluster for $(ENV) in $(REGION)..."
+	@if [ "$(ENV)" = "nonprod" ]; then \
+		PROFILE=$(DEVQA_PROFILE) eksctl create cluster -f eksctl/devqa-cluster.yaml --region $(REGION); \
+	elif [ "$(ENV)" = "prod" ]; then \
+		PROFILE=$(PROD_PROFILE) eksctl create cluster -f eksctl/prod-cluster.yaml --region $(REGION); \
+	else \
+		echo "ERROR: ENV must be 'nonprod' or 'prod'"; \
+		exit 1; \
+	fi
+
+eks-upgrade: ## Upgrade EKS cluster (usage: make eks-upgrade ENV=nonprod)
+	@echo "Upgrading EKS cluster for $(ENV)..."
+	@if [ "$(ENV)" = "nonprod" ]; then \
+		AWS_PROFILE=$(DEVQA_PROFILE) eksctl upgrade cluster --name $(NONPROD_CLUSTER) --approve; \
+	elif [ "$(ENV)" = "prod" ]; then \
+		AWS_PROFILE=$(PROD_PROFILE) eksctl upgrade cluster --name $(PROD_CLUSTER) --approve; \
+	else \
+		echo "ERROR: ENV must be 'nonprod' or 'prod'"; \
+		exit 1; \
+	fi
+
+eks-delete: ## Delete EKS cluster (usage: make eks-delete ENV=nonprod)
+	@echo "WARNING: Deleting EKS cluster for $(ENV)..."
+	@read -p "Are you sure? Type 'yes' to continue: " confirm && [ "$$confirm" = "yes" ] || exit 1
+	@if [ "$(ENV)" = "nonprod" ]; then \
+		AWS_PROFILE=$(DEVQA_PROFILE) eksctl delete cluster --name $(NONPROD_CLUSTER) --wait; \
+	elif [ "$(ENV)" = "prod" ]; then \
+		AWS_PROFILE=$(PROD_PROFILE) eksctl delete cluster --name $(PROD_CLUSTER) --wait; \
+	else \
+		echo "ERROR: ENV must be 'nonprod' or 'prod'"; \
+		exit 1; \
+	fi
+
+###############################################################################
+# Disaster Recovery
+###############################################################################
+dr-provision-prod: ## Provision prod infrastructure in alternate region (usage: make dr-provision-prod REGION=us-west-2)
+	@echo "=========================================="
+	@echo "Disaster Recovery: Provisioning prod in $(REGION)"
+	@echo "=========================================="
+	@echo ""
+	@echo "This will:"
+	@echo "  1. Login to prod account via SSO"
+	@echo "  2. Initialize and apply Terraform in envs/prod"
+	@echo "  3. Create EKS cluster using eksctl"
+	@echo ""
+	@read -p "Continue? (yes/no): " confirm && [ "$$confirm" = "yes" ] || exit 1
+	@echo ""
+	@echo "Step 1: Logging into prod account..."
+	@$(MAKE) login-prod
+	@echo ""
+	@echo "Step 2: Initializing Terraform..."
+	@cd envs/prod && $(TF) init -backend-config=backend.hcl
+	@echo ""
+	@echo "Step 3: Planning Terraform changes..."
+	@cd envs/prod && $(TF) plan -var="aws_region=$(REGION)"
+	@echo ""
+	@read -p "Apply Terraform changes? (yes/no): " apply && [ "$$apply" = "yes" ] || exit 1
+	@echo ""
+	@echo "Step 4: Applying Terraform..."
+	@cd envs/prod && $(TF) apply -var="aws_region=$(REGION)" -auto-approve
+	@echo ""
+	@echo "Step 5: Creating EKS cluster..."
+	@AWS_PROFILE=$(PROD_PROFILE) eksctl create cluster -f eksctl/prod-cluster.yaml --region $(REGION)
+	@echo ""
+	@echo "✓ DR provisioning complete for $(REGION)"
+
+###############################################################################
+# Output helpers
+###############################################################################
+outputs: ## Print key infrastructure outputs (usage: make outputs ENV=nonprod)
+	@echo "=========================================="
+	@echo "Infrastructure Outputs for $(ENV)"
+	@echo "=========================================="
+	@echo ""
+	@if [ "$(ENV)" = "nonprod" ]; then \
+		cd envs/nonprod && $(TF) output; \
+	elif [ "$(ENV)" = "prod" ]; then \
+		cd envs/prod && $(TF) output; \
+	else \
+		echo "ERROR: ENV must be 'nonprod' or 'prod'"; \
+		exit 1; \
+	fi
+
+###############################################################################
+# EKS cluster creation via eksctl (legacy target for backward compatibility)
 ###############################################################################
 eks-create-legacy: ## Create/upgrade EKS clusters using eksctl (legacy script, requires VPCs exist)
 	@echo "Creating EKS clusters via eksctl..."

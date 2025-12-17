@@ -1,61 +1,101 @@
-name: eksctl Cluster Ops (manual)
+name: EKS Cluster Management
 
 on:
   workflow_dispatch:
     inputs:
-      env:
-        description: Environment (nonprod|prod)
+      environment:
+        description: 'Environment'
         required: true
-        default: nonprod
+        type: choice
+        options:
+          - nonprod
+          - prod
       operation:
-        description: Operation (create|upgrade|delete)
+        description: 'Operation to perform'
         required: true
-        default: create
+        type: choice
+        options:
+          - create
+          - upgrade
+          - delete
       region:
-        description: AWS region
-        required: true
-        default: us-east-1
+        description: 'AWS Region'
+        required: false
+        default: 'us-east-1'
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   eksctl:
+    name: eksctl ${{ inputs.operation }} - ${{ inputs.environment }}
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
+    environment: ${{ inputs.environment }}
+    
     steps:
-      - name: Checkout infra repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Select config and profile
-        id: sel
-        run: |
-          ENV="${{ github.event.inputs.env }}"
-          REGION="${{ github.event.inputs.region }}"
-          if [ "$ENV" = "nonprod" ]; then CFG="eksctl/devqa-cluster.yaml"; PROFILE="cluckin-bell-qa";
-          elif [ "$ENV" = "prod" ]; then CFG="eksctl/prod-cluster.yaml"; PROFILE="cluckin-bell-prod";
-          else echo "Invalid env"; exit 1; fi
-          echo "CFG=$CFG" >> $GITHUB_OUTPUT
-          echo "PROFILE=$PROFILE" >> $GITHUB_OUTPUT
-          echo "REGION=$REGION" >> $GITHUB_OUTPUT
-
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (nonprod)
+        if: inputs.environment == 'nonprod'
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-region: ${{ steps.sel.outputs.REGION }}
-          role-to-assume: ${{ steps.sel.outputs.PROFILE == 'cluckin-bell-qa' && secrets.AWS_EKSCTL_ROLE_ARN_QA || secrets.AWS_EKSCTL_ROLE_ARN_PROD }}
+          role-to-assume: arn:aws:iam::264765154707:role/cb-terraform-deploy-devqa
+          aws-region: ${{ inputs.region }}
 
-      - name: Install eksctl
+      - name: Configure AWS credentials (prod)
+        if: inputs.environment == 'prod'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::346746763840:role/cb-terraform-deploy-prod
+          aws-region: ${{ inputs.region }}
+
+      - name: Setup eksctl
         run: |
-          curl -sL https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz | tar xz
-          sudo mv eksctl /usr/local/bin/eksctl
+          curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"
+          tar -xzf eksctl_Linux_amd64.tar.gz -C /tmp
+          sudo mv /tmp/eksctl /usr/local/bin
           eksctl version
 
-      - name: Run eksctl
+      - name: Create EKS Cluster
+        if: inputs.operation == 'create'
         run: |
-          OP="${{ github.event.inputs.operation }}"
-          case "$OP" in
-            create) eksctl create cluster --config-file=${{ steps.sel.outputs.CFG }} --region ${{ steps.sel.outputs.REGION }} ;;
-            upgrade) eksctl upgrade cluster --config-file=${{ steps.sel.outputs.CFG }} --region ${{ steps.sel.outputs.REGION }} --approve ;;
-            delete) eksctl delete cluster --config-file=${{ steps.sel.outputs.CFG }} --region ${{ steps.sel.outputs.REGION }} ;;
-            *) echo "invalid operation"; exit 1 ;;
-          esac
+          if [ "${{ inputs.environment }}" = "nonprod" ]; then
+            eksctl create cluster -f eksctl/devqa-cluster.yaml --region ${{ inputs.region }}
+          else
+            eksctl create cluster -f eksctl/prod-cluster.yaml --region ${{ inputs.region }}
+          fi
+
+      - name: Upgrade EKS Cluster
+        if: inputs.operation == 'upgrade'
+        run: |
+          if [ "${{ inputs.environment }}" = "nonprod" ]; then
+            eksctl upgrade cluster --name cluckn-bell-nonprod --region ${{ inputs.region }} --approve
+          else
+            eksctl upgrade cluster --name cluckn-bell-prod --region ${{ inputs.region }} --approve
+          fi
+
+      - name: Delete EKS Cluster
+        if: inputs.operation == 'delete'
+        run: |
+          if [ "${{ inputs.environment }}" = "nonprod" ]; then
+            eksctl delete cluster --name cluckn-bell-nonprod --region ${{ inputs.region }} --wait
+          else
+            eksctl delete cluster --name cluckn-bell-prod --region ${{ inputs.region }} --wait
+          fi
+
+      - name: Get Cluster Info
+        if: inputs.operation == 'create' || inputs.operation == 'upgrade'
+        run: |
+          if [ "${{ inputs.environment }}" = "nonprod" ]; then
+            CLUSTER_NAME=cluckn-bell-nonprod
+          else
+            CLUSTER_NAME=cluckn-bell-prod
+          fi
+          
+          echo "## EKS Cluster Information" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          eksctl get cluster --name $CLUSTER_NAME --region ${{ inputs.region }} >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
