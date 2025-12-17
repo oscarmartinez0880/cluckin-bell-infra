@@ -2,6 +2,8 @@
 
 This repository contains Terraform infrastructure as code for the Cluckin Bell application, providing multi-environment EKS clusters with GitOps using ArgoCD.
 
+> **📖 [Operations Runbook](docs/Runbook.md)**: Comprehensive operational guide covering day-to-day operations, Makefile usage, GitHub Actions workflows, and disaster recovery procedures.
+
 ## Operating Model
 
 The infrastructure follows a separation of concerns for better safety and clarity:
