@@ -194,6 +194,8 @@ eks-create-env: ## Create EKS cluster for environment (usage: make eks-create-en
 		exit 1; \
 	fi
 
+eks-create: eks-create-env ## Alias for eks-create-env (usage: make eks-create ENV=nonprod REGION=us-east-1)
+
 eks-upgrade: ## Upgrade EKS cluster (usage: make eks-upgrade ENV=nonprod)
 	@echo "Upgrading EKS cluster for $(ENV)..."
 	@if [ "$(ENV)" = "nonprod" ]; then \
