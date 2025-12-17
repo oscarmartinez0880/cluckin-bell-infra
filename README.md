@@ -583,6 +583,15 @@ For comprehensive operational procedures, including:
 
 **See the complete operational runbook**: [docs/Runbook.md](docs/Runbook.md)
 
+### GitHub Actions OIDC Roles
+
+The infrastructure includes Terraform-managed IAM roles for GitHub Actions workflows:
+- **Terraform Role**: For infrastructure deployment (`terraform plan/apply/destroy`)
+- **eksctl Role**: For EKS cluster management (`eksctl create/upgrade/delete`)
+- **ECR Push Role**: For container image publishing
+
+These roles are automatically created in each environment (`envs/nonprod` and `envs/prod`) with trust policies allowing GitHub workflows to assume them without static credentials. Role ARNs are available via Terraform outputs and should be configured as GitHub repository variables. See [docs/Runbook.md#repository-variables-and-iam-oidc-setup](docs/Runbook.md#repository-variables-and-iam-oidc-setup) for details.
+
 ### Quick Links
 
 - **Makefile Operations**: [Runbook - Makefile Operations](docs/Runbook.md#makefile-operations)

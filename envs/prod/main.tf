@@ -721,3 +721,28 @@ module "karpenter" {
 
   tags = local.common_tags
 }
+
+# GitHub Actions OIDC Roles
+# Creates GitHub OIDC provider and three IAM roles for CI/CD workflows
+module "github_oidc_roles" {
+  source = "../../modules/github-oidc-roles"
+
+  terraform_role_name = "GitHubActions-Terraform-prod"
+  eksctl_role_name    = "GitHubActions-eksctl-prod"
+  ecr_push_role_name  = "GitHubActions-ECRPush-prod"
+
+  # Allow these repositories to assume the roles
+  allowed_repos = [
+    "repo:oscarmartinez0880/cluckin-bell-infra:*",
+    "repo:oscarmartinez0880/cluckin-bell:*",
+    "repo:oscarmartinez0880/cluckin-bell-app:*",
+    "repo:oscarmartinez0880/wingman-api:*"
+  ]
+
+  # Policy attachments (can be customized later for least privilege)
+  terraform_policy_arns = ["arn:aws:iam::aws:policy/AdministratorAccess"]
+  eksctl_policy_arns    = ["arn:aws:iam::aws:policy/AdministratorAccess"]
+  ecr_push_policy_arns  = ["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"]
+
+  tags = local.common_tags
+}

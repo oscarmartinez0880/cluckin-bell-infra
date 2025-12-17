@@ -111,7 +111,25 @@ region = us-east-1
 
 ### GitHub Repository Variables
 
-For GitHub Actions workflows to authenticate with AWS, configure these repository variables:
+For GitHub Actions workflows to authenticate with AWS, configure these repository variables using the ARNs output by Terraform.
+
+#### Obtaining Role ARNs from Terraform
+
+After applying Terraform in each environment, retrieve the role ARNs:
+
+```bash
+# Get nonprod role ARNs
+cd envs/nonprod
+terraform output github_actions_terraform_role_arn
+terraform output github_actions_eksctl_role_arn
+terraform output github_actions_ecr_push_role_arn
+
+# Get prod role ARNs
+cd envs/prod
+terraform output github_actions_terraform_role_arn
+terraform output github_actions_eksctl_role_arn
+terraform output github_actions_ecr_push_role_arn
+```
 
 #### Repository Settings Location
 Navigate to: **GitHub Repository** → **Settings** → **Secrets and variables** → **Actions** → **Variables**
@@ -120,7 +138,9 @@ Navigate to: **GitHub Repository** → **Settings** → **Secrets and variables*
 
 | Variable Name | Value | Purpose |
 |--------------|-------|---------|
-| `AWS_TERRAFORM_ROLE_ARN_NONPROD` | `arn:aws:iam::264765154707:role/cb-terraform-deploy-devqa` | Terraform deployment role for nonprod |
+| `AWS_TERRAFORM_ROLE_ARN_NONPROD` | From `terraform output` (GitHubActions-Terraform-nonprod) | Terraform deployment role for nonprod |
+| `AWS_EKSCTL_ROLE_ARN_NONPROD` | From `terraform output` (GitHubActions-eksctl-nonprod) | eksctl role for nonprod |
+| `AWS_ECR_PUSH_ROLE_ARN_NONPROD` | From `terraform output` (GitHubActions-ECRPush-nonprod) | ECR push role for nonprod |
 | `AWS_REGION_NONPROD` | `us-east-1` | Default region for nonprod |
 | `NONPROD_ACCOUNT_ID` | `264765154707` | Account ID for validation |
 
@@ -128,7 +148,9 @@ Navigate to: **GitHub Repository** → **Settings** → **Secrets and variables*
 
 | Variable Name | Value | Purpose |
 |--------------|-------|---------|
-| `AWS_TERRAFORM_ROLE_ARN_PROD` | `arn:aws:iam::346746763840:role/cb-terraform-deploy-prod` | Terraform deployment role for prod |
+| `AWS_TERRAFORM_ROLE_ARN_PROD` | From `terraform output` (GitHubActions-Terraform-prod) | Terraform deployment role for prod |
+| `AWS_EKSCTL_ROLE_ARN_PROD` | From `terraform output` (GitHubActions-eksctl-prod) | eksctl role for prod |
+| `AWS_ECR_PUSH_ROLE_ARN_PROD` | From `terraform output` (GitHubActions-ECRPush-prod) | ECR push role for prod |
 | `AWS_REGION_PROD` | `us-east-1` | Default region for prod |
 | `PROD_ACCOUNT_ID` | `346746763840` | Account ID for validation |
 
@@ -173,28 +195,31 @@ The deployment roles need permissions for:
 - CloudWatch logs and metrics
 - Secrets Manager access
 
-**Note**: These roles are created by the bootstrap Terraform configuration in `terraform/accounts/`.
+**Note**: These roles are now managed by Terraform in the environment stacks (`envs/nonprod` and `envs/prod`).
 
-### OIDC Provider Setup
+### OIDC Provider and Roles Setup
 
-Each AWS account requires an OIDC identity provider configured for GitHub:
+The GitHub OIDC provider and IAM roles are created automatically when applying Terraform in each environment:
 
 ```bash
 # Deploy OIDC provider and roles for nonprod
-cd terraform/accounts/devqa
+cd envs/nonprod
 terraform init
 terraform apply
 
 # Deploy OIDC provider and roles for prod
-cd terraform/accounts/prod
+cd envs/prod
 terraform init
 terraform apply
 ```
 
 This creates:
-- GitHub OIDC identity provider in IAM
-- IAM roles with trust relationships for GitHub Actions
-- Required permissions policies
+- GitHub OIDC identity provider in IAM (`token.actions.githubusercontent.com`)
+- Three IAM roles per environment with trust relationships for GitHub Actions:
+  - `GitHubActions-Terraform-{env}`: For infrastructure deployment
+  - `GitHubActions-eksctl-{env}`: For cluster management
+  - `GitHubActions-ECRPush-{env}`: For container image publishing
+- Required permissions policies (AdministratorAccess for Terraform/eksctl, ECR PowerUser for ECR push)
 
 ---
 

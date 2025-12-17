@@ -147,3 +147,19 @@ output "alerting_webhook_secret_name" {
   description = "Name of the Secrets Manager secret containing webhook URL"
   value       = var.enable_alerting ? module.alerting[0].webhook_secret_name : ""
 }
+
+# GitHub Actions OIDC Role Outputs
+output "github_actions_terraform_role_arn" {
+  description = "ARN of the GitHub Actions Terraform role"
+  value       = module.github_oidc_roles.terraform_role_arn
+}
+
+output "github_actions_eksctl_role_arn" {
+  description = "ARN of the GitHub Actions eksctl role"
+  value       = module.github_oidc_roles.eksctl_role_arn
+}
+
+output "github_actions_ecr_push_role_arn" {
+  description = "ARN of the GitHub Actions ECR push role"
+  value       = module.github_oidc_roles.ecr_push_role_arn
+}
