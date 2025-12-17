@@ -17,13 +17,14 @@ data "aws_iam_policy_document" "tf_deploy_trust_devqa" {
       values   = ["sts.amazonaws.com"]
     }
 
-    # Restrict to this repo + GitHub Environments dev and qa
+    # Restrict to this repo + GitHub Environments dev, qa, and nonprod
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
         "repo:${var.github_repository_owner}/cluckin-bell-infra:environment:dev",
         "repo:${var.github_repository_owner}/cluckin-bell-infra:environment:qa",
+        "repo:${var.github_repository_owner}/cluckin-bell-infra:environment:nonprod",
       ]
     }
   }
