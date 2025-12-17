@@ -63,3 +63,9 @@ variable "letsencrypt_email" {
   type        = string
   default     = "admin@cluckin-bell.com"
 }
+
+variable "enable_karpenter" {
+  description = "Enable Karpenter IAM resources (Karpenter itself deployed via ArgoCD)"
+  type        = bool
+  default     = false
+}
