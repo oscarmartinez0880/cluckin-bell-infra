@@ -740,11 +740,20 @@ module "ecr_replication" {
 # Disabled by default (var.enable_secrets_replication = false)
 # When enabled, replicates critical secrets to specified regions
 # Note: Requires secrets to be created via the secrets module
+# 
+# Example configuration:
+# secrets = {
+#   "prod/database/master" = {
+#     description      = "Master database credentials"
+#     static_values    = { username = "admin" }
+#     generated_values = { password = "" }
+#   }
+# }
 module "secrets_replication" {
   count  = var.enable_secrets && var.enable_secrets_replication && length(var.secrets_replication_regions) > 0 ? 1 : 0
   source = "../../modules/secrets"
 
-  secrets = {} # Placeholder - configure with actual secrets when needed
+  secrets = {} # TODO: Configure with actual secrets to replicate when enabling DR
 
   enable_replication  = true
   replication_regions = var.secrets_replication_regions
