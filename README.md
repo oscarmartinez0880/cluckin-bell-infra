@@ -2,6 +2,8 @@
 
 This repository contains Terraform infrastructure as code for the Cluckin Bell application, providing multi-environment EKS clusters with GitOps using ArgoCD.
 
+> **📖 [Operations Runbook](docs/Runbook.md)**: Comprehensive operational guide covering day-to-day operations, Makefile usage, GitHub Actions workflows, and disaster recovery procedures.
+
 ## Operating Model
 
 The infrastructure follows a separation of concerns for better safety and clarity:
@@ -671,6 +673,15 @@ For comprehensive operational procedures, including:
 - Validation, cut-over, and rollback steps
 
 **See the complete operational runbook**: [docs/Runbook.md](docs/Runbook.md)
+
+### GitHub Actions OIDC Roles
+
+The infrastructure includes Terraform-managed IAM roles for GitHub Actions workflows:
+- **Terraform Role**: For infrastructure deployment (`terraform plan/apply/destroy`)
+- **eksctl Role**: For EKS cluster management (`eksctl create/upgrade/delete`)
+- **ECR Push Role**: For container image publishing
+
+These roles are automatically created in each environment (`envs/nonprod` and `envs/prod`) with trust policies allowing GitHub workflows to assume them without static credentials. Role ARNs are available via Terraform outputs and should be configured as GitHub repository variables. See [docs/Runbook.md#repository-variables-and-iam-oidc-setup](docs/Runbook.md#repository-variables-and-iam-oidc-setup) for details.
 
 ### Quick Links
 

@@ -1,44 +1,52 @@
+variable "allowed_repos" {
+  description = "List of GitHub repositories allowed to assume roles (e.g., 'repo:owner/repo:*')"
+  type        = list(string)
+  default = [
+    "repo:oscarmartinez0880/cluckin-bell-infra:*",
+    "repo:oscarmartinez0880/cluckin-bell:*",
+    "repo:oscarmartinez0880/cluckin-bell-app:*",
+    "repo:oscarmartinez0880/wingman-api:*"
+  ]
+}
+
 variable "terraform_role_name" {
-  description = "Name of the IAM role for Terraform deployments via GitHub Actions"
+  description = "Name of the Terraform role"
   type        = string
+  default     = "GitHubActions-Terraform"
 }
 
 variable "eksctl_role_name" {
-  description = "Name of the IAM role for eksctl operations via GitHub Actions"
+  description = "Name of the eksctl role"
   type        = string
+  default     = "GitHubActions-eksctl"
 }
 
 variable "ecr_push_role_name" {
-  description = "Name of the IAM role for ECR image pushes via GitHub Actions"
+  description = "Name of the ECR push role"
   type        = string
-}
-
-variable "allowed_repos" {
-  description = "List of GitHub repositories allowed to assume these roles (format: 'owner/repo')"
-  type        = list(string)
-  default     = ["oscarmartinez0880/cluckin-bell-infra"]
+  default     = "GitHubActions-ECRPush"
 }
 
 variable "terraform_policy_arns" {
-  description = "List of IAM policy ARNs to attach to the Terraform role"
+  description = "List of managed policy ARNs to attach to Terraform role"
   type        = list(string)
-  default     = []
+  default     = ["arn:aws:iam::aws:policy/AdministratorAccess"]
 }
 
 variable "eksctl_policy_arns" {
-  description = "List of IAM policy ARNs to attach to the eksctl role"
+  description = "List of managed policy ARNs to attach to eksctl role"
   type        = list(string)
-  default     = []
+  default     = ["arn:aws:iam::aws:policy/AdministratorAccess"]
 }
 
-variable "ecr_repository_arns" {
-  description = "List of ECR repository ARNs for the ECR push role"
+variable "ecr_push_policy_arns" {
+  description = "List of managed policy ARNs to attach to ECR push role"
   type        = list(string)
-  default     = []
+  default     = ["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"]
 }
 
 variable "tags" {
-  description = "Tags to apply to all resources"
+  description = "Tags to apply to resources"
   type        = map(string)
   default     = {}
 }

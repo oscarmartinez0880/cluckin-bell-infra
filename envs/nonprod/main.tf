@@ -121,6 +121,27 @@ module "ecr" {
   tags             = local.common_tags
 }
 
+# ECR Cross-Region Replication for Disaster Recovery
+# Disabled by default (var.enable_ecr_replication = false)
+# Requires ECR repositories to exist (var.enable_ecr = true)
+resource "aws_ecr_replication_configuration" "nonprod" {
+  count = var.enable_ecr && var.enable_ecr_replication ? 1 : 0
+
+  replication_configuration {
+    rule {
+      dynamic "destination" {
+        for_each = var.ecr_replication_regions
+        content {
+          region      = destination.value
+          registry_id = data.aws_caller_identity.current.account_id
+        }
+      }
+    }
+  }
+
+  depends_on = [module.ecr]
+}
+
 # Monitoring with CloudWatch and Container Insights
 # Disabled by default (var.enable_monitoring = false) to prevent monitoring costs
 # NOTE: When enabled, also enable var.enable_irsa=true for agent IRSA roles
@@ -806,6 +827,30 @@ module "secrets" {
   }
 
   tags = local.common_tags
+}
+
+# Secrets Manager Cross-Region Replication for Disaster Recovery
+# Disabled by default (var.enable_secrets_replication = false)
+# Requires Secrets Manager secrets to exist (var.enable_secrets = true)
+# Note: Replicas are created for each secret in specified regions
+resource "aws_secretsmanager_secret_replica" "nonprod" {
+  for_each = var.enable_secrets && var.enable_secrets_replication ? {
+    for combo in flatten([
+      for secret_name, secret_config in module.secrets[0].secret_arns : [
+        for region in var.secrets_replication_regions : {
+          key         = "${secret_name}-${region}"
+          secret_id   = secret_config
+          region      = region
+          secret_name = secret_name
+        }
+      ]
+    ]) : combo.key => combo
+  } : {}
+
+  replica_region = each.value.region
+  secret_id      = each.value.secret_id
+
+  depends_on = [module.secrets]
 }
 
 # Alerting Infrastructure
