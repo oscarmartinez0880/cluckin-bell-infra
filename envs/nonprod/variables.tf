@@ -267,3 +267,8 @@ variable "enable_alerting" {
   default     = false
 }
 
+variable "enable_karpenter" {
+  description = "Enable Karpenter IAM resources"
+  type        = bool
+  default     = false
+}

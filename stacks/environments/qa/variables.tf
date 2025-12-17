@@ -7,10 +7,10 @@ variable "manage_eks" {
 variable "kubernetes_version" {
   description = "Kubernetes version for EKS cluster"
   type        = string
-  default     = "1.34"
+  default     = "1.33"
   validation {
-    condition     = can(regex("^1\\.(3[4-9]|[4-9][0-9])(\\..*)?$", var.kubernetes_version))
-    error_message = "Kubernetes version must be 1.34 or higher."
+    condition     = can(regex("^1\\.(3[0-9]|[4-9][0-9])(\\..*)?$", var.kubernetes_version))
+    error_message = "Kubernetes version must be 1.30 or higher."
   }
 }
 
@@ -62,4 +62,10 @@ variable "letsencrypt_email" {
   description = "Email address for Let's Encrypt certificate registration"
   type        = string
   default     = "admin@cluckin-bell.com"
+}
+
+variable "enable_karpenter" {
+  description = "Enable Karpenter IAM resources (Karpenter itself deployed via ArgoCD)"
+  type        = bool
+  default     = false
 }

@@ -797,3 +797,17 @@ module "alerting" {
 
   tags = local.common_tags
 }
+
+# Karpenter IAM Resources
+# Disabled by default - Karpenter K8s resources deployed via ArgoCD
+module "karpenter_iam" {
+  count  = var.enable_karpenter ? 1 : 0
+  source = "../../modules/karpenter-iam"
+
+  cluster_name      = "cluckn-bell-nonprod"
+  oidc_provider_arn = local.cluster_oidc_provider_arn
+  region            = var.aws_region
+  namespace         = "kube-system"
+
+  tags = local.common_tags
+}

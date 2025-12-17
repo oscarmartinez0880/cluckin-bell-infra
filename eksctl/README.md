@@ -7,12 +7,12 @@ This directory contains eksctl configuration files for managing EKS clusters in 
 - **devqa-cluster.yaml**: Configuration for the shared nonprod cluster (cluckn-bell-nonprod)
   - Account: 264765154707 (cluckin-bell-qa)
   - Node groups: `dev` and `qa`
-  - Kubernetes version: 1.34
+  - Kubernetes version: 1.33
   
 - **prod-cluster.yaml**: Configuration for the production cluster (cluckn-bell-prod)
   - Account: 346746763840 (cluckin-bell-prod)
   - Node group: `prod`
-  - Kubernetes version: 1.34
+  - Kubernetes version: 1.33
 
 ## Prerequisites
 
@@ -125,3 +125,34 @@ Both clusters use:
 - Use cluster autoscaler to scale based on demand
 - AL2023 AMI has no license cost
 - Monitor and adjust instance types based on actual usage
+
+## Karpenter Migration Path
+
+For organizations looking to migrate from Cluster Autoscaler to Karpenter:
+
+1. **Enable Karpenter IAM resources** via Terraform:
+   ```bash
+   cd envs/nonprod
+   # Edit nonprod.auto.tfvars or nonprod.tfvars
+   # Set: enable_karpenter = true
+   terraform plan
+   terraform apply
+   ```
+
+2. **Deploy Karpenter** via ArgoCD (recommended) or Helm:
+   - Karpenter controller and CRDs are managed as Kubernetes resources
+   - Use the controller IAM role ARN from Terraform outputs
+   - Configure NodePools and EC2NodeClasses via Kubernetes manifests
+
+3. **Gradual migration**:
+   - Run Karpenter alongside Cluster Autoscaler initially
+   - Migrate workloads to Karpenter-managed nodes progressively
+   - Scale down or remove Cluster Autoscaler node groups once migration is complete
+
+4. **Benefits**:
+   - Faster scaling (seconds vs minutes)
+   - Better bin-packing and cost optimization
+   - Support for diverse instance types and spot instances
+   - Native support for pod-level disruption budgets
+
+Note: Karpenter itself (controller, CRDs, NodePools) is NOT managed by Terraform to follow EKS best practices of separating infrastructure (AWS resources) from Kubernetes resources.

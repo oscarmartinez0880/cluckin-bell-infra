@@ -46,15 +46,21 @@ variable "max_allocated_storage" {
 }
 
 variable "storage_type" {
-  description = "One of 'standard' (magnetic), 'gp2' (general purpose SSD), or 'io1' (provisioned IOPS SSD)"
+  description = "One of 'standard' (magnetic), 'gp2', 'gp3', or 'io1' (provisioned IOPS SSD)"
   type        = string
-  default     = "gp2"
+  default     = "gp3"
 }
 
 variable "storage_encrypted" {
   description = "Specifies whether the DB instance is encrypted"
   type        = bool
   default     = true
+}
+
+variable "multi_az" {
+  description = "Specifies if the RDS instance is multi-AZ"
+  type        = bool
+  default     = false
 }
 
 variable "kms_key_id" {

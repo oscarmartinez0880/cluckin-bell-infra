@@ -155,6 +155,7 @@ resource "aws_db_instance" "main" {
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
   publicly_accessible    = var.publicly_accessible
+  multi_az               = var.multi_az
 
   # Parameter and option groups
   parameter_group_name = var.create_db_parameter_group ? aws_db_parameter_group.main[0].name : var.parameter_group_name
