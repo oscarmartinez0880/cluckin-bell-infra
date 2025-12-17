@@ -37,11 +37,12 @@ resource "aws_ecr_replication_configuration" "replication" {
 
 locals {
   # Create a map of secret replication configurations for output
+  # Using a unique delimiter to avoid conflicts in key generation
   secret_replicas = var.enable_secrets_replication && length(var.secrets_replication_regions) > 0 ? {
     for pair in flatten([
       for secret_id in var.secret_ids : [
         for region in var.secrets_replication_regions : {
-          key       = "${secret_id}-${region}"
+          key       = "${secret_id}::${region}" # Using :: as delimiter to avoid conflicts
           secret_id = secret_id
           region    = region
         }
@@ -104,11 +105,12 @@ resource "aws_route53_record" "primary" {
 resource "aws_route53_record" "secondary" {
   for_each = var.enable_dns_failover ? var.failover_records : {}
 
-  zone_id        = var.hosted_zone_id
-  name           = each.value.name
-  type           = each.value.type
-  ttl            = 60
-  set_identifier = "${each.key}-secondary"
+  zone_id         = var.hosted_zone_id
+  name            = each.value.name
+  type            = each.value.type
+  ttl             = 60
+  set_identifier  = "${each.key}-secondary"
+  health_check_id = aws_route53_health_check.secondary[each.key].id
 
   failover_routing_policy {
     type = "SECONDARY"
