@@ -776,7 +776,7 @@ module "karpenter" {
 resource "aws_route53_health_check" "primary" {
   for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
 
-  fqdn              = each.value.name
+  ip_address        = each.value.primary_value
   port              = 443
   type              = "HTTPS"
   resource_path     = each.value.health_check_path
@@ -791,7 +791,7 @@ resource "aws_route53_health_check" "primary" {
 resource "aws_route53_health_check" "secondary" {
   for_each = var.enable_dns && var.enable_dns_failover ? var.failover_records : {}
 
-  fqdn              = each.value.name
+  ip_address        = each.value.secondary_value
   port              = 443
   type              = "HTTPS"
   resource_path     = each.value.health_check_path
