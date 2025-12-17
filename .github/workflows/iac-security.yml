@@ -11,7 +11,7 @@ jobs:
   tfsec:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Run tfsec
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
