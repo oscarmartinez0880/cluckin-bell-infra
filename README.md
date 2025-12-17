@@ -571,6 +571,27 @@ make outputs ENV=prod
 
 ---
 
+## Operations & Runbook
+
+For comprehensive operational procedures, including:
+- Complete environment overview (accounts, clusters, versions)
+- Repository variables and IAM OIDC trust configuration
+- Detailed Makefile usage with copy-paste examples
+- GitHub Actions workflow operations
+- Complete disaster recovery procedures
+- Validation, cut-over, and rollback steps
+
+**See the complete operational runbook**: [docs/Runbook.md](docs/Runbook.md)
+
+### Quick Links
+
+- **Makefile Operations**: [Runbook - Makefile Operations](docs/Runbook.md#makefile-operations)
+- **GitHub Actions**: [Runbook - GitHub Actions Operations](docs/Runbook.md#github-actions-operations)
+- **Disaster Recovery**: [Runbook - DR Procedures](docs/Runbook.md#disaster-recovery-procedures)
+- **Troubleshooting**: [Runbook - Troubleshooting](docs/Runbook.md#troubleshooting)
+
+---
+
 ## Disaster Recovery Playbook
 
 This playbook describes how to launch production infrastructure in an alternate region for disaster recovery.
