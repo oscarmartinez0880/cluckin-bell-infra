@@ -154,7 +154,7 @@ output "certificate_arns" {
   ) : {}
 }
 
-# Karpenter IAM Outputs
+# Karpenter Outputs
 output "karpenter_controller_role_arn" {
   description = "ARN of the Karpenter controller IAM role"
   value       = var.enable_karpenter ? module.karpenter[0].controller_role_arn : null
