@@ -415,8 +415,8 @@ test-ecr-help: ## Show ECR testing help
 ###############################################################################
 # Disaster Recovery targets
 ###############################################################################
-dr-provision-prod: ## Provision DR resources in prod (usage: make dr-provision-prod REGION=us-west-2)
-	@echo "Provisioning DR resources for production in region: $(REGION)"
+dr-enable-features-prod: ## Enable DR features (ECR/Secrets replication) for prod (usage: make dr-enable-features-prod REGION=us-west-2)
+	@echo "Enabling DR features for production in region: $(REGION)"
 	@if [ "$(REGION)" = "us-east-1" ]; then \
 		echo "ERROR: Cannot use primary region us-east-1 for DR"; \
 		exit 1; \
