@@ -598,9 +598,10 @@ module "cognito" {
   tags = local.common_tags
 }
 
-# GitHub OIDC Role for ECR Push
+# GitHub OIDC Role for ECR Push (legacy)
 # Disabled by default (var.enable_github_oidc = false)
 # NOTE: Requires var.enable_ecr=true as it references ECR repository ARNs
+# NOTE: This is kept for backward compatibility. New deployments should use github_oidc_roles module.
 module "github_oidc" {
   count  = var.enable_github_oidc && var.enable_ecr ? 1 : 0
   source = "../../modules/github-oidc"
@@ -635,6 +636,29 @@ module "github_oidc" {
       }
     ]
   })
+
+  tags = local.common_tags
+}
+
+# GitHub OIDC Roles for GitHub Actions (Terraform, eksctl, ECR push)
+# This module creates the OIDC provider and IAM roles for GitHub Actions workflows
+# Enabled by default (no feature flag)
+module "github_oidc_roles" {
+  source = "../../modules/github-oidc-roles"
+
+  terraform_role_name = "github-oidc-terraform-prod"
+  eksctl_role_name    = "github-oidc-eksctl-prod"
+  ecr_push_role_name  = "github-oidc-ecr-push-prod"
+
+  allowed_repos = [
+    "oscarmartinez0880/cluckin-bell-infra",
+    "oscarmartinez0880/cluckin-bell"
+  ]
+
+  # ECR repository ARNs for push role (if ECR is enabled)
+  ecr_repository_arns = var.enable_ecr ? [
+    for repo_arn in values(module.ecr[0].repository_arns) : repo_arn
+  ] : []
 
   tags = local.common_tags
 }

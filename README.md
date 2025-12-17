@@ -24,10 +24,24 @@ Configure these in repository Settings → Secrets and variables → Actions →
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `AWS_TERRAFORM_ROLE_ARN_QA` | Terraform role ARN for nonprod account | `arn:aws:iam::264765154707:role/...` |
-| `AWS_TERRAFORM_ROLE_ARN_PROD` | Terraform role ARN for prod account | `arn:aws:iam::346746763840:role/...` |
-| `AWS_EKSCTL_ROLE_ARN_QA` | eksctl role ARN for nonprod account | `arn:aws:iam::264765154707:role/...` |
-| `AWS_EKSCTL_ROLE_ARN_PROD` | eksctl role ARN for prod account | `arn:aws:iam::346746763840:role/...` |
+| `AWS_TERRAFORM_ROLE_ARN_NONPROD` | Terraform role ARN for nonprod account | `arn:aws:iam::264765154707:role/github-oidc-terraform-nonprod` |
+| `AWS_TERRAFORM_ROLE_ARN_PROD` | Terraform role ARN for prod account | `arn:aws:iam::346746763840:role/github-oidc-terraform-prod` |
+| `AWS_EKSCTL_ROLE_ARN_NONPROD` | eksctl role ARN for nonprod account | `arn:aws:iam::264765154707:role/github-oidc-eksctl-nonprod` |
+| `AWS_EKSCTL_ROLE_ARN_PROD` | eksctl role ARN for prod account | `arn:aws:iam::346746763840:role/github-oidc-eksctl-prod` |
+
+**Note:** These role ARNs are outputs from the Terraform `github-oidc-roles` module. After applying Terraform in each environment, retrieve these ARNs with:
+
+```bash
+# Get role ARNs for nonprod
+cd envs/nonprod
+terraform output github_oidc_roles_terraform_role_arn
+terraform output github_oidc_roles_eksctl_role_arn
+
+# Get role ARNs for prod
+cd envs/prod
+terraform output github_oidc_roles_terraform_role_arn
+terraform output github_oidc_roles_eksctl_role_arn
+```
 
 ### Available Workflows
 

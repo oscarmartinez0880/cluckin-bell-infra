@@ -195,3 +195,19 @@ output "dr_dns_failover_health_checks" {
   description = "Map of DNS failover health check IDs"
   value       = var.enable_dns && var.enable_dns_failover && length(var.failover_records) > 0 ? module.dns_failover[0].health_check_ids : {}
 }
+
+# GitHub OIDC Roles Outputs (for GitHub Actions)
+output "github_oidc_roles_terraform_role_arn" {
+  description = "ARN of the Terraform deployment role for GitHub Actions (use in repository variable AWS_TERRAFORM_ROLE_ARN_NONPROD)"
+  value       = module.github_oidc_roles.terraform_role_arn
+}
+
+output "github_oidc_roles_eksctl_role_arn" {
+  description = "ARN of the eksctl operations role for GitHub Actions (use in repository variable AWS_EKSCTL_ROLE_ARN_NONPROD)"
+  value       = module.github_oidc_roles.eksctl_role_arn
+}
+
+output "github_oidc_roles_ecr_push_role_arn" {
+  description = "ARN of the ECR push role for GitHub Actions (use in repository variable AWS_ECR_PUSH_ROLE_ARN_NONPROD)"
+  value       = module.github_oidc_roles.ecr_push_role_arn
+}
