@@ -40,14 +40,14 @@ jobs:
 
       - name: Configure AWS credentials (nonprod)
         if: inputs.environment == 'nonprod'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.AWS_EKSCTL_ROLE_ARN_NONPROD }}
           aws-region: ${{ inputs.region }}
 
       - name: Configure AWS credentials (prod)
         if: inputs.environment == 'prod'
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.AWS_EKSCTL_ROLE_ARN_PROD }}
           aws-region: ${{ inputs.region }}
