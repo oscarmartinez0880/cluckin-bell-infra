@@ -20,7 +20,7 @@ jobs:
       matrix:
         dir: [ 'terraform/accounts/devqa', 'terraform/accounts/prod' ]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Setup Terraform 1.13.1
         uses: hashicorp/setup-terraform@v3
