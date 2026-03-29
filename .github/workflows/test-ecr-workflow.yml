@@ -253,7 +253,7 @@ jobs:
 
       - name: Upload Test Report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ecr-test-report-${{ matrix.application }}-${{ matrix.environment }}
           path: ${{ steps.report.outputs.report_file }}
@@ -337,7 +337,7 @@ jobs:
           cat "$summary_file"
 
       - name: Upload Summary Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ecr-test-summary-${{ github.run_id }}
           path: ecr-test-summary-${{ github.run_id }}.md
